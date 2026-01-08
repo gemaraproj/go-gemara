@@ -1,6 +1,6 @@
 package oscal
 
-import "github.com/ossf/gemara"
+import "github.com/gemaraproj/go-gemara"
 
 type generateOpts struct {
 	version       string

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	GemaraNamespace = "https://github.com/ossf/gemara/ns/oscal"
+	GemaraNamespace = "https://github.com/gemaraproj/go-gemara/ns/oscal"
 	// DefaultOSCALVersion is the default version used for OSCAL metadata when no version is provided.
 	DefaultOSCALVersion = "0.0.0"
 )

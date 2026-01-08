@@ -3,8 +3,8 @@ package oscal
 import (
 	"os"
 
+	"github.com/gemaraproj/go-gemara"
 	"github.com/goccy/go-yaml"
-	"github.com/ossf/gemara"
 )
 
 func goodAIGFExample() (gemara.GuidanceDocument, error) {
@@ -196,9 +196,9 @@ func guidanceWithMultiLevelNested() gemara.GuidanceDocument {
 		},
 		Guidelines: []gemara.Guideline{
 			{
-				Id:       "AC-1",
-				Title:    "Base Control",
-				Family:   "AC",
+				Id:        "AC-1",
+				Title:     "Base Control",
+				Family:    "AC",
 				Objective: "Base control objective",
 			},
 			{

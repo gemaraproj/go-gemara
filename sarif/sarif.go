@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ossf/gemara"
+	"github.com/gemaraproj/go-gemara"
 )
 
 var emptyArtifactURIMessage = "no file associated with this alert"

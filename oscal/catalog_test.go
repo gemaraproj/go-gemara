@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	oscalTypes "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
-	"github.com/ossf/gemara"
+	"github.com/gemaraproj/go-gemara"
 	"github.com/stretchr/testify/assert"
 
-	oscalUtils "github.com/ossf/gemara/internal/oscal"
+	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
 )
 
 var testCases = []struct {

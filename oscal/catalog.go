@@ -6,7 +6,7 @@ import (
 
 	"github.com/defenseunicorns/go-oscal/src/pkg/uuid"
 	oscal "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
-	"github.com/ossf/gemara"
+	"github.com/gemaraproj/go-gemara"
 )
 
 // FromCatalog converts a Layer 2 Catalog to OSCAL Catalog format.

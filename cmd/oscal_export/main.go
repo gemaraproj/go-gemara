@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ossf/gemara/cmd/oscal_export/export"
+	"github.com/gemaraproj/go-gemara/cmd/oscal_export/export"
 )
 
 func main() {

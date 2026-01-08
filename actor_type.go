@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ossf/gemara/internal/loaders"
+	"github.com/gemaraproj/go-gemara/internal/loaders"
 )
 
 // ActorType specifies type of actor interacting in the workflow (human/software)
@@ -20,14 +20,14 @@ const (
 )
 
 var evaluatorTypeToString = map[ActorType]string{
-	Software:        "Software",
-	Human:           "Human",
+	Software:         "Software",
+	Human:            "Human",
 	SoftwareAssisted: "Software-Assisted",
 }
 
 var stringToEvaluatorType = map[string]ActorType{
-	"Software":         Software,
-	"Human":            Human,
+	"Software":          Software,
+	"Human":             Human,
 	"Software-Assisted": SoftwareAssisted,
 }
 

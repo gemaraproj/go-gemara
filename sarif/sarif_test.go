@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ossf/gemara"
+	"github.com/gemaraproj/go-gemara"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,7 +31,7 @@ func TestFromEvaluationLog(t *testing.T) {
 			catalog:     nil,
 			evaluationLog: makeEvaluationLog(gemara.Actor{
 				Name:    "gemara",
-				Uri:     "https://github.com/ossf/gemara",
+				Uri:     "https://github.com/gemaraproj/go-gemara",
 				Version: "1.0.0",
 			}, []*gemara.AssessmentLog{
 				makeAssessmentLog("REQ-1", "should do a thing", gemara.Failed, "thing was not done", nil),
@@ -46,7 +46,7 @@ func TestFromEvaluationLog(t *testing.T) {
 				"REQ-3": "note",
 			},
 			wantToolName: "gemara",
-			wantToolURI:  "https://github.com/ossf/gemara",
+			wantToolURI:  "https://github.com/gemaraproj/go-gemara",
 			wantToolVer:  "1.0.0",
 			checkLocation: func(t *testing.T, loc *Location) {
 				require.NotNil(t, loc.PhysicalLocation)
@@ -119,8 +119,10 @@ func TestFromEvaluationLog(t *testing.T) {
 					Result:         gemara.Failed,
 					Message:        "Test failed",
 					Recommendation: "Fix this issue by doing X",
-					Steps:          []gemara.AssessmentStep{func(interface{}) (gemara.Result, string, gemara.ConfidenceLevel) { return gemara.Failed, "", gemara.Low }},
-					StepsExecuted:  1,
+					Steps: []gemara.AssessmentStep{func(interface{}) (gemara.Result, string, gemara.ConfidenceLevel) {
+						return gemara.Failed, "", gemara.Low
+					}},
+					StepsExecuted: 1,
 				},
 			}),
 			wantRules:   1,
@@ -158,8 +160,10 @@ func TestFromEvaluationLog(t *testing.T) {
 					Result:         gemara.Failed,
 					Message:        "Test failed",
 					Recommendation: "Fix this issue by doing X",
-					Steps:          []gemara.AssessmentStep{func(interface{}) (gemara.Result, string, gemara.ConfidenceLevel) { return gemara.Failed, "", gemara.Low }},
-					StepsExecuted:  1,
+					Steps: []gemara.AssessmentStep{func(interface{}) (gemara.Result, string, gemara.ConfidenceLevel) {
+						return gemara.Failed, "", gemara.Low
+					}},
+					StepsExecuted: 1,
 				},
 			}),
 			wantRules:   1,
@@ -188,11 +192,13 @@ func TestFromEvaluationLog(t *testing.T) {
 				Version: "1.0.0",
 			}, []*gemara.AssessmentLog{
 				{
-					Requirement:   gemara.SingleMapping{EntryId: "REQ-1"},
-					Description:   "Test description",
-					Result:        gemara.Failed,
-					Message:       "Test failed",
-					Steps:         []gemara.AssessmentStep{func(interface{}) (gemara.Result, string, gemara.ConfidenceLevel) { return gemara.Failed, "", gemara.Low }},
+					Requirement: gemara.SingleMapping{EntryId: "REQ-1"},
+					Description: "Test description",
+					Result:      gemara.Failed,
+					Message:     "Test failed",
+					Steps: []gemara.AssessmentStep{func(interface{}) (gemara.Result, string, gemara.ConfidenceLevel) {
+						return gemara.Failed, "", gemara.Low
+					}},
 					StepsExecuted: 1,
 				},
 			}),

@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	oscalTypes "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
+	"github.com/gemaraproj/go-gemara"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/ossf/gemara"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	oscalUtils "github.com/ossf/gemara/internal/oscal"
+	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
 )
 
 func TestFromGuidance(t *testing.T) {

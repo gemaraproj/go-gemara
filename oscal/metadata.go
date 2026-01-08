@@ -6,8 +6,8 @@ import (
 
 	"github.com/defenseunicorns/go-oscal/src/pkg/uuid"
 	oscal "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
-	"github.com/ossf/gemara"
-	oscalUtils "github.com/ossf/gemara/internal/oscal"
+	"github.com/gemaraproj/go-gemara"
+	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
 )
 
 // createMetadata creates OSCAL metadata with common fields and optional author information

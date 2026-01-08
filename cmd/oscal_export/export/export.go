@@ -9,8 +9,8 @@ import (
 
 	oscalTypes "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
 
-	"github.com/ossf/gemara"
-	"github.com/ossf/gemara/oscal"
+	"github.com/gemaraproj/go-gemara"
+	"github.com/gemaraproj/go-gemara/oscal"
 )
 
 const (

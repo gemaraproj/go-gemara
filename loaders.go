@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/ossf/gemara/internal/loaders"
+	"github.com/gemaraproj/go-gemara/internal/loaders"
 )
 
 // LoadFile loads data from a YAML or JSON file at the provided path.
