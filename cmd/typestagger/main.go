@@ -16,7 +16,7 @@ import (
 func main() {
 	filename := os.Args[1]
 	if filename == "" {
-		fmt.Println("Usage: go run utils/types_tagger.go <filename>")
+		fmt.Println("Usage: go run cmd/typestagger/main.go <filename>")
 		return
 	}
 	src, err := os.ReadFile(filename)

@@ -1,4 +1,4 @@
-package sarif
+package gemaraconv
 
 import (
 	"encoding/json"
