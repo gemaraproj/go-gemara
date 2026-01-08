@@ -144,6 +144,12 @@ clean:
 	@echo " > Cleaning build artifacts"
 	@rm -rf $(BINDIR) $(COVERFILE) *.coverprofile
 
+oscalexport:
+	@echo "  >  Generating OSCAL testdata from Gemara artifacts..."
+	@mkdir -p artifacts
+	@go run ./cmd/oscalexport catalog ./test-data/good-osps.yml --output ./artifacts/catalog.json
+	@go run ./cmd/oscalexport guidance ./test-data/good-aigf.yaml --catalog-output ./artifacts/guidance.json --profile-output ./artifacts/profile.json
+
 help:
 	@echo "make targets:"
 	@echo "  all            - tidy -> fmtcheck -> vet -> lint -> testcov -> build"
@@ -159,6 +165,7 @@ help:
 	@echo "  generate       - runs 'make cuegen' at repo root (TODO: consider implementing locally)"
 	@echo "  ci-local       - run quick CI-like checks (fmtcheck vet lint generate testcov coverage-check)"
 	@echo "  clean          - remove build artifacts"
+	@echo "  oscalexport    - export to OSCAL from existing Gemara test artifacts"
 
 # TODOs / notes:
 # - Consider adding staticcheck or a separate 'staticcheck' target if desired.
