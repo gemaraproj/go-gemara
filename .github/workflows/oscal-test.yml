@@ -7,8 +7,8 @@ on:
     branches:
       - main
     paths:
-      - "oscal/**"
-      - "cmd/oscal_export/**"
+      - "gemaraconv/**"
+      - "cmd/oscalexport/**"
 
 jobs:
   OSCAL-Test:
