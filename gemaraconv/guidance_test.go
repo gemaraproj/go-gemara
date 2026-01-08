@@ -39,7 +39,10 @@ func TestFromGuidance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			catalog, profile, err := FromGuidance(&tt.guidance, tt.catalogHref)
+			catalog, err := GuidanceToOSCAL(&tt.guidance)
+			require.NoError(t, err)
+
+			profile, err := ToOSCALProfile(&tt.guidance, tt.catalogHref)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -288,7 +291,7 @@ func TestToCatalogFromGuidance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			catalog, _, err := FromGuidance(&tt.guidance, "test-catalog.json")
+			catalog, err := GuidanceToOSCAL(&tt.guidance)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -397,7 +400,7 @@ func TestProfileFromGuidanceDocument(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, profile, err := FromGuidance(&tt.guidance, "testHref", tt.options...)
+			profile, err := ToOSCALProfile(&tt.guidance, "testHref", tt.options...)
 			require.NoError(t, err)
 			oscalDocument := oscalTypes.OscalModels{
 				Profile: &profile,

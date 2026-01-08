@@ -104,7 +104,7 @@ var testCases = []struct {
 func TestFromCatalog(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			oscalCatalog, err := FromCatalog(tt.catalog, WithControlHref(tt.controlHREF))
+			oscalCatalog, err := CatalogToOSCAL(tt.catalog, WithControlHref(tt.controlHREF))
 
 			if (err == nil) == tt.wantErr {
 				t.Errorf("ToOSCAL() error = %v, wantErr %v", err, tt.wantErr)

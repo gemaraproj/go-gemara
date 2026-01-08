@@ -11,32 +11,23 @@ import (
 	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
 )
 
-// FromGuidance creates both an OSCAL Catalog and Profile from a Guidance Document.
+// GuidanceToOSCAL converts a Gemara GuidanceDocument to an OSCAL Catalog.
 // The catalog includes only the locally defined guidelines (categories), not imported ones.
-// The profile includes imports for both external guidelines and the local catalog.
-func FromGuidance(g *gemara.GuidanceDocument, guidanceDocHref string, opts ...GenerateOption) (oscal.Catalog, oscal.Profile, error) {
-	// The guidanceDocHref parameter specifies the location where the OSCAL Catalog
-	// will be saved, used to create the import reference in the Profile. This must
-	// be a relative or absolute URI that accurately reflects where the catalog
-	// file will be located relative to the profile.
-	if guidanceDocHref == "" {
-		return oscal.Catalog{}, oscal.Profile{}, fmt.Errorf("guidanceDocHref is required to create a valid Profile import reference")
-	}
+func GuidanceToOSCAL(g *gemara.GuidanceDocument, opts ...GenerateOption) (oscal.Catalog, error) {
 	options := generateOpts{}
 	for _, opt := range opts {
 		opt(&options)
 	}
 	options.completeFromGuidance(*g)
 
-	// Create catalog
 	// Return early for empty documents
 	if len(g.Families) == 0 {
-		return oscal.Catalog{}, oscal.Profile{}, fmt.Errorf("document %s does not have defined families", g.Metadata.Id)
+		return oscal.Catalog{}, fmt.Errorf("document %s does not have defined families", g.Metadata.Id)
 	}
 
 	catalogMetadata, err := createMetadataFromGuidance(g, options)
 	if err != nil {
-		return oscal.Catalog{}, oscal.Profile{}, fmt.Errorf("error creating catalog metadata: %w", err)
+		return oscal.Catalog{}, fmt.Errorf("error creating catalog metadata: %w", err)
 	}
 
 	// Create a resource map for control linking
@@ -77,9 +68,27 @@ func FromGuidance(g *gemara.GuidanceDocument, guidanceDocHref string, opts ...Ge
 		BackMatter: backmatter,
 	}
 
+	return catalog, nil
+}
+
+// ToOSCALProfile converts a Gemara GuidanceDocument to an OSCAL Profile.
+// The profile includes imports for both external guidelines and the local catalog.
+// The catalogHref parameter specifies the location where the OSCAL Catalog will be saved,
+// used to create the import reference in the Profile. This must be a relative or absolute
+// URI that accurately reflects where the catalog file will be located relative to the profile.
+func ToOSCALProfile(g *gemara.GuidanceDocument, catalogHref string, opts ...GenerateOption) (oscal.Profile, error) {
+	if catalogHref == "" {
+		return oscal.Profile{}, fmt.Errorf("catalogHref is required to create a valid Profile import reference")
+	}
+	options := generateOpts{}
+	for _, opt := range opts {
+		opt(&options)
+	}
+	options.completeFromGuidance(*g)
+
 	profileMetadata, err := createMetadataFromGuidance(g, options)
 	if err != nil {
-		return oscal.Catalog{}, oscal.Profile{}, fmt.Errorf("error creating profile metadata: %w", err)
+		return oscal.Profile{}, fmt.Errorf("error creating profile metadata: %w", err)
 	}
 
 	importMap := make(map[string]oscal.Import)
@@ -96,10 +105,9 @@ func FromGuidance(g *gemara.GuidanceDocument, guidanceDocHref string, opts ...Ge
 		}
 	}
 
-	// Add an import for each control defined locally in the Guidance Document
-	// The catalog is created by FromGuidance and referenced here.
+	// Add an import for the catalog created from the Guidance Document
 	localImport := oscal.Import{
-		Href:       guidanceDocHref,
+		Href:       catalogHref,
 		IncludeAll: &oscal.IncludeAll{},
 	}
 	imports = append(imports, localImport)
@@ -113,7 +121,7 @@ func FromGuidance(g *gemara.GuidanceDocument, guidanceDocHref string, opts ...Ge
 		Modify:   modify,
 	}
 
-	return catalog, profile, nil
+	return profile, nil
 }
 
 func createControlGroup(g *gemara.GuidanceDocument, family gemara.Family, guidelines []gemara.Guideline, resourcesMap map[string]string) oscal.Group {

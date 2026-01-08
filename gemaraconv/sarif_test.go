@@ -219,7 +219,7 @@ func TestFromEvaluationLog(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sarifBytes, err := FromEvaluationLog(tt.evaluationLog, tt.artifactURI, tt.catalog)
+			sarifBytes, err := ToSARIF(tt.evaluationLog, tt.artifactURI, tt.catalog)
 			require.NoError(t, err)
 
 			sarif := toSARIFReport(t, sarifBytes)
@@ -281,7 +281,7 @@ func TestToSARIF_ResultLevels(t *testing.T) {
 				makeAssessmentLog("REQ-1", "test", tt.result, "", nil),
 			})
 
-			sarifBytes, err := FromEvaluationLog(evaluationLog, "", nil)
+			sarifBytes, err := ToSARIF(evaluationLog, "", nil)
 			require.NoError(t, err)
 
 			sarif := toSARIFReport(t, sarifBytes)

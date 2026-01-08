@@ -9,7 +9,7 @@ import (
 
 var emptyArtifactURIMessage = "no file associated with this alert"
 
-// FromEvaluationLog converts the evaluation results into a SARIF document (v2.1.0).
+// ToSARIF converts a Gemara EvaluationLog to a SARIF document (v2.1.0).
 // Each AssessmentLog is emitted as a SARIF result. The rule id is derived from
 // the control id and requirement id.
 //
@@ -24,7 +24,7 @@ var emptyArtifactURIMessage = "no file associated with this alert"
 // PhysicalLocation identifies the artifact (file/repository) where the result was found.
 // LogicalLocation identifies the logical component (assessment step) that produced the result.
 // Region is left nil as we don't have file-specific line/column data.
-func FromEvaluationLog(evaluationLog gemara.EvaluationLog, artifactURI string, catalog *gemara.Catalog) ([]byte, error) {
+func ToSARIF(evaluationLog gemara.EvaluationLog, artifactURI string, catalog *gemara.Catalog) ([]byte, error) {
 	report := &SarifReport{
 		Schema:  "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/123e95847b13fbdd4cbe2120fa5e33355d4a042b/Schemata/sarif-schema-2.1.0.json",
 		Version: "2.1.0",
