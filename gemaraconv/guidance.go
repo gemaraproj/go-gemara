@@ -14,10 +14,6 @@ import (
 // GuidanceToOSCAL converts a Gemara GuidanceDocument to both an OSCAL Catalog and Profile.
 // The catalog includes only the locally defined guidelines (categories), not imported ones.
 // The profile includes imports for both external guidelines and the local catalog.
-// The guidanceDocHref parameter specifies the location where the OSCAL Catalog
-// will be saved, used to create the import reference in the Profile. This must
-// be a relative or absolute URI that accurately reflects where the catalog file
-// will be located relative to the profile.
 func GuidanceToOSCAL(g *gemara.GuidanceDocument, guidanceDocHref string, opts ...GenerateOption) (oscal.Catalog, oscal.Profile, error) {
 	// The guidanceDocHref parameter specifies the location where the OSCAL Catalog
 	// will be saved, used to create the import reference in the Profile. This must
@@ -119,7 +115,6 @@ func GuidanceToOSCAL(g *gemara.GuidanceDocument, guidanceDocHref string, opts ..
 
 	return catalog, profile, nil
 }
-
 
 func createControlGroup(g *gemara.GuidanceDocument, family gemara.Family, guidelines []gemara.Guideline, resourcesMap map[string]string) oscal.Group {
 	group := oscal.Group{
@@ -331,99 +326,6 @@ func guidelineToControl(g *gemara.GuidanceDocument, guideline gemara.Guideline, 
 	return control, oscalUtils.NormalizeControl(parentId, false)
 }
 
-
-// completeParts ensures that statement and assessment-objective parts always exist
-// as required by OSCAL, creating empty defaults if needed.
-func completeParts(parts []oscal.Part, controlId string) *[]oscal.Part {
-	var statementPart oscal.Part
-	var assessmentObjectivePart oscal.Part
-	var otherParts []oscal.Part
-
-	for _, part := range parts {
-		switch part.Name {
-		case "statement":
-			statementPart = part
-		case "assessment-objective":
-			assessmentObjectivePart = part
-		default:
-			otherParts = append(otherParts, part)
-		}
-	}
-
-	if statementPart.ID == "" {
-		statementPart = oscal.Part{
-			Name: "statement",
-			ID:   fmt.Sprintf("%s_smt", controlId),
-		}
-	}
-
-	if assessmentObjectivePart.ID == "" {
-		assessmentObjectivePart = oscal.Part{
-			Name: "assessment-objective",
-			ID:   fmt.Sprintf("%s_obj", controlId),
-		}
-	}
-
-	finalParts := []oscal.Part{statementPart, assessmentObjectivePart}
-	finalParts = append(finalParts, otherParts...)
-	return &finalParts
-}
-
-func mappingToLinks(mappings []gemara.MultiMapping, resourcesMap map[string]string) []oscal.Link {
-	links := make([]oscal.Link, 0, len(mappings))
-	for _, mapping := range mappings {
-		ref, found := resourcesMap[mapping.ReferenceId]
-		if !found {
-			continue
-		}
-		externalLink := oscal.Link{
-			Href: fmt.Sprintf("#%s", ref),
-			Rel:  "reference",
-		}
-		links = append(links, externalLink)
-	}
-	return links
-}
-
-func mappingToBackMatter(resourceRefs []gemara.MappingReference) *oscal.BackMatter {
-	var resources []oscal.Resource
-	for _, ref := range resourceRefs {
-		resource := oscal.Resource{
-			UUID:        uuid.NewUUID(),
-			Title:       ref.Title,
-			Description: ref.Description,
-			Props: &[]oscal.Property{
-				{
-					Name:  "id",
-					Value: ref.Id,
-					Ns:    oscalUtils.GemaraNamespace,
-				},
-			},
-			Rlinks: &[]oscal.ResourceLink{
-				{
-					Href: ref.Url,
-				},
-			},
-			Citation: &oscal.Citation{
-				Text: fmt.Sprintf(
-					"*%s*. %s",
-					ref.Title,
-					ref.Url),
-			},
-		}
-		resources = append(resources, resource)
-	}
-
-	if len(resources) == 0 {
-		return nil
-	}
-
-	backmatter := oscal.BackMatter{
-		Resources: &resources,
-	}
-	return &backmatter
-}
-
 // processAlteration creates or updates an alteration for a control and merges guideline parts into it.
 func processAlteration(alterationMap map[string]*oscal.Alteration, normalizedId string, guideline gemara.Guideline, frameworkPrefix string) {
 	alteration, exists := alterationMap[normalizedId]
@@ -536,4 +438,96 @@ func buildModifySection(alterationMap map[string]*oscal.Alteration) *oscal.Modif
 	return &oscal.Modify{
 		Alters: &alterations,
 	}
+}
+
+// completeParts ensures that statement and assessment-objective parts always exist
+// as required by OSCAL, creating empty defaults if needed.
+func completeParts(parts []oscal.Part, controlId string) *[]oscal.Part {
+	var statementPart oscal.Part
+	var assessmentObjectivePart oscal.Part
+	var otherParts []oscal.Part
+
+	for _, part := range parts {
+		switch part.Name {
+		case "statement":
+			statementPart = part
+		case "assessment-objective":
+			assessmentObjectivePart = part
+		default:
+			otherParts = append(otherParts, part)
+		}
+	}
+
+	if statementPart.ID == "" {
+		statementPart = oscal.Part{
+			Name: "statement",
+			ID:   fmt.Sprintf("%s_smt", controlId),
+		}
+	}
+
+	if assessmentObjectivePart.ID == "" {
+		assessmentObjectivePart = oscal.Part{
+			Name: "assessment-objective",
+			ID:   fmt.Sprintf("%s_obj", controlId),
+		}
+	}
+
+	finalParts := []oscal.Part{statementPart, assessmentObjectivePart}
+	finalParts = append(finalParts, otherParts...)
+	return &finalParts
+}
+
+func mappingToLinks(mappings []gemara.MultiMapping, resourcesMap map[string]string) []oscal.Link {
+	links := make([]oscal.Link, 0, len(mappings))
+	for _, mapping := range mappings {
+		ref, found := resourcesMap[mapping.ReferenceId]
+		if !found {
+			continue
+		}
+		externalLink := oscal.Link{
+			Href: fmt.Sprintf("#%s", ref),
+			Rel:  "reference",
+		}
+		links = append(links, externalLink)
+	}
+	return links
+}
+
+func mappingToBackMatter(resourceRefs []gemara.MappingReference) *oscal.BackMatter {
+	var resources []oscal.Resource
+	for _, ref := range resourceRefs {
+		resource := oscal.Resource{
+			UUID:        uuid.NewUUID(),
+			Title:       ref.Title,
+			Description: ref.Description,
+			Props: &[]oscal.Property{
+				{
+					Name:  "id",
+					Value: ref.Id,
+					Ns:    oscalUtils.GemaraNamespace,
+				},
+			},
+			Rlinks: &[]oscal.ResourceLink{
+				{
+					Href: ref.Url,
+				},
+			},
+			Citation: &oscal.Citation{
+				Text: fmt.Sprintf(
+					"*%s*. %s",
+					ref.Title,
+					ref.Url),
+			},
+		}
+		resources = append(resources, resource)
+	}
+
+	if len(resources) == 0 {
+		return nil
+	}
+
+	backmatter := oscal.BackMatter{
+		Resources: &resources,
+	}
+	return &backmatter
 }
