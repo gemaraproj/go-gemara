@@ -1,4 +1,4 @@
-package oscal
+package gemaraconv
 
 import (
 	"fmt"
@@ -11,14 +11,14 @@ import (
 	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
 )
 
-// FromGuidance creates both an OSCAL Catalog and Profile from a Guidance Document.
+// GuidanceToOSCAL converts a Gemara GuidanceDocument to both an OSCAL Catalog and Profile.
 // The catalog includes only the locally defined guidelines (categories), not imported ones.
 // The profile includes imports for both external guidelines and the local catalog.
-func FromGuidance(g *gemara.GuidanceDocument, guidanceDocHref string, opts ...GenerateOption) (oscal.Catalog, oscal.Profile, error) {
+func GuidanceToOSCAL(g *gemara.GuidanceDocument, guidanceDocHref string, opts ...GenerateOption) (oscal.Catalog, oscal.Profile, error) {
 	// The guidanceDocHref parameter specifies the location where the OSCAL Catalog
 	// will be saved, used to create the import reference in the Profile. This must
-	// be a relative or absolute URI that accurately reflects where the catalog
-	// file will be located relative to the profile.
+	// be a relative or absolute URI that accurately reflects where the catalog file
+	// will be located relative to the profile.
 	if guidanceDocHref == "" {
 		return oscal.Catalog{}, oscal.Profile{}, fmt.Errorf("guidanceDocHref is required to create a valid Profile import reference")
 	}
@@ -97,7 +97,7 @@ func FromGuidance(g *gemara.GuidanceDocument, guidanceDocHref string, opts ...Ge
 	}
 
 	// Add an import for each control defined locally in the Guidance Document
-	// The catalog is created by FromGuidance and referenced here.
+	// The catalog is created by GuidanceToOSCAL and referenced here.
 	localImport := oscal.Import{
 		Href:       guidanceDocHref,
 		IncludeAll: &oscal.IncludeAll{},

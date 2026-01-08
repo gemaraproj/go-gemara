@@ -10,7 +10,7 @@ import (
 	oscalTypes "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
 
 	"github.com/gemaraproj/go-gemara"
-	"github.com/gemaraproj/go-gemara/oscal"
+	"github.com/gemaraproj/go-gemara/gemaraconv"
 )
 
 const (
@@ -48,7 +48,7 @@ func Guidance(path string, args []string) error {
 	}
 	relativeCatalogPath = filepath.ToSlash(relativeCatalogPath)
 
-	catalog, profile, err := oscal.FromGuidance(&guidanceDocument, relativeCatalogPath)
+	catalog, profile, err := gemaraconv.GuidanceToOSCAL(&guidanceDocument, relativeCatalogPath)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func Catalog(path string, args []string) error {
 		return err
 	}
 
-	oscalCatalog, err := oscal.FromCatalog(catalog, oscal.WithControlHref(defaultControlHrefFormat))
+	oscalCatalog, err := gemaraconv.CatalogToOSCAL(catalog, gemaraconv.WithControlHref(defaultControlHrefFormat))
 	if err != nil {
 		return err
 	}

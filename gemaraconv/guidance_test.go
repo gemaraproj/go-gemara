@@ -1,19 +1,18 @@
-package oscal
+package gemaraconv
 
 import (
 	"testing"
 
 	oscalTypes "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
 	"github.com/gemaraproj/go-gemara"
+	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
 )
 
-func TestFromGuidance(t *testing.T) {
+func TestGuidanceToOSCAL(t *testing.T) {
 	goodAIFG, err := goodAIGFExample()
 	require.NoError(t, err)
 
@@ -39,7 +38,7 @@ func TestFromGuidance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			catalog, profile, err := FromGuidance(&tt.guidance, tt.catalogHref)
+			catalog, profile, err := GuidanceToOSCAL(&tt.guidance, tt.catalogHref)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -70,7 +69,7 @@ func TestFromGuidance(t *testing.T) {
 	}
 }
 
-func TestToCatalogFromGuidance(t *testing.T) {
+func TestGuidanceToOSCAL_Catalog(t *testing.T) {
 	goodAIFG, err := goodAIGFExample()
 	require.NoError(t, err)
 
@@ -288,7 +287,7 @@ func TestToCatalogFromGuidance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			catalog, _, err := FromGuidance(&tt.guidance, "test-catalog.json")
+			catalog, _, err := GuidanceToOSCAL(&tt.guidance, "test-catalog.json")
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -314,7 +313,7 @@ func TestToCatalogFromGuidance(t *testing.T) {
 	}
 }
 
-func TestProfileFromGuidanceDocument(t *testing.T) {
+func TestGuidanceToOSCAL_Profile(t *testing.T) {
 	goodAIFG, err := goodAIGFExample()
 	require.NoError(t, err)
 
@@ -397,7 +396,7 @@ func TestProfileFromGuidanceDocument(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, profile, err := FromGuidance(&tt.guidance, "testHref", tt.options...)
+			_, profile, err := GuidanceToOSCAL(&tt.guidance, "testHref", tt.options...)
 			require.NoError(t, err)
 			oscalDocument := oscalTypes.OscalModels{
 				Profile: &profile,

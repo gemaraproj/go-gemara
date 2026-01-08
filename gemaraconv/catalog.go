@@ -1,4 +1,4 @@
-package oscal
+package gemaraconv
 
 import (
 	"fmt"
@@ -9,18 +9,8 @@ import (
 	"github.com/gemaraproj/go-gemara"
 )
 
-// FromCatalog converts a Layer 2 Catalog to OSCAL Catalog format.
-// The function automatically:
-//   - Uses the catalog's internal version from Metadata.Version (or defaultVersion if empty)
-//   - Uses the Family.Id as the OSCAL group ID
-//   - Generates a unique UUID for the catalog
-//
-// Options:
-//   - WithControlHref: URL template for linking to controls. Uses format: controlHREF(version, controlID)
-//     Example: "https://baseline.openssf.org/versions/%s#%s"
-//   - WithVersion: Override the version (defaults to catalog.Metadata.Version or defaultVersion)
-//   - WithCanonicalHrefFormat: Alternative canonical HREF format (if WithControlHref not provided)
-func FromCatalog(catalog *gemara.Catalog, opts ...GenerateOption) (oscal.Catalog, error) {
+// CatalogToOSCAL converts a Gemara Catalog to OSCAL Catalog format.
+func CatalogToOSCAL(catalog *gemara.Catalog, opts ...GenerateOption) (oscal.Catalog, error) {
 	options := generateOpts{}
 	for _, opt := range opts {
 		opt(&options)
