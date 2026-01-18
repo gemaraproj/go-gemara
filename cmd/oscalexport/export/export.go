@@ -48,7 +48,7 @@ func Guidance(path string, args []string) error {
 	}
 	relativeCatalogPath = filepath.ToSlash(relativeCatalogPath)
 
-	catalog, profile, err := gemaraconv.GuidanceToOSCAL(&guidanceDocument, relativeCatalogPath)
+	catalog, profile, err := gemaraconv.GuidanceDocument(&guidanceDocument).ToOSCAL(relativeCatalogPath)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func Catalog(path string, args []string) error {
 		return err
 	}
 
-	oscalCatalog, err := gemaraconv.CatalogToOSCAL(catalog, gemaraconv.WithControlHref(defaultControlHrefFormat))
+	oscalCatalog, err := gemaraconv.Catalog(catalog).ToOSCAL(gemaraconv.WithControlHref(defaultControlHrefFormat))
 	if err != nil {
 		return err
 	}

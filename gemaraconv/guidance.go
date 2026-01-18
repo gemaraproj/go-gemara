@@ -26,7 +26,7 @@ func GuidanceToOSCAL(g *gemara.GuidanceDocument, guidanceDocHref string, opts ..
 	for _, opt := range opts {
 		opt(&options)
 	}
-	options.completeFromGuidance(*g)
+	options.completeFromGuidance(g)
 
 	// Create catalog
 	// Return early for empty documents
