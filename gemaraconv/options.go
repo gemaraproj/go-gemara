@@ -9,7 +9,7 @@ type generateOpts struct {
 	controlHREF   string
 }
 
-func (g *generateOpts) completeFromGuidance(doc gemara.GuidanceDocument) {
+func (g *generateOpts) completeFromGuidance(doc *gemara.GuidanceDocument) {
 	if g.version == "" {
 		g.version = doc.Metadata.Version
 	}
