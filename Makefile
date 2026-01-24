@@ -1,12 +1,11 @@
 # Makefile for go-gemara
 # Purpose: provide convenient local targets for building, testing and basic CI parity.
-# NOTE: Some tasks (CUE generation, repo-level tidy) are delegated to the repo root. See TODOs.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 PKGS := ./...
 BINDIR := ./bin
 # Binaries to build (paths to cmd packages)
-BINS := ./cmd/oscal_export ./cmd/types_tagger
+BINS := ./cmd/oscalexport ./cmd/typestagger
 GOFLAGS :=
 COVERFILE := coverage.out
 TESTCOVERAGE_THRESHOLD := 71
@@ -38,6 +37,8 @@ vet:
 	@sh -c '\
 	if [ -d "$(REPO_ROOT)/go-gemara" ]; then \
 	  cd $(REPO_ROOT)/go-gemara && go list ./... >/dev/null 2>&1 && go vet ./... || echo "Skipping vet: no module in go-gemara"; \
+	elif [ -f "$(REPO_ROOT)/go.mod" ]; then \
+	  cd $(REPO_ROOT) && go list ./... >/dev/null 2>&1 && go vet ./... || echo "Skipping vet: module not available"; \
 	else \
 	  cd $(REPO_ROOT) && go list ./go-gemara/... >/dev/null 2>&1 && go vet ./go-gemara/... || echo "Skipping vet: package not available"; \
 	fi'
@@ -50,6 +51,8 @@ lint:
 	@sh -c '\
 	if [ -d "$(REPO_ROOT)/go-gemara" ]; then \
 	  cd $(REPO_ROOT)/go-gemara && go list ./... >/dev/null 2>&1 && $(GOLANGCI_LINT) run ./... || echo "Skipping lint: no module in go-gemara"; \
+	elif [ -f "$(REPO_ROOT)/go.mod" ]; then \
+	  cd $(REPO_ROOT) && go list ./... >/dev/null 2>&1 && $(GOLANGCI_LINT) run ./... || echo "Skipping lint: module not available"; \
 	else \
 	  cd $(REPO_ROOT) && go list ./go-gemara/... >/dev/null 2>&1 && $(GOLANGCI_LINT) run ./go-gemara/... || echo "Skipping lint: package not available"; \
 	fi'
@@ -63,6 +66,8 @@ test:
 	@sh -c '\
 	if [ -d "$(REPO_ROOT)/go-gemara" ]; then \
 	  cd $(REPO_ROOT)/go-gemara && go list ./... >/dev/null 2>&1 && go test $(GOFLAGS) ./... || echo "Skipping tests: no module in go-gemara"; \
+	elif [ -f "$(REPO_ROOT)/go.mod" ]; then \
+	  cd $(REPO_ROOT) && go list ./... >/dev/null 2>&1 && go test $(GOFLAGS) ./... || echo "Skipping tests: module not available"; \
 	else \
 	  cd $(REPO_ROOT) && go list ./go-gemara/... >/dev/null 2>&1 && go test $(GOFLAGS) ./go-gemara/... || echo "Skipping tests: package not available"; \
 	fi'
@@ -76,6 +81,8 @@ testcov:
 	@sh -c '\
 	if [ -d "$(REPO_ROOT)/go-gemara" ]; then \
 	  cd $(REPO_ROOT)/go-gemara && go list ./... >/dev/null 2>&1 && go test $(GOFLAGS) ./... -coverprofile=$(abspath $(COVERFILE)) -covermode=count || echo "Skipping testcov: no module in go-gemara"; \
+	elif [ -f "$(REPO_ROOT)/go.mod" ]; then \
+	  cd $(REPO_ROOT) && go list ./... >/dev/null 2>&1 && go test $(GOFLAGS) ./... -coverprofile=$(abspath $(COVERFILE)) -covermode=count || echo "Skipping testcov: module not available"; \
 	else \
 	  cd $(REPO_ROOT) && go list ./go-gemara/... >/dev/null 2>&1 && go test $(GOFLAGS) ./go-gemara/... -coverprofile=$(abspath $(COVERFILE)) -covermode=count || echo "Skipping testcov: package not available"; \
 	fi'
@@ -89,6 +96,8 @@ race:
 	@sh -c '\
 	if [ -d "$(REPO_ROOT)/go-gemara" ]; then \
 	  cd $(REPO_ROOT)/go-gemara && go list ./... >/dev/null 2>&1 && go test -race ./... || echo "Skipping race: no module in go-gemara"; \
+	elif [ -f "$(REPO_ROOT)/go.mod" ]; then \
+	  cd $(REPO_ROOT) && go list ./... >/dev/null 2>&1 && go test -race ./... || echo "Skipping race: module not available"; \
 	else \
 	  cd $(REPO_ROOT) && go list ./go-gemara/... >/dev/null 2>&1 && go test -race ./go-gemara/... || echo "Skipping race: package not available"; \
 	fi'
@@ -137,14 +146,14 @@ generate:
 	@echo "If you need generated artifacts, run 'cd $(REPO_ROOT) && make cuegen' at the repo root."
 
 # Runs the small subset used by CI for a quick local check
-ci-local: fmtcheck vet lint generate testcov coverage-check
+ci-local: fmtcheck vet lint testcov coverage-check
 	@echo "CI-local checks complete"
 
 clean:
 	@echo " > Cleaning build artifacts"
 	@rm -rf $(BINDIR) $(COVERFILE) *.coverprofile
 
-oscalexport:
+oscal-export:
 	@echo "  >  Generating OSCAL testdata from Gemara artifacts..."
 	@mkdir -p artifacts
 	@go run ./cmd/oscalexport catalog ./test-data/good-osps.yml --output ./artifacts/catalog.json
@@ -162,10 +171,10 @@ help:
 	@echo "  testcov        - go test -coverprofile=$(COVERFILE)"
 	@echo "  coverage-check - ensure coverage >= $(TESTCOVERAGE_THRESHOLD)%"
 	@echo "  build          - build binaries listed in BINS -> $(BINDIR)"
-	@echo "  generate       - runs 'make cuegen' at repo root (TODO: consider implementing locally)"
-	@echo "  ci-local       - run quick CI-like checks (fmtcheck vet lint generate testcov coverage-check)"
+	@echo "  generate       - placeholder (runs 'make cuegen' at repo root if needed)"
+	@echo "  ci-local       - run quick CI-like checks (fmtcheck vet lint testcov coverage-check)"
 	@echo "  clean          - remove build artifacts"
-	@echo "  oscalexport    - export to OSCAL from existing Gemara test artifacts"
+	@echo "  oscal-export    - export to OSCAL from existing Gemara test artifacts"
 
 # TODOs / notes:
 # - Consider adding staticcheck or a separate 'staticcheck' target if desired.

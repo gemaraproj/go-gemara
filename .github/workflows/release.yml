@@ -1,0 +1,38 @@
+---
+name: "Release"
+on:
+  workflow_dispatch:
+jobs:
+  release:
+    permissions:
+      contents: write
+      pull-requests: read
+    uses: github/ospo-reusable-workflows/.github/workflows/release.yaml@3b691dff6b68489c8548e1295d125c93c9c29a4e
+    with:
+      publish: true
+      release-config-name: release-drafter.yml
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+  goreleaser:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.23.4
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
