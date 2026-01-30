@@ -139,7 +139,7 @@ install:
 # Generates Go types from the Gemara CUE package with stable and experimental variants
 generate:
 	@echo " > Generating types from Gemara CUE package"
-	@cue def github.com/gemaraproj/gemara@v0.19.1 --outfile schema.cue
+	@cue def github.com/gemaraproj/gemara@$(SPECVERSION) --outfile schema.cue
 
     # Required after using CUE Def to find the properly defined control types
 	@sed -i 's/let control_9 = control/let control_9 = #ControlEvaluation.control/' schema.cue
@@ -183,7 +183,6 @@ help:
 
 # TODOs / notes:
 # - Consider adding staticcheck or a separate 'staticcheck' target if desired.
-# - The 'generate' target delegates to repo-level 'make cuegen'. If you prefer local generation without touching the repo root, implement the steps here and ensure they produce the same outputs.
 # - golangci-lint must be installed locally for 'lint' to succeed; CI uses the golangci-lint GitHub Action.
 # - Coverage parsing uses 'awk' and should work on macOS; if you have a different shell environment, adjust accordingly.
 # - If you want to add a 'vet' or 'lint' subset, add variables to configure packages.
