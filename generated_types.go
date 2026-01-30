@@ -2,186 +2,43 @@
 
 package gemara
 
-type Catalog struct {
-	Metadata Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-
-	Title string `json:"title" yaml:"title"`
-
-	Families []Family `json:"families,omitempty" yaml:"families,omitempty"`
-
-	Controls []Control `json:"controls,omitempty" yaml:"controls,omitempty"`
-
-	Threats []Threat `json:"threats,omitempty" yaml:"threats,omitempty"`
-
-	Capabilities []Capability `json:"capabilities,omitempty" yaml:"capabilities,omitempty"`
-
-	ImportedControls []MultiMapping `json:"imported-controls,omitempty" yaml:"imported-controls,omitempty"`
-
-	ImportedThreats []MultiMapping `json:"imported-threats,omitempty" yaml:"imported-threats,omitempty"`
-
-	ImportedCapabilities []MultiMapping `json:"imported-capabilities,omitempty" yaml:"imported-capabilities,omitempty"`
-}
-
-// Metadata represents common metadata fields shared across all layers
-type Metadata struct {
-	Id string `json:"id" yaml:"id"`
-
-	Version string `json:"version,omitempty" yaml:"version,omitempty"`
-
-	Date Date `json:"date,omitempty" yaml:"date,omitempty"`
-
-	Description string `json:"description" yaml:"description"`
-
-	Author Actor `json:"author" yaml:"author"`
-
-	MappingReferences []MappingReference `json:"mapping-references,omitempty" yaml:"mapping-references,omitempty"`
-
-	ApplicabilityCategories []Category `json:"applicability-categories,omitempty" yaml:"applicability-categories,omitempty"`
-
-	Draft bool `json:"draft,omitempty" yaml:"draft,omitempty"`
-
-	Lexicon string `json:"lexicon,omitempty" yaml:"lexicon,omitempty"`
-}
-
-// Date represents a date string (ISO 8601 date format)
-type Date string
-
-// Actor represents an entity (human or tool) that can perform actions in evaluations.
-type Actor struct {
-	// Id uniquely identifies the actor.
-	Id string `json:"id" yaml:"id"`
-
-	// Name provides the name of the actor.
-	Name string `json:"name" yaml:"name"`
-
-	// Type specifies the type of entity interacting in the workflow.
-	Type ActorType `json:"type" yaml:"type"`
-
-	// Version specifies the version of the actor (if applicable, e.g., for tools).
-	Version string `json:"version,omitempty" yaml:"version,omitempty"`
-
-	// Description provides additional context about the actor.
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-
-	// Uri provides a general URI for the actor information.
-	Uri string `json:"uri,omitempty" yaml:"uri,omitempty"`
-
-	// Contact provides contact information for the actor.
-	Contact Contact `json:"contact,omitempty" yaml:"contact,omitempty"`
-}
-
-// Contact represents contact information used across multiple layers
+// Contact is the contact information for a person or group
 type Contact struct {
-	// The contact person's name.
+	// name is the preferred descriptor for the contact entity
 	Name string `json:"name" yaml:"name"`
 
-	// The entity with which the contact is affiliated, such as a school or employer.
+	// affiliation is the organization with which the contact entity is associated, such as a team, school, or employer
 	Affiliation *string `json:"affiliation,omitempty" yaml:"affiliation,omitempty"`
 
-	// A preferred email address to reach the contact.
+	// email is the preferred email address to reach the contact
 	Email *Email `json:"email,omitempty" yaml:"email,omitempty"`
 
-	// A social media handle or profile for the contact.
+	// social is a social media handle or other profile for the contact, such as GitHub
 	Social *string `json:"social,omitempty" yaml:"social,omitempty"`
 }
 
-// MappingReference represents a reference to an external document with full metadata.
-type MappingReference struct {
+// Actor represents an entity (human or tool) that can perform actions in evaluations
+type Actor struct {
+	// id uniquely identifies the actor and allows this entry to be referenced by other elements
 	Id string `json:"id" yaml:"id"`
 
-	Title string `json:"title" yaml:"title"`
+	// name is the name of the actor
+	Name string `json:"name" yaml:"name"`
 
-	Version string `json:"version" yaml:"version"`
+	// type specifies the type of entity interacting in the workflow
+	Type ActorType `json:"type" yaml:"type"`
 
+	// version is the version of the actor (for tools; if applicable)
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
+
+	// description provides additional context about the actor
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 
-	Url string `json:"url,omitempty" yaml:"url,omitempty"`
-}
+	// uri is a general URI for the actor information
+	Uri string `json:"uri,omitempty" yaml:"uri,omitempty"`
 
-// Category represents a category used for applicability or classification
-type Category struct {
-	Id string `json:"id" yaml:"id"`
-
-	Title string `json:"title" yaml:"title"`
-
-	Description string `json:"description" yaml:"description"`
-}
-
-// Family represents a logical grouping of guidelines or controls which share a common purpose or function
-type Family struct {
-	Id string `json:"id" yaml:"id"`
-
-	Title string `json:"title" yaml:"title"`
-
-	Description string `json:"description" yaml:"description"`
-}
-
-type Control struct {
-	Id string `json:"id" yaml:"id"`
-
-	Title string `json:"title" yaml:"title"`
-
-	Objective string `json:"objective" yaml:"objective"`
-
-	// Family id that this control belongs to
-	Family string `json:"family" yaml:"family"`
-
-	AssessmentRequirements []AssessmentRequirement `json:"assessment-requirements" yaml:"assessment-requirements"`
-
-	GuidelineMappings []MultiMapping `json:"guideline-mappings,omitempty" yaml:"guideline-mappings,omitempty"`
-
-	ThreatMappings []MultiMapping `json:"threat-mappings,omitempty" yaml:"threat-mappings,omitempty"`
-}
-
-type AssessmentRequirement struct {
-	Id string `json:"id" yaml:"id"`
-
-	Text string `json:"text" yaml:"text"`
-
-	Applicability []string `json:"applicability" yaml:"applicability"`
-
-	Recommendation string `json:"recommendation,omitempty" yaml:"recommendation,omitempty"`
-}
-
-// MultiMapping represents a mapping to an external reference with one or more entries.
-type MultiMapping struct {
-	// ReferenceId should reference the corresponding MappingReference id from metadata
-	ReferenceId string `json:"reference-id" yaml:"reference-id"`
-
-	Entries []MappingEntry `json:"entries" yaml:"entries"`
-
-	Remarks string `json:"remarks,omitempty" yaml:"remarks,omitempty"`
-}
-
-// MappingEntry represents a single entry within a mapping
-type MappingEntry struct {
-	ReferenceId string `json:"reference-id" yaml:"reference-id"`
-
-	// Strength quantifies the degree of correlation or relationship between the mapped items.
-	// Range: 1-10. Zero value means not yet quantified.
-	Strength int64 `json:"strength,omitempty" yaml:"strength,omitempty"`
-
-	Remarks string `json:"remarks,omitempty" yaml:"remarks,omitempty"`
-}
-
-type Threat struct {
-	Id string `json:"id" yaml:"id"`
-
-	Title string `json:"title" yaml:"title"`
-
-	Description string `json:"description" yaml:"description"`
-
-	Capabilities []MultiMapping `json:"capabilities" yaml:"capabilities"`
-
-	ExternalMappings []MultiMapping `json:"external-mappings,omitempty" yaml:"external-mappings,omitempty"`
-}
-
-type Capability struct {
-	Id string `json:"id" yaml:"id"`
-
-	Title string `json:"title" yaml:"title"`
-
-	Description string `json:"description" yaml:"description"`
+	// contact is contact information for the actor
+	Contact Contact `json:"contact,omitempty" yaml:"contact,omitempty"`
 }
 
 // Email represents a validated email address pattern
@@ -190,160 +47,345 @@ type Email string
 // Datetime represents an ISO 8601 formatted datetime string
 type Datetime string
 
-// EvaluationLog contains the results of evaluating a set of Layer 2 controls.
-type EvaluationLog struct {
-	Evaluations []*ControlEvaluation `json:"evaluations" yaml:"evaluations"`
+// Date represents a date string (ISO 8601 date format)
+type Date string
 
-	Metadata Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-}
+// Category represents a category used for applicability or classification
+type Category struct {
+	// id allows this entry to be referenced by other elements
+	Id string `json:"id" yaml:"id"`
 
-// ControlEvaluation contains the results of evaluating a single Layer 4 control.
-type ControlEvaluation struct {
-	Name string `json:"name" yaml:"name"`
-
-	Result Result `json:"result" yaml:"result"`
-
-	Message string `json:"message" yaml:"message"`
-
-	Control SingleMapping `json:"control" yaml:"control"`
-
-	// Enforce that control reference and the assessments' references match
-	// This formulation uses the control's reference if the assessment doesn't include a reference
-	AssessmentLogs []*AssessmentLog `json:"assessment-logs" yaml:"assessment-logs"`
-}
-
-// SingleMapping represents how a specific entry (control/requirement/procedure) maps to a MappingReference.
-type SingleMapping struct {
-	// ReferenceId should reference the corresponding MappingReference id from metadata
-	ReferenceId string `json:"reference-id,omitempty" yaml:"reference-id,omitempty"`
-
-	EntryId string `json:"entry-id" yaml:"entry-id"`
-
-	Remarks string `json:"remarks,omitempty" yaml:"remarks,omitempty"`
-}
-
-// AssessmentLog contains the results of executing a single assessment procedure for a control requirement.
-type AssessmentLog struct {
-	// Requirement should map to the assessment requirement for this assessment.
-	Requirement SingleMapping `json:"requirement" yaml:"requirement"`
-
-	// Plan maps to the policy assessment plan being executed.
-	Plan *SingleMapping `json:"plan,omitempty" yaml:"plan,omitempty"`
-
-	// Description provides a summary of the assessment procedure.
-	Description string `json:"description" yaml:"description"`
-
-	// Result is the overall outcome of the assessment procedure, matching the result of the last step that was run.
-	Result Result `json:"result" yaml:"result"`
-
-	// Message provides additional context about the assessment result.
-	Message string `json:"message" yaml:"message"`
-
-	// Applicability is elevated from the Layer 2 Assessment Requirement to aid in execution and reporting.
-	Applicability []string `json:"applicability" yaml:"applicability"`
-
-	// Steps are sequential actions taken as part of the assessment, which may halt the assessment if a failure occurs.
-	Steps []AssessmentStep `json:"steps" yaml:"steps"`
-
-	// Steps-executed is the number of steps that were executed as part of the assessment.
-	StepsExecuted int64 `json:"steps-executed,omitempty" yaml:"steps-executed,omitempty"`
-
-	// Start is the timestamp when the assessment began.
-	Start Datetime `json:"start" yaml:"start"`
-
-	// End is the timestamp when the assessment concluded.
-	End Datetime `json:"end,omitempty" yaml:"end,omitempty"`
-
-	// Recommendation provides guidance on how to address a failed assessment.
-	Recommendation string `json:"recommendation,omitempty" yaml:"recommendation,omitempty"`
-
-	// ConfidenceLevel indicates the evaluator's confidence level in this specific assessment result.
-	ConfidenceLevel ConfidenceLevel `json:"confidence-level,omitempty" yaml:"confidence-level,omitempty"`
-}
-
-type GuidanceDocument struct {
+	// title describes the purpose of this category at a glance
 	Title string `json:"title" yaml:"title"`
 
+	// description explains the significance and traits of entries to this category
+	Description string `json:"description" yaml:"description"`
+}
+
+// GuidanceCatalog represents a concerted documentation effort to help bring about an optimal future without foreknowledge of the implementation details
+type GuidanceCatalog struct {
+	// title describes the contents of this catalog at a glance
+	Title string `json:"title" yaml:"title"`
+
+	// metadata provides detailed data about this catalog
 	Metadata Metadata `json:"metadata" yaml:"metadata"`
 
-	DocumentType DocumentType `json:"document-type" yaml:"document-type"`
+	// type categorizes this document based on the intent of its contents
+	GuidanceType GuidanceType `json:"type" yaml:"type"`
 
-	// Introductory text for the document to be used during rendering
+	// front-matter provides introductory text for the document to be used during rendering
 	FrontMatter string `json:"front-matter,omitempty" yaml:"front-matter,omitempty"`
 
+	// families contains a list of guidance families that can be referenced by guidance
 	Families []Family `json:"families,omitempty" yaml:"families,omitempty"`
 
+	// guidelines is a list of unique guidelines defined by this catalog
 	Guidelines []Guideline `json:"guidelines,omitempty" yaml:"guidelines,omitempty"`
 
+	// exemptions provides information about situations where this guidance is not applicable
 	Exemptions []Exemption `json:"exemptions,omitempty" yaml:"exemptions,omitempty"`
 }
 
-type DocumentType string
-
-// Guideline represents a single guideline within a guidance document
-type Guideline struct {
+// Metadata represents common metadata fields shared across all layers
+type Metadata struct {
+	// id allows this entry to be referenced by other elements
 	Id string `json:"id" yaml:"id"`
 
+	// version is the version identifier of this artifact
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
+
+	// date is the publication or effective date of this artifact
+	Date Date `json:"date,omitempty" yaml:"date,omitempty"`
+
+	// description provides a high-level summary of the artifact's purpose and scope
+	Description string `json:"description" yaml:"description"`
+
+	// author is the person or group primarily responsible for this artifact
+	Author Actor `json:"author" yaml:"author"`
+
+	// mapping-references is a list of external documents referenced within this artifact
+	MappingReferences []MappingReference `json:"mapping-references,omitempty" yaml:"mapping-references,omitempty"`
+
+	// applicability-categories is a list of categories used to classify within this artifact to specify scope
+	ApplicabilityCategories []Category `json:"applicability-categories,omitempty" yaml:"applicability-categories,omitempty"`
+
+	// draft indicates whether this artifact is a pre-release version; open to modification
+	Draft bool `json:"draft,omitempty" yaml:"draft,omitempty"`
+
+	// lexicon is a URI pointing to a controlled vocabulary or glossary relevant to this artifact
+	Lexicon *ArtifactMapping `json:"lexicon,omitempty" yaml:"lexicon,omitempty"`
+}
+
+// MappingReference represents a reference to an external document with full metadata.
+type MappingReference struct {
+	// id allows this entry to be referenced by other elements
+	Id string `json:"id" yaml:"id"`
+
+	// title describes the purpose of this mapping reference at a glance
 	Title string `json:"title" yaml:"title"`
 
-	Objective string `json:"objective,omitempty" yaml:"objective,omitempty"`
+	// version is the version identifier of the artifact being mapped to
+	Version string `json:"version" yaml:"version"`
 
-	// Family id that this guideline belongs to
+	// description is prose regarding the artifact's purpose or content
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+
+	// url is the path where the artifact may be retrieved; preferrably responds with Gemara-compatible YAML/JSON
+	Url string `json:"url,omitempty" yaml:"url,omitempty"`
+}
+
+type ArtifactMapping struct {
+	// ReferenceId should reference the corresponding MappingReference id from metadata
+	ReferenceId string `json:"reference-id" yaml:"reference-id"`
+
+	// remarks is prose regarding the mapped artifact or the mapping relationship
+	Remarks string `json:"remarks" yaml:"remarks"`
+}
+
+// GuidanceType restricts the possible types that a catalog may be listed as
+type GuidanceType string
+
+// Family represents a logical grouping of guidelines or controls which share a common purpose or function
+type Family struct {
+	// id allows this entry to be referenced by other elements
+	Id string `json:"id" yaml:"id"`
+
+	// title describes the purpose of this family at a glance
+	Title string `json:"title" yaml:"title"`
+
+	// description explains the significance and traits of entries to this entity family
+	Description string `json:"description" yaml:"description"`
+}
+
+// Guideline provides explanatory context and recommendations for designing optimal outcomes
+type Guideline struct {
+	// id allows this entry to be referenced by other elements
+	Id string `json:"id" yaml:"id"`
+
+	// title describes the contents of this guideline
+	Title string `json:"title" yaml:"title"`
+
+	// objective is a unified statement of intent, which may encompass multiple situationally applicable statements
+	Objective string `json:"objective" yaml:"objective"`
+
+	// family provides an id to the family that this guideline belongs to
 	Family string `json:"family" yaml:"family"`
 
-	// Maps to fields commonly seen in controls with implementation guidance
+	// recommendations is a list of non-binding suggestions to aid in evaluation or enforcement of the guideline
 	Recommendations []string `json:"recommendations,omitempty" yaml:"recommendations,omitempty"`
 
-	// Extends allows you to add supplemental guidance within a local guidance document
-	// like a control enhancement or from an imported guidance document.
-	Extends *SingleMapping `json:"extends,omitempty" yaml:"extends,omitempty"`
+	// extends is an id for a guideline which this guideline adds to, in this document or elsewhere
+	Extends *EntryMapping `json:"extends,omitempty" yaml:"extends,omitempty"`
 
-	// Applicability specifies the contexts in which this guideline applies.
+	// applicability specifies the contexts in which this guideline applies
 	Applicability []string `json:"applicability,omitempty" yaml:"applicability,omitempty"`
 
+	// rationale provides the context for this guideline
 	Rationale *Rationale `json:"rationale,omitempty" yaml:"rationale,omitempty"`
 
+	// statements is a list of structural sub-requirements within a guideline
 	Statements []Statement `json:"statements,omitempty" yaml:"statements,omitempty"`
 
-	GuidelineMappings []MultiMapping `json:"guideline-mappings,omitempty" yaml:"guideline-mappings,omitempty"`
+	// guideline-mappings documents the relationship between this guideline and external guidelines
+	GuidelineMappings []MultiEntryMapping `json:"guideline-mappings,omitempty" yaml:"guideline-mappings,omitempty"`
 
-	// A list for associated key principle ids
-	PrincipleMappings []MultiMapping `json:"principle-mappings,omitempty" yaml:"principle-mappings,omitempty"`
+	// principle-mappings documents the relationship between this guideline and one or more principles
+	PrincipleMappings []MultiEntryMapping `json:"principle-mappings,omitempty" yaml:"principle-mappings,omitempty"`
 
-	// SeeAlso lists related guideline IDs within the same Guidance document.
+	// vector-mappings documents the relationship between this guideline and one or more vectors
+	VectorMappings []MultiEntryMapping `json:"vector-mappings,omitempty" yaml:"vector-mappings,omitempty"`
+
+	// see-also lists related guideline IDs within the same GuidanceCatalog
 	SeeAlso []string `json:"see-also,omitempty" yaml:"see-also,omitempty"`
 }
 
-// Rationale provides contextual information to help with development and understanding of
-// guideline intent.
+// EntryMapping represents how a specific entry (control/requirement/procedure) maps to a MappingReference.
+type EntryMapping struct {
+	// reference-id is the id for a MappingReference entry in the artifact's metadata
+	ReferenceId string `json:"reference-id,omitempty" yaml:"reference-id,omitempty"`
+
+	// entry-id is the identifier being mapped to in the referenced artifact
+	EntryId string `json:"entry-id" yaml:"entry-id"`
+
+	// strength is the author's estimate of how completely the current/source material satisfies the target/reference material;
+	// Range: 1-10. Zero value means not yet quantified.
+	Strength int64 `json:"strength,omitempty" yaml:"strength,omitempty"`
+
+	// remarks is prose describing the mapping relationship
+	Remarks string `json:"remarks,omitempty" yaml:"remarks,omitempty"`
+}
+
+// Rationale provides a structured way to communicate a guideline author's intent
 type Rationale struct {
+	// importance is an explanation of why this guideline matters
 	Importance string `json:"importance" yaml:"importance"`
 
+	// goals is a list of outcomes this guideline seeks to achieve
 	Goals []string `json:"goals" yaml:"goals"`
 }
 
-// Statement represents a structural sub-requirement within a guideline
-// They do not increase strictness and all statements within a guideline apply together.
+// Statement represents a structural sub-requirement within a guideline;
+// They do not increase strictness and all statements within a guideline apply together
 type Statement struct {
+	// id allows this entry to be referenced by other elements
 	Id string `json:"id" yaml:"id"`
 
+	// title describes the contents of this statement
 	Title string `json:"title,omitempty" yaml:"title,omitempty"`
 
+	// text is the body of this statement
 	Text string `json:"text" yaml:"text"`
 
+	// recommendations is a list of non-binding suggestions to aid in evaluation or enforcement of the statement
 	Recommendations []string `json:"recommendations,omitempty" yaml:"recommendations,omitempty"`
 }
 
-// Exemption represents those who are exempt from the full guidance document.
+// MultiEntryMapping represents a mapping to an external reference with one or more entries.
+type MultiEntryMapping struct {
+	// ReferenceId should reference the corresponding MappingReference id from metadata
+	ReferenceId string `json:"reference-id" yaml:"reference-id"`
+
+	// entries is a list of mapping entries
+	Entries []MappingEntry `json:"entries" yaml:"entries"`
+
+	// remarks is prose regarding the mapped artifact or the mapping relationship
+	Remarks string `json:"remarks,omitempty" yaml:"remarks,omitempty"`
+}
+
+// MappingEntry represents a single entry within a mapping
+type MappingEntry struct {
+	// reference-id is the id for a MappingReference entry in the artifact's metadata
+	ReferenceId string `json:"reference-id" yaml:"reference-id"`
+
+	// strength is the author's estimate of how completely the current/source material satisfies the target/reference material;
+	// Range: 1-10. Zero value means not yet quantified.
+	Strength int64 `json:"strength,omitempty" yaml:"strength,omitempty"`
+
+	// remarks is prose describing the mapping relationship
+	Remarks string `json:"remarks,omitempty" yaml:"remarks,omitempty"`
+}
+
+// Exemption describes a single scenario where the catalog is not applicable
 type Exemption struct {
-	// Description identifies who or what is exempt from the full guidance
+	// description identifies who or what is exempt from the full guidance
 	Description string `json:"description" yaml:"description"`
 
-	// Reason explains why the exemption is granted
+	// reason explains why the exemption is granted
 	Reason string `json:"reason" yaml:"reason"`
 
-	// Redirect points to alternative guidelines or controls that should be followed instead
-	Redirect *MultiMapping `json:"redirect,omitempty" yaml:"redirect,omitempty"`
+	// redirect points to alternative guidelines or controls that should be followed instead
+	Redirect *MultiEntryMapping `json:"redirect,omitempty" yaml:"redirect,omitempty"`
+}
+
+// ControlCatalog describes a set of related controls and relevant metadata
+type ControlCatalog struct {
+	// title describes the contents of this catalog at a glance
+	Title string `json:"title" yaml:"title"`
+
+	// metadata provides detailed data about this catalog
+	Metadata Metadata `json:"metadata" yaml:"metadata"`
+
+	// families contains a list of control families that can be referenced by controls
+	Families []Family `json:"families,omitempty" yaml:"families,omitempty"`
+
+	// controls is a list of unique controls defined by this catalog
+	Controls []Control `json:"controls,omitempty" yaml:"controls,omitempty"`
+
+	// imported-controls is a list of controls from another source which are included as part of this document
+	ImportedControls []MultiEntryMapping `json:"imported-controls,omitempty" yaml:"imported-controls,omitempty"`
+}
+
+// Control describes a safeguard or countermeasure with a clear objective and assessment requirements
+type Control struct {
+	// id allows this entry to be referenced by other elements
+	Id string `json:"id" yaml:"id"`
+
+	// title describes the purpose of this control at a glance
+	Title string `json:"title" yaml:"title"`
+
+	// objective is a unified statement of intent, which may encompass multiple situationally applicable requirements
+	Objective string `json:"objective" yaml:"objective"`
+
+	// family references by id a catalog control family that this control belongs to
+	Family string `json:"family" yaml:"family"`
+
+	// assessment-requirements is a list of requirements that must be verified to confirm the control objective has been met
+	AssessmentRequirements []AssessmentRequirement `json:"assessment-requirements" yaml:"assessment-requirements"`
+
+	// guideline-mappings documents relationships betwen this control and Layer 1 guideline artifacts
+	GuidelineMappings []MultiEntryMapping `json:"guideline-mappings,omitempty" yaml:"guideline-mappings,omitempty"`
+
+	// threat-mappings documents relationships betwen this control and Layer 2 threat artifacts
+	ThreatMappings []MultiEntryMapping `json:"threat-mappings,omitempty" yaml:"threat-mappings,omitempty"`
+}
+
+// AssessmentRequirement describes a tightly scoped, verifiable condition that must be satisfied and confirmed by an evaluator
+type AssessmentRequirement struct {
+	// id allows this entry to be referenced by other elements
+	Id string `json:"id" yaml:"id"`
+
+	// text is the body of the requirement, typically written as a MUST condition
+	Text string `json:"text" yaml:"text"`
+
+	// applicability is a list of strings describing the situations where this text functions as a requirement for its parent control
+	Applicability []string `json:"applicability" yaml:"applicability"`
+
+	// recommendation provides readers with non-binding suggestions to aid in evaluation or enforcement of the requirement
+	Recommendation string `json:"recommendation,omitempty" yaml:"recommendation,omitempty"`
+}
+
+// ThreatCatalog describes a set of topically-associated threats
+type ThreatCatalog struct {
+	// title describes the purpose of this catalog at a glance
+	Title string `json:"title" yaml:"title"`
+
+	// metadata provides detailed data about this catalog
+	Metadata Metadata `json:"metadata" yaml:"metadata"`
+
+	// threats is a list of threats defined by this catalog
+	Threats []Threat `json:"threats,omitempty" yaml:"threats,omitempty"`
+
+	// capabilities is a list of capabilities that make up the system being assessed
+	Capabilities []Capability `json:"capabilities,omitempty" yaml:"capabilities,omitempty"`
+
+	// imported-threats is a list of threats from another source which are included as part of this document
+	ImportedThreats []MultiEntryMapping `json:"imported-threats,omitempty" yaml:"imported-threats,omitempty"`
+
+	// imported-capabilities is a list of capabilities from another source which are included as part of this document
+	ImportedCapabilities []MultiEntryMapping `json:"imported-capabilities,omitempty" yaml:"imported-capabilities,omitempty"`
+}
+
+// Threat describes a specifically-scoped opportunity for a negative impact to the organization
+type Threat struct {
+	// id allows this entry to be referenced by other elements
+	Id string `json:"id" yaml:"id"`
+
+	// title describes this threat at a glance
+	Title string `json:"title" yaml:"title"`
+
+	// description provides a detailed explanation of an opportunity for negative impact
+	Description string `json:"description" yaml:"description"`
+
+	// capabilities documents the relationship between this threat and a system capability
+	Capabilities []MultiEntryMapping `json:"capabilities" yaml:"capabilities"`
+
+	// actors describes the relevant internal or external threat actors
+	Actors []Actor `json:"actors,omitempty" yaml:"actors,omitempty"`
+
+	// external-mappings documents relationships between this threat and any other artifacts
+	ExternalMappings []MultiEntryMapping `json:"external-mappings,omitempty" yaml:"external-mappings,omitempty"`
+}
+
+// Capability describes a system capability such as a feature, component or object.
+type Capability struct {
+	// id allows this entry to be referenced by other elements
+	Id string `json:"id" yaml:"id"`
+
+	// title describes this capability at a glance
+	Title string `json:"title" yaml:"title"`
+
+	// description provides a detailed overview of this capability
+	Description string `json:"description" yaml:"description"`
 }
 
 // Policy represents a policy document with metadata, contacts, scope, imports, implementation plan, risks, and adherence requirements.
@@ -406,7 +448,7 @@ type Dimensions struct {
 
 // Imports defines external policies, controls, and guidelines required by this policy.
 type Imports struct {
-	Policies []string `json:"policies,omitempty" yaml:"policies,omitempty"`
+	Policies []ArtifactMapping `json:"policies,omitempty" yaml:"policies,omitempty"`
 
 	Catalogs []CatalogImport `json:"catalogs,omitempty" yaml:"catalogs,omitempty"`
 
@@ -426,7 +468,7 @@ type CatalogImport struct {
 
 // Constraint defines a prescriptive requirement that applies to a specific guidance or control.
 type Constraint struct {
-	// Unique ID for this constraint to enable Layer 4/5 tracking
+	// Unique ID for this constraint to enable Layer 5/6 tracking
 	Id string `json:"id" yaml:"id"`
 
 	// Links to the specific Guidance or Control being constrained
@@ -490,7 +532,7 @@ type ImplementationDetails struct {
 // Risks defines mitigated and accepted risks addressed by this policy.
 type Risks struct {
 	// Mitigated risks only need reference-id and risk-id (no justification required)
-	Mitigated []MultiMapping `json:"mitigated,omitempty" yaml:"mitigated,omitempty"`
+	Mitigated []MultiEntryMapping `json:"mitigated,omitempty" yaml:"mitigated,omitempty"`
 
 	// Accepted risks require rationale (justification) and may include scope. Controls addressing these risks are implicitly identified through threat mappings.
 	Accepted []AcceptedRisk `json:"accepted,omitempty" yaml:"accepted,omitempty"`
@@ -498,7 +540,7 @@ type Risks struct {
 
 // RiskMapping maps a risk to a reference and optionally includes scope and justification.
 type AcceptedRisk struct {
-	Risk SingleMapping `json:"risk" yaml:"risk"`
+	Risk EntryMapping `json:"risk" yaml:"risk"`
 
 	// Scope and justification are only required for accepted risks (e.g., risk is accepted for TLP:Green and TLP:Clear because they contain non-sensitive data)
 	Scope Scope `json:"scope,omitempty" yaml:"scope,omitempty"`
@@ -553,3 +595,64 @@ type Parameter struct {
 }
 
 type MethodType string
+
+// EvaluationLog contains the results of evaluating a set of Layer 2 controls.
+type EvaluationLog struct {
+	Evaluations []*ControlEvaluation `json:"evaluations" yaml:"evaluations"`
+
+	Metadata Metadata `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+}
+
+// ControlEvaluation contains the results of evaluating a single Layer 5 control.
+type ControlEvaluation struct {
+	Name string `json:"name" yaml:"name"`
+
+	Result Result `json:"result" yaml:"result"`
+
+	Message string `json:"message" yaml:"message"`
+
+	Control EntryMapping `json:"control" yaml:"control"`
+
+	// Enforce that control reference and the assessments' references match
+	// This formulation uses the control's reference if the assessment doesn't include a reference
+	AssessmentLogs []*AssessmentLog `json:"assessment-logs" yaml:"assessment-logs"`
+}
+
+// AssessmentLog contains the results of executing a single assessment procedure for a control requirement.
+type AssessmentLog struct {
+	// Requirement should map to the assessment requirement for this assessment.
+	Requirement EntryMapping `json:"requirement" yaml:"requirement"`
+
+	// Plan maps to the policy assessment plan being executed.
+	Plan *EntryMapping `json:"plan,omitempty" yaml:"plan,omitempty"`
+
+	// Description provides a summary of the assessment procedure.
+	Description string `json:"description" yaml:"description"`
+
+	// Result is the overall outcome of the assessment procedure, matching the result of the last step that was run.
+	Result Result `json:"result" yaml:"result"`
+
+	// Message provides additional context about the assessment result.
+	Message string `json:"message" yaml:"message"`
+
+	// Applicability is elevated from the Layer 2 Assessment Requirement to aid in execution and reporting.
+	Applicability []string `json:"applicability" yaml:"applicability"`
+
+	// Steps are sequential actions taken as part of the assessment, which may halt the assessment if a failure occurs.
+	Steps []AssessmentStep `json:"steps" yaml:"steps"`
+
+	// Steps-executed is the number of steps that were executed as part of the assessment.
+	StepsExecuted int64 `json:"steps-executed,omitempty" yaml:"steps-executed,omitempty"`
+
+	// Start is the timestamp when the assessment began.
+	Start Datetime `json:"start" yaml:"start"`
+
+	// End is the timestamp when the assessment concluded.
+	End Datetime `json:"end,omitempty" yaml:"end,omitempty"`
+
+	// Recommendation provides guidance on how to address a failed assessment.
+	Recommendation string `json:"recommendation,omitempty" yaml:"recommendation,omitempty"`
+
+	// ConfidenceLevel indicates the evaluator's confidence level in this specific assessment result.
+	ConfidenceLevel ConfidenceLevel `json:"confidence-level,omitempty" yaml:"confidence-level,omitempty"`
+}

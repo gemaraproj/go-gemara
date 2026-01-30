@@ -12,14 +12,14 @@ import (
 
 var testCases = []struct {
 	name          string
-	catalog       *gemara.Catalog
+	catalog       *gemara.ControlCatalog
 	controlHREF   string
 	wantErr       bool
 	expectedTitle string
 }{
 	{
 		name: "Valid catalog with single control family",
-		catalog: &gemara.Catalog{
+		catalog: &gemara.ControlCatalog{
 			Metadata: gemara.Metadata{
 				Id:      "test-catalog",
 				Version: "devel",
@@ -52,7 +52,7 @@ var testCases = []struct {
 	},
 	{
 		name: "Valid catalog with multiple control families",
-		catalog: &gemara.Catalog{
+		catalog: &gemara.ControlCatalog{
 			Metadata: gemara.Metadata{
 				Id:      "test-catalog-multi",
 				Version: "devel",

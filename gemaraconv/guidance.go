@@ -11,10 +11,10 @@ import (
 	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
 )
 
-// GuidanceToOSCAL converts a Gemara GuidanceDocument to both an OSCAL Catalog and Profile.
+// GuidanceToOSCAL converts a Gemara GuidanceCatalog to both an OSCAL Catalog and Profile.
 // The catalog includes only the locally defined guidelines (categories), not imported ones.
 // The profile includes imports for both external guidelines and the local catalog.
-func GuidanceToOSCAL(g *gemara.GuidanceDocument, guidanceDocHref string, opts ...GenerateOption) (oscal.Catalog, oscal.Profile, error) {
+func GuidanceToOSCAL(g *gemara.GuidanceCatalog, guidanceDocHref string, opts ...GenerateOption) (oscal.Catalog, oscal.Profile, error) {
 	// The guidanceDocHref parameter specifies the location where the OSCAL Catalog
 	// will be saved, used to create the import reference in the Profile. This must
 	// be a relative or absolute URI that accurately reflects where the catalog file
@@ -116,7 +116,7 @@ func GuidanceToOSCAL(g *gemara.GuidanceDocument, guidanceDocHref string, opts ..
 	return catalog, profile, nil
 }
 
-func createControlGroup(g *gemara.GuidanceDocument, family gemara.Family, guidelines []gemara.Guideline, resourcesMap map[string]string) oscal.Group {
+func createControlGroup(g *gemara.GuidanceCatalog, family gemara.Family, guidelines []gemara.Guideline, resourcesMap map[string]string) oscal.Group {
 	group := oscal.Group{
 		Class: "family",
 		ID:    family.Id,
@@ -291,7 +291,7 @@ func guidelineToParts(guideline gemara.Guideline, controlId string, guidelineId 
 	return parts
 }
 
-func guidelineToControl(g *gemara.GuidanceDocument, guideline gemara.Guideline, resourcesMap map[string]string) (oscal.Control, string) {
+func guidelineToControl(g *gemara.GuidanceCatalog, guideline gemara.Guideline, resourcesMap map[string]string) (oscal.Control, string) {
 	controlId := oscalUtils.NormalizeControl(guideline.Id, false)
 
 	control := oscal.Control{
@@ -477,7 +477,7 @@ func completeParts(parts []oscal.Part, controlId string) *[]oscal.Part {
 	return &finalParts
 }
 
-func mappingToLinks(mappings []gemara.MultiMapping, resourcesMap map[string]string) []oscal.Link {
+func mappingToLinks(mappings []gemara.MultiEntryMapping, resourcesMap map[string]string) []oscal.Link {
 	links := make([]oscal.Link, 0, len(mappings))
 	for _, mapping := range mappings {
 		ref, found := resourcesMap[mapping.ReferenceId]
