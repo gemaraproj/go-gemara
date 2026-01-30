@@ -7,22 +7,22 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-func goodAIGFExample() (gemara.GuidanceDocument, error) {
+func goodAIGFExample() (gemara.GuidanceCatalog, error) {
 	testdataPath := "../test-data/good-aigf.yaml"
 	data, err := os.ReadFile(testdataPath)
 	if err != nil {
-		return gemara.GuidanceDocument{}, err
+		return gemara.GuidanceCatalog{}, err
 	}
-	var l1Docs gemara.GuidanceDocument
+	var l1Docs gemara.GuidanceCatalog
 	if err := yaml.Unmarshal(data, &l1Docs); err != nil {
-		return gemara.GuidanceDocument{}, err
+		return gemara.GuidanceCatalog{}, err
 	}
 	return l1Docs, nil
 }
 
 // guidanceWithExternalExtends returns a guidance document with a guideline that extends an external control.
-func guidanceWithExternalExtends() gemara.GuidanceDocument {
-	return gemara.GuidanceDocument{
+func guidanceWithExternalExtends() gemara.GuidanceCatalog {
+	return gemara.GuidanceCatalog{
 		Title: "Test Guidance",
 		Metadata: gemara.Metadata{
 			Id:      "TEST-GUIDE",
@@ -41,7 +41,7 @@ func guidanceWithExternalExtends() gemara.GuidanceDocument {
 				},
 			},
 		},
-		DocumentType: gemara.DocumentType("Framework"),
+		GuidanceType: "Framework",
 		Families: []gemara.Family{
 			{
 				Id:          "AC",
@@ -54,7 +54,7 @@ func guidanceWithExternalExtends() gemara.GuidanceDocument {
 				Id:     "TEST-AC-1",
 				Title:  "Test Access Control Enhancement",
 				Family: "AC",
-				Extends: &gemara.SingleMapping{
+				Extends: &gemara.EntryMapping{
 					ReferenceId: "NIST-800-53",
 					EntryId:     "AC-1",
 				},
@@ -71,8 +71,8 @@ func guidanceWithExternalExtends() gemara.GuidanceDocument {
 }
 
 // guidanceWithMerging returns a guidance document with multiple guidelines extending the same external control.
-func guidanceWithMerging() gemara.GuidanceDocument {
-	return gemara.GuidanceDocument{
+func guidanceWithMerging() gemara.GuidanceCatalog {
+	return gemara.GuidanceCatalog{
 		Title: "Test Guidance",
 		Metadata: gemara.Metadata{
 			Id:      "TEST-GUIDE",
@@ -91,7 +91,7 @@ func guidanceWithMerging() gemara.GuidanceDocument {
 				},
 			},
 		},
-		DocumentType: gemara.DocumentType("Framework"),
+		GuidanceType: "Framework",
 		Families: []gemara.Family{
 			{
 				Id:          "AC",
@@ -104,7 +104,7 @@ func guidanceWithMerging() gemara.GuidanceDocument {
 				Id:     "TEST-AC-1",
 				Title:  "First Enhancement for AC-1",
 				Family: "AC",
-				Extends: &gemara.SingleMapping{
+				Extends: &gemara.EntryMapping{
 					ReferenceId: "NIST-800-53",
 					EntryId:     "AC-1",
 				},
@@ -120,7 +120,7 @@ func guidanceWithMerging() gemara.GuidanceDocument {
 				Id:     "TEST-AC-1-2",
 				Title:  "Second Enhancement for AC-1",
 				Family: "AC",
-				Extends: &gemara.SingleMapping{
+				Extends: &gemara.EntryMapping{
 					ReferenceId: "NIST-800-53",
 					EntryId:     "AC-1",
 				},
@@ -136,8 +136,8 @@ func guidanceWithMerging() gemara.GuidanceDocument {
 }
 
 // guidanceWithLocalExtends returns a guidance document with a guideline that extends another guideline in the same document.
-func guidanceWithLocalExtends() gemara.GuidanceDocument {
-	return gemara.GuidanceDocument{
+func guidanceWithLocalExtends() gemara.GuidanceCatalog {
+	return gemara.GuidanceCatalog{
 		Title: "Test Guidance",
 		Metadata: gemara.Metadata{
 			Id:      "TEST-GUIDE",
@@ -148,7 +148,7 @@ func guidanceWithLocalExtends() gemara.GuidanceDocument {
 				Type: gemara.Human,
 			},
 		},
-		DocumentType: gemara.DocumentType("Framework"),
+		GuidanceType: gemara.GuidanceType("Framework"),
 		Families: []gemara.Family{
 			{
 				Id:          "AC",
@@ -166,7 +166,7 @@ func guidanceWithLocalExtends() gemara.GuidanceDocument {
 				Id:     "TEST-AC-1-ENH",
 				Title:  "Enhanced Access Control",
 				Family: "AC",
-				Extends: &gemara.SingleMapping{
+				Extends: &gemara.EntryMapping{
 					EntryId: "TEST-AC-1",
 				},
 			},
@@ -175,8 +175,8 @@ func guidanceWithLocalExtends() gemara.GuidanceDocument {
 }
 
 // guidanceWithMultiLevelNested returns a guidance document with multi-level nested local extensions (AC-1 -> AC-1-ENH -> AC-1-ENH-2).
-func guidanceWithMultiLevelNested() gemara.GuidanceDocument {
-	return gemara.GuidanceDocument{
+func guidanceWithMultiLevelNested() gemara.GuidanceCatalog {
+	return gemara.GuidanceCatalog{
 		Title: "Test Guidance",
 		Metadata: gemara.Metadata{
 			Id:      "TEST-GUIDE",
@@ -187,7 +187,7 @@ func guidanceWithMultiLevelNested() gemara.GuidanceDocument {
 				Type: gemara.Human,
 			},
 		},
-		DocumentType: gemara.DocumentType("Framework"),
+		GuidanceType: gemara.GuidanceType("Framework"),
 		Families: []gemara.Family{
 			{
 				Id:    "AC",
@@ -205,7 +205,7 @@ func guidanceWithMultiLevelNested() gemara.GuidanceDocument {
 				Id:     "AC-1-ENH",
 				Title:  "First Enhancement",
 				Family: "AC",
-				Extends: &gemara.SingleMapping{
+				Extends: &gemara.EntryMapping{
 					EntryId: "AC-1",
 				},
 				Statements: []gemara.Statement{
@@ -219,7 +219,7 @@ func guidanceWithMultiLevelNested() gemara.GuidanceDocument {
 				Id:     "AC-1-ENH-2",
 				Title:  "Second Enhancement",
 				Family: "AC",
-				Extends: &gemara.SingleMapping{
+				Extends: &gemara.EntryMapping{
 					EntryId: "AC-1-ENH",
 				},
 				Statements: []gemara.Statement{
@@ -234,7 +234,7 @@ func guidanceWithMultiLevelNested() gemara.GuidanceDocument {
 }
 
 // guidanceWithImports returns a copy of the provided guidance document with an additional mapping reference added.
-func guidanceWithImports(base gemara.GuidanceDocument) gemara.GuidanceDocument {
+func guidanceWithImports(base gemara.GuidanceCatalog) gemara.GuidanceCatalog {
 	mapping := gemara.MappingReference{
 		Id:          "EXP",
 		Description: "Example",

@@ -10,6 +10,7 @@ GOFLAGS :=
 COVERFILE := coverage.out
 TESTCOVERAGE_THRESHOLD := 71
 GOLANGCI_LINT := golangci-lint
+SPECVERSION := v0.19.1
 
 .PHONY: all tidy fmtcheck fmt vet lint test testcov race coverage-check build install generate ci-local clean help
 
@@ -134,16 +135,20 @@ install:
 	@echo " > Installing module/binaries"
 	@go install ./...
 
-# Generate files (placeholder)
-# NOTE: Generation is performed at the repository root (e.g., `make cuegen`).
-# The original implementation delegated to the repo-level target; that call has been
-# intentionally removed here so local `ci-local` runs without relying on repo-level
-# make targets. If you need to generate artifacts, run:
-#   cd $(REPO_ROOT) && make cuegen
-# TODO: Implement a local generation fallback if desired.
+# Generate files from CUE schemas
+# Generates Go types from the Gemara CUE package with stable and experimental variants
 generate:
-	@echo "generate: placeholder — repo-level generation is not invoked by this Makefile."
-	@echo "If you need generated artifacts, run 'cd $(REPO_ROOT) && make cuegen' at the repo root."
+	@echo " > Generating types from Gemara CUE package"
+	@cue def github.com/gemaraproj/gemara@v0.19.1 --outfile schema.cue
+
+    # Required after using CUE Def to find the properly defined control types
+	@sed -i 's/let control_9 = control/let control_9 = #ControlEvaluation.control/' schema.cue
+
+	@cue exp gengotypes schema.cue
+	@mv cue_types_gen.go generated_types.go
+	@go run ./cmd/typestagger generated_types.go
+	@rm schema.cue
+
 
 # Runs the small subset used by CI for a quick local check
 ci-local: fmtcheck vet lint testcov coverage-check
@@ -171,7 +176,7 @@ help:
 	@echo "  testcov        - go test -coverprofile=$(COVERFILE)"
 	@echo "  coverage-check - ensure coverage >= $(TESTCOVERAGE_THRESHOLD)%"
 	@echo "  build          - build binaries listed in BINS -> $(BINDIR)"
-	@echo "  generate       - placeholder (runs 'make cuegen' at repo root if needed)"
+	@echo "  generate       - generate Go types"
 	@echo "  ci-local       - run quick CI-like checks (fmtcheck vet lint testcov coverage-check)"
 	@echo "  clean          - remove build artifacts"
 	@echo "  oscal-export    - export to OSCAL from existing Gemara test artifacts"

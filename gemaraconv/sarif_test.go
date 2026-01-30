@@ -14,7 +14,7 @@ func TestFromEvaluationLog(t *testing.T) {
 	tests := []struct {
 		name          string
 		artifactURI   string
-		catalog       *gemara.Catalog
+		catalog       *gemara.ControlCatalog
 		evaluationLog gemara.EvaluationLog
 		wantRules     int
 		wantResults   int
@@ -114,7 +114,7 @@ func TestFromEvaluationLog(t *testing.T) {
 				Version: "1.0.0",
 			}, []*gemara.AssessmentLog{
 				{
-					Requirement:    gemara.SingleMapping{EntryId: "REQ-1"},
+					Requirement:    gemara.EntryMapping{EntryId: "REQ-1"},
 					Description:    "Test description",
 					Result:         gemara.Failed,
 					Message:        "Test failed",
@@ -155,7 +155,7 @@ func TestFromEvaluationLog(t *testing.T) {
 				Version: "1.0.0",
 			}, []*gemara.AssessmentLog{
 				{
-					Requirement:    gemara.SingleMapping{EntryId: "REQ-1"},
+					Requirement:    gemara.EntryMapping{EntryId: "REQ-1"},
 					Description:    "Test description",
 					Result:         gemara.Failed,
 					Message:        "Test failed",
@@ -192,7 +192,7 @@ func TestFromEvaluationLog(t *testing.T) {
 				Version: "1.0.0",
 			}, []*gemara.AssessmentLog{
 				{
-					Requirement: gemara.SingleMapping{EntryId: "REQ-1"},
+					Requirement: gemara.EntryMapping{EntryId: "REQ-1"},
 					Description: "Test description",
 					Result:      gemara.Failed,
 					Message:     "Test failed",
@@ -301,7 +301,7 @@ func makeEvaluationLog(author gemara.Actor, logs []*gemara.AssessmentLog) gemara
 		Evaluations: []*gemara.ControlEvaluation{
 			{
 				Name:           "Example Control",
-				Control:        gemara.SingleMapping{EntryId: "CTRL-1"},
+				Control:        gemara.EntryMapping{EntryId: "CTRL-1"},
 				Result:         gemara.Passed,
 				AssessmentLogs: logs,
 			},
@@ -315,7 +315,7 @@ func makeAssessmentLog(entryID, description string, result gemara.Result, messag
 		steps = []gemara.AssessmentStep{func(interface{}) (gemara.Result, string, gemara.ConfidenceLevel) { return result, "", gemara.Medium }}
 	}
 	return &gemara.AssessmentLog{
-		Requirement:   gemara.SingleMapping{EntryId: entryID},
+		Requirement:   gemara.EntryMapping{EntryId: entryID},
 		Description:   description,
 		Result:        result,
 		Message:       message,
@@ -324,8 +324,8 @@ func makeAssessmentLog(entryID, description string, result gemara.Result, messag
 	}
 }
 
-func makeCatalog(controlID, controlTitle, controlObjective, reqID, reqText, reqRecommendation string) *gemara.Catalog {
-	return &gemara.Catalog{
+func makeCatalog(controlID, controlTitle, controlObjective, reqID, reqText, reqRecommendation string) *gemara.ControlCatalog {
+	return &gemara.ControlCatalog{
 		Families: []gemara.Family{
 			{
 				Id:    "test-family",

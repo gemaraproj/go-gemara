@@ -16,36 +16,36 @@ func EvaluationLog(log *gemara.EvaluationLog) *EvaluationLogConverter {
 }
 
 // ToSARIF converts the EvaluationLog to SARIF format.
-func (c *EvaluationLogConverter) ToSARIF(artifactURI string, catalog *gemara.Catalog) ([]byte, error) {
+func (c *EvaluationLogConverter) ToSARIF(artifactURI string, catalog *gemara.ControlCatalog) ([]byte, error) {
 	return ToSARIF(*c.log, artifactURI, catalog)
 }
 
-// CatalogConverter defines a converter for converting Catalog.
-type CatalogConverter struct {
-	catalog *gemara.Catalog
+// ControlCatalogConverter defines a converter for converting ControlCatalog.
+type ControlCatalogConverter struct {
+	catalog *gemara.ControlCatalog
 }
 
-// Catalog creates a new CatalogConverter struct.
-func Catalog(catalog *gemara.Catalog) *CatalogConverter {
-	return &CatalogConverter{catalog: catalog}
+// ControlCatalog creates a new ControlCatalogConverter struct.
+func ControlCatalog(catalog *gemara.ControlCatalog) *ControlCatalogConverter {
+	return &ControlCatalogConverter{catalog: catalog}
 }
 
-// ToOSCAL converts the Catalog to OSCAL format.
-func (c *CatalogConverter) ToOSCAL(opts ...GenerateOption) (oscal.Catalog, error) {
+// ToOSCAL converts the ControlCatalog to OSCAL format.
+func (c *ControlCatalogConverter) ToOSCAL(opts ...GenerateOption) (oscal.Catalog, error) {
 	return CatalogToOSCAL(c.catalog, opts...)
 }
 
-// GuidanceDocumentConverter defines a converter for converting GuidanceDocument.
-type GuidanceDocumentConverter struct {
-	guidance *gemara.GuidanceDocument
+// GuidanceCatalogConverter defines a converter for converting GuidanceCatalog.
+type GuidanceCatalogConverter struct {
+	guidance *gemara.GuidanceCatalog
 }
 
-// GuidanceDocument creates a new GuidanceDocumentConverter struct.
-func GuidanceDocument(guidance *gemara.GuidanceDocument) *GuidanceDocumentConverter {
-	return &GuidanceDocumentConverter{guidance: guidance}
+// GuidanceCatalog creates a new GuidanceCatalogConverter struct.
+func GuidanceCatalog(guidance *gemara.GuidanceCatalog) *GuidanceCatalogConverter {
+	return &GuidanceCatalogConverter{guidance: guidance}
 }
 
-// ToOSCAL converts the GuidanceDocument to an OSCAL Catalog and Profile.
-func (c *GuidanceDocumentConverter) ToOSCAL(guidanceDocHref string, opts ...GenerateOption) (oscal.Catalog, oscal.Profile, error) {
+// ToOSCAL converts the GuidanceCatalog to an OSCAL Catalog and Profile.
+func (c *GuidanceCatalogConverter) ToOSCAL(guidanceDocHref string, opts ...GenerateOption) (oscal.Catalog, oscal.Profile, error) {
 	return GuidanceToOSCAL(c.guidance, guidanceDocHref, opts...)
 }
