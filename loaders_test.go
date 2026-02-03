@@ -2,7 +2,7 @@ package gemara
 
 // This file contains table-driven tests for loader functions:
 // - PolicyDocument.LoadFile
-// - GuidanceDocument.LoadFile and LoadFiles
+// - GuidanceCatalog.LoadFile and LoadFiles
 // - Catalog.LoadFile, LoadFiles, and LoadNestedCatalog
 //
 // Test data is pulled from ./test-data/
@@ -137,7 +137,7 @@ func TestPolicyDocument_LoadFile_URI(t *testing.T) {
 // GuidanceDocument Tests
 // ============================================================================
 
-func TestGuidanceDocument_LoadFile(t *testing.T) {
+func TestGuidanceCatalog_LoadFile(t *testing.T) {
 	tests := []struct {
 		name       string
 		sourcePath string
@@ -162,7 +162,7 @@ func TestGuidanceDocument_LoadFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g := &GuidanceDocument{}
+			g := &GuidanceCatalog{}
 			err := g.LoadFile(tt.sourcePath)
 
 			if tt.wantErr {
@@ -178,9 +178,9 @@ func TestGuidanceDocument_LoadFile(t *testing.T) {
 	}
 }
 
-func TestGuidanceDocument_LoadFiles_AppendsData(t *testing.T) {
+func TestGuidanceCatalog_LoadFiles_AppendsData(t *testing.T) {
 	// Load a single file to use as baseline
-	singleDoc := &GuidanceDocument{}
+	singleDoc := &GuidanceCatalog{}
 	require.NoError(t, singleDoc.LoadFile("file://test-data/good-aigf.yaml"))
 	require.Greater(t, len(singleDoc.Families), 0,
 		"expected at least one family in good-aigf.yaml")
@@ -188,7 +188,7 @@ func TestGuidanceDocument_LoadFiles_AppendsData(t *testing.T) {
 		"expected at least one guideline in good-aigf.yaml")
 
 	// Load the same file twice to verify appending behavior
-	multiDoc := &GuidanceDocument{}
+	multiDoc := &GuidanceCatalog{}
 	err := multiDoc.LoadFiles([]string{
 		"file://test-data/good-aigf.yaml",
 		"file://test-data/good-aigf.yaml",
@@ -203,7 +203,7 @@ func TestGuidanceDocument_LoadFiles_AppendsData(t *testing.T) {
 		"guidelines should be appended across multiple files")
 }
 
-func TestGuidanceDocument_LoadFile_URI(t *testing.T) {
+func TestGuidanceCatalog_LoadFile_URI(t *testing.T) {
 	tests := []struct {
 		name          string
 		sourcePath    string
@@ -230,7 +230,7 @@ func TestGuidanceDocument_LoadFile_URI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g := &GuidanceDocument{}
+			g := &GuidanceCatalog{}
 			err := g.LoadFile(tt.sourcePath)
 
 			if tt.wantErr {
@@ -285,7 +285,7 @@ func TestCatalog_LoadFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Catalog{}
+			c := &ControlCatalog{}
 			err := c.LoadFile(tt.sourcePath)
 
 			if tt.wantErr {
@@ -322,7 +322,7 @@ func TestCatalog_LoadFile_UnsupportedFileType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Catalog{}
+			c := &ControlCatalog{}
 			err := c.LoadFile(tt.sourcePath)
 
 			if tt.wantErr {
@@ -369,7 +369,7 @@ func TestCatalog_LoadFiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Catalog{}
+			c := &ControlCatalog{}
 			err := c.LoadFiles([]string{tt.sourcePath})
 
 			if tt.wantErr {
@@ -416,7 +416,7 @@ func TestCatalog_LoadNestedCatalog(t *testing.T) {
 
 	for _, tt := range nonNestedTests {
 		t.Run("Non-nested: "+tt.name, func(t *testing.T) {
-			c := &Catalog{}
+			c := &ControlCatalog{}
 			err := c.LoadNestedCatalog(tt.sourcePath, "")
 			assert.Error(t, err, "un-nested catalogs are expected to fail")
 		})
@@ -475,7 +475,7 @@ func TestCatalog_LoadNestedCatalog(t *testing.T) {
 
 	for _, tt := range nestedTests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Catalog{}
+			c := &ControlCatalog{}
 			err := c.LoadNestedCatalog(tt.sourcePath, tt.nestedFieldName)
 
 			if tt.wantErr {

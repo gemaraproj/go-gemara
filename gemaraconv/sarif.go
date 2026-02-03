@@ -24,7 +24,7 @@ var emptyArtifactURIMessage = "no file associated with this alert"
 // PhysicalLocation identifies the artifact (file/repository) where the result was found.
 // LogicalLocation identifies the logical component (assessment step) that produced the result.
 // Region is left nil as we don't have file-specific line/column data.
-func ToSARIF(evaluationLog gemara.EvaluationLog, artifactURI string, catalog *gemara.Catalog) ([]byte, error) {
+func ToSARIF(evaluationLog gemara.EvaluationLog, artifactURI string, catalog *gemara.ControlCatalog) ([]byte, error) {
 	report := &SarifReport{
 		Schema:  "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/123e95847b13fbdd4cbe2120fa5e33355d4a042b/Schemata/sarif-schema-2.1.0.json",
 		Version: "2.1.0",
@@ -245,7 +245,7 @@ type LogicalLocation struct {
 
 // findControlAndRequirement searches the catalog for a control and requirement by their IDs.
 // Returns the control and requirement if found, nil otherwise.
-func findControlAndRequirement(catalog *gemara.Catalog, controlID, requirementID string) (*gemara.Control, *gemara.AssessmentRequirement) {
+func findControlAndRequirement(catalog *gemara.ControlCatalog, controlID, requirementID string) (*gemara.Control, *gemara.AssessmentRequirement) {
 	if catalog == nil {
 		return nil, nil
 	}

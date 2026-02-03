@@ -9,7 +9,7 @@ type generateOpts struct {
 	controlHREF   string
 }
 
-func (g *generateOpts) completeFromGuidance(doc *gemara.GuidanceDocument) {
+func (g *generateOpts) completeFromGuidance(doc *gemara.GuidanceCatalog) {
 	if g.version == "" {
 		g.version = doc.Metadata.Version
 	}
@@ -21,18 +21,18 @@ func (g *generateOpts) completeFromGuidance(doc *gemara.GuidanceDocument) {
 	}
 }
 
-func (g *generateOpts) completeFromCatalog(catalog *gemara.Catalog) {
+func (g *generateOpts) completeFromCatalog(catalog *gemara.ControlCatalog) {
 	if g.version == "" {
 		g.version = catalog.Metadata.Version
 	}
 }
 
 // GenerateOption defines an option to tune the behavior of the OSCAL
-// generation functions for both Layer 1 (GuidanceDocument) and Layer 2 (Catalog).
+// generation functions for both Layer 1 (GuidanceCatalog) and Layer 2 (ControlCatalog).
 type GenerateOption func(opts *generateOpts)
 
 // WithVersion is a GenerateOption that sets the version of the OSCAL Document. If set,
-// this will be used instead of the version in GuidanceDocument.
+// this will be used instead of the version in GuidanceCatalog.
 func WithVersion(version string) GenerateOption {
 	return func(opts *generateOpts) {
 		opts.version = version

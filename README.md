@@ -21,6 +21,32 @@ go get github.com/gemaraproj/go-gemara
 
 ## Usage
 
+### CLI Tool
+
+The `oscalexport` command-line tool converts Gemara documents to OSCAL format.
+
+#### Building the CLI
+
+```bash
+make build
+```
+
+This builds binaries to `./bin/` directory.
+
+#### Converting a Control Catalog
+
+```bash
+./bin/oscalexport catalog ./path/to/catalog.yaml --output ./catalog.json
+```
+
+#### Converting a Guidance Catalog
+
+```bash
+./bin/oscalexport guidance ./path/to/guidance.yaml \
+    --catalog-output ./guidance.json \
+    --profile-output ./profile.json
+```
+
 ### Library Usage
 
 #### Loading Gemara Documents
@@ -29,26 +55,19 @@ go get github.com/gemaraproj/go-gemara
 package main
 
 import (
-    "fmt"
     "github.com/gemaraproj/go-gemara"
 )
 
 func main() {
-    // Load a Guidance Document
-    var guidance gemara.GuidanceDocument
+    // Load a Guidance Catalog
+    var guidance gemara.GuidanceCatalog
     if err := guidance.LoadFile("file:///path/to/guidance.yaml"); err != nil {
         panic(err)
     }
     
-    // Load a Catalog
-    catalog := &gemara.Catalog{}
+    // Load a Control Catalog
+    catalog := &gemara.ControlCatalog{}
     if err := catalog.LoadFile("file:///path/to/catalog.yaml"); err != nil {
-        panic(err)
-    }
-    
-    // Load a Policy
-    policy := &gemara.Policy{}
-    if err := policy.LoadFile("file:///path/to/policy.yaml"); err != nil {
         panic(err)
     }
 }
@@ -65,20 +84,53 @@ import (
 )
 
 func main() {
-    // Convert Catalog to OSCAL
-    catalog := &gemara.Catalog{}
-    catalog.LoadFile("file:///path/to/catalog.yaml")
+    // Convert Control Catalog to OSCAL
+    catalog := &gemara.ControlCatalog{}
+    if err := catalog.LoadFile("file:///path/to/catalog.yaml"); err != nil {
+        panic(err)
+    }
     
-    oscalCatalog, err := gemaraconv.CatalogToOSCAL(catalog)
+    oscalCatalog, err := gemaraconv.ControlCatalog(catalog).ToOSCAL()
     if err != nil {
         panic(err)
     }
     
-    // Convert Guidance Document to OSCAL
-    var guidance gemara.GuidanceDocument
-    guidance.LoadFile("file:///path/to/guidance.yaml")
+    // Convert Guidance Catalog to OSCAL
+    var guidance gemara.GuidanceCatalog
+    if err := guidance.LoadFile("file:///path/to/guidance.yaml"); err != nil {
+        panic(err)
+    }
     
-    oscalCatalog, oscalProfile, err := gemaraconv.GuidanceToOSCAL(&guidance, "relative/path/to/catalog.json")
+    oscalCatalog, oscalProfile, err := gemaraconv.GuidanceCatalog(&guidance).ToOSCAL("relative/path/to/catalog.json")
+    if err != nil {
+        panic(err)
+    }
+}
+```
+
+#### Converting to SARIF
+
+```go
+package main
+
+import (
+    "github.com/gemaraproj/go-gemara"
+    "github.com/gemaraproj/go-gemara/gemaraconv"
+)
+
+func main() {
+    // Load Control Catalog (required for SARIF conversion)
+    catalog := &gemara.ControlCatalog{}
+    if err := catalog.LoadFile("file:///path/to/catalog.yaml"); err != nil {
+        panic(err)
+    }
+    
+    // Convert EvaluationLog to SARIF
+    evaluationLog := &gemara.EvaluationLog{
+        // ... populate evaluation log ...
+    }
+    
+    sarifBytes, err := gemaraconv.EvaluationLog(evaluationLog).ToSARIF("file:///path/to/artifact.md", catalog)
     if err != nil {
         panic(err)
     }

@@ -18,6 +18,27 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: stable
+
+      - name: Setup Cue
+        uses: cue-lang/setup-cue@a93fa358375740cd8b0078f76355512b9208acb1 # v1.0.1
+        with:
+          version: v0.15.1
+
+      - name: Regenerate types from Gemara spec
+        run: |
+          make generate
+      - name: Check for uncommitted changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Error: Generated types are out of sync with the Gemara specification"
+            echo "The following files have uncommitted changes:"
+            git status --porcelain
+            echo ""
+            echo "Please run 'make generate' locally and commit the changes."
+            exit 1
+          else
+            echo "Generated types are in sync with the Gemara specification"
+          fi
       - name: Vet
         run: |
           go vet ./...

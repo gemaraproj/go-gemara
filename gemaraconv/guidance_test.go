@@ -18,7 +18,7 @@ func TestGuidanceToOSCAL(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		guidance    gemara.GuidanceDocument
+		guidance    gemara.GuidanceCatalog
 		catalogHref string
 		wantErr     bool
 	}{
@@ -75,7 +75,7 @@ func TestGuidanceToOSCAL_Catalog(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		guidance   gemara.GuidanceDocument
+		guidance   gemara.GuidanceCatalog
 		wantGroups []oscalTypes.Group
 		wantErr    bool
 		assertFunc func(*testing.T, oscalTypes.Catalog)
@@ -248,7 +248,7 @@ func TestGuidanceToOSCAL_Catalog(t *testing.T) {
 		},
 		{
 			name:     "Failure/EmptyGuidance",
-			guidance: gemara.GuidanceDocument{},
+			guidance: gemara.GuidanceCatalog{},
 			wantErr:  true,
 		},
 		{
@@ -324,7 +324,7 @@ func TestGuidanceToOSCAL_Profile(t *testing.T) {
 
 	tests := []struct {
 		name               string
-		guidance           gemara.GuidanceDocument
+		guidance           gemara.GuidanceCatalog
 		options            []GenerateOption
 		wantModify         bool
 		wantAlterations    int
