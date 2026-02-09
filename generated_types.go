@@ -47,43 +47,16 @@ type Email string
 // Datetime represents an ISO 8601 formatted datetime string
 type Datetime string
 
-// Date represents a date string (ISO 8601 date format)
-type Date string
-
-// Category represents a category used for applicability or classification
-type Category struct {
+// Group represents a classification or grouping that can be used in different contexts with semantic meaning derived from its usage
+type Group struct {
 	// id allows this entry to be referenced by other elements
 	Id string `json:"id" yaml:"id"`
 
-	// title describes the purpose of this category at a glance
+	// title describes the purpose of this group at a glance
 	Title string `json:"title" yaml:"title"`
 
-	// description explains the significance and traits of entries to this category
+	// description explains the significance and traits of entries to this group
 	Description string `json:"description" yaml:"description"`
-}
-
-// GuidanceCatalog represents a concerted documentation effort to help bring about an optimal future without foreknowledge of the implementation details
-type GuidanceCatalog struct {
-	// title describes the contents of this catalog at a glance
-	Title string `json:"title" yaml:"title"`
-
-	// metadata provides detailed data about this catalog
-	Metadata Metadata `json:"metadata" yaml:"metadata"`
-
-	// type categorizes this document based on the intent of its contents
-	GuidanceType GuidanceType `json:"type" yaml:"type"`
-
-	// front-matter provides introductory text for the document to be used during rendering
-	FrontMatter string `json:"front-matter,omitempty" yaml:"front-matter,omitempty"`
-
-	// families contains a list of guidance families that can be referenced by guidance
-	Families []Family `json:"families,omitempty" yaml:"families,omitempty"`
-
-	// guidelines is a list of unique guidelines defined by this catalog
-	Guidelines []Guideline `json:"guidelines,omitempty" yaml:"guidelines,omitempty"`
-
-	// exemptions provides information about situations where this guidance is not applicable
-	Exemptions []Exemption `json:"exemptions,omitempty" yaml:"exemptions,omitempty"`
 }
 
 // Metadata represents common metadata fields shared across all layers
@@ -95,7 +68,7 @@ type Metadata struct {
 	Version string `json:"version,omitempty" yaml:"version,omitempty"`
 
 	// date is the publication or effective date of this artifact
-	Date Date `json:"date,omitempty" yaml:"date,omitempty"`
+	Date Datetime `json:"date,omitempty" yaml:"date,omitempty"`
 
 	// description provides a high-level summary of the artifact's purpose and scope
 	Description string `json:"description" yaml:"description"`
@@ -107,7 +80,7 @@ type Metadata struct {
 	MappingReferences []MappingReference `json:"mapping-references,omitempty" yaml:"mapping-references,omitempty"`
 
 	// applicability-categories is a list of categories used to classify within this artifact to specify scope
-	ApplicabilityCategories []Category `json:"applicability-categories,omitempty" yaml:"applicability-categories,omitempty"`
+	ApplicabilityCategories []Group `json:"applicability-categories,omitempty" yaml:"applicability-categories,omitempty"`
 
 	// draft indicates whether this artifact is a pre-release version; open to modification
 	Draft bool `json:"draft,omitempty" yaml:"draft,omitempty"`
@@ -142,20 +115,32 @@ type ArtifactMapping struct {
 	Remarks string `json:"remarks" yaml:"remarks"`
 }
 
-// GuidanceType restricts the possible types that a catalog may be listed as
-type GuidanceType string
-
-// Family represents a logical grouping of guidelines or controls which share a common purpose or function
-type Family struct {
-	// id allows this entry to be referenced by other elements
-	Id string `json:"id" yaml:"id"`
-
-	// title describes the purpose of this family at a glance
+// GuidanceCatalog represents a concerted documentation effort to help bring about an optimal future without foreknowledge of the implementation details
+type GuidanceCatalog struct {
+	// title describes the contents of this catalog at a glance
 	Title string `json:"title" yaml:"title"`
 
-	// description explains the significance and traits of entries to this entity family
-	Description string `json:"description" yaml:"description"`
+	// metadata provides detailed data about this catalog
+	Metadata Metadata `json:"metadata" yaml:"metadata"`
+
+	// type categorizes this document based on the intent of its contents
+	GuidanceType GuidanceType `json:"type" yaml:"type"`
+
+	// front-matter provides introductory text for the document to be used during rendering
+	FrontMatter string `json:"front-matter,omitempty" yaml:"front-matter,omitempty"`
+
+	// families contains a list of guidance families that can be referenced by guidance
+	Families []Group `json:"families,omitempty" yaml:"families,omitempty"`
+
+	// guidelines is a list of unique guidelines defined by this catalog
+	Guidelines []Guideline `json:"guidelines,omitempty" yaml:"guidelines,omitempty"`
+
+	// exemptions provides information about situations where this guidance is not applicable
+	Exemptions []Exemption `json:"exemptions,omitempty" yaml:"exemptions,omitempty"`
 }
+
+// GuidanceType restricts the possible types that a catalog may be listed as
+type GuidanceType string
 
 // Guideline provides explanatory context and recommendations for designing optimal outcomes
 type Guideline struct {
@@ -286,7 +271,7 @@ type ControlCatalog struct {
 	Metadata Metadata `json:"metadata" yaml:"metadata"`
 
 	// families contains a list of control families that can be referenced by controls
-	Families []Family `json:"families,omitempty" yaml:"families,omitempty"`
+	Families []Group `json:"families,omitempty" yaml:"families,omitempty"`
 
 	// controls is a list of unique controls defined by this catalog
 	Controls []Control `json:"controls,omitempty" yaml:"controls,omitempty"`
