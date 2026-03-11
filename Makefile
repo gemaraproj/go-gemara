@@ -149,6 +149,13 @@ generate:
 	@go run ./cmd/typestagger generated_types.go
 	@rm schema.cue
 
+# Generate files from CUE schemas
+# Generates Go types from the Gemara CUE package with stable and experimental variants
+genlocal:
+	@echo " > Generating types from 'gemara' package"
+	@cue exp gengotypes ../gemara:gemara
+	@mv ../gemara/cue_types_gemara_gen.go generated_types.go
+	@go run ./cmd/typestagger generated_types.go
 
 # Runs the small subset used by CI for a quick local check
 ci-local: fmtcheck vet lint testcov coverage-check
