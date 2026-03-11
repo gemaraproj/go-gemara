@@ -142,7 +142,8 @@ generate:
 	@cue def github.com/gemaraproj/gemara@$(SPECVERSION) --outfile schema.cue
 
     # Required after using CUE Def to find the properly defined control types
-	@sed -i 's/let control_9 = control/let control_9 = #ControlEvaluation.control/' schema.cue
+    # If running from darwin OS, add '' after -i
+	sed -i 's/let control_9 = control/let control_9 = #ControlEvaluation.control/' schema.cue
 
 	@cue exp gengotypes schema.cue
 	@mv cue_types_gen.go generated_types.go
