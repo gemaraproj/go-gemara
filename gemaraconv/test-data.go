@@ -42,7 +42,7 @@ func guidanceWithExternalExtends() gemara.GuidanceCatalog {
 			},
 		},
 		GuidanceType: gemara.GuidanceFramework,
-		Families: []gemara.Family{
+		Families: []gemara.Group{
 			{
 				Id:          "AC",
 				Title:       "Access Control",
@@ -92,7 +92,7 @@ func guidanceWithMerging() gemara.GuidanceCatalog {
 			},
 		},
 		GuidanceType: gemara.GuidanceFramework,
-		Families: []gemara.Family{
+		Families: []gemara.Group{
 			{
 				Id:          "AC",
 				Title:       "Access Control",
@@ -149,7 +149,7 @@ func guidanceWithLocalExtends() gemara.GuidanceCatalog {
 			},
 		},
 		GuidanceType: gemara.GuidanceFramework,
-		Families: []gemara.Family{
+		Families: []gemara.Group{
 			{
 				Id:          "AC",
 				Title:       "Access Control",
@@ -188,7 +188,7 @@ func guidanceWithMultiLevelNested() gemara.GuidanceCatalog {
 			},
 		},
 		GuidanceType: gemara.GuidanceFramework,
-		Families: []gemara.Family{
+		Families: []gemara.Group{
 			{
 				Id:    "AC",
 				Title: "Access Control",

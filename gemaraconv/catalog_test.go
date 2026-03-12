@@ -25,7 +25,7 @@ var testCases = []struct {
 				Version: "devel",
 			},
 			Title: "Test Catalog",
-			Families: []gemara.Family{
+			Families: []gemara.Group{
 				{
 					Id:          "AC",
 					Title:       "access-control",
@@ -58,7 +58,7 @@ var testCases = []struct {
 				Version: "devel",
 			},
 			Title: "Test Catalog Multiple",
-			Families: []gemara.Family{
+			Families: []gemara.Group{
 				{
 					Id:          "AC",
 					Title:       "access-control",
