@@ -66,11 +66,11 @@ test:
 	@echo " > Running go test (monorepo-aware; will skip if module not present)"
 	@sh -c '\
 	if [ -d "$(REPO_ROOT)/go-gemara" ]; then \
-	  cd $(REPO_ROOT)/go-gemara && go list ./... >/dev/null 2>&1 && go test $(GOFLAGS) ./... || echo "Skipping tests: no module in go-gemara"; \
+	  cd $(REPO_ROOT)/go-gemara && if go list ./... >/dev/null 2>&1; then go test $(GOFLAGS) ./...; else echo "Skipping tests: no module in go-gemara"; fi; \
 	elif [ -f "$(REPO_ROOT)/go.mod" ]; then \
-	  cd $(REPO_ROOT) && go list ./... >/dev/null 2>&1 && go test $(GOFLAGS) ./... || echo "Skipping tests: module not available"; \
+	  cd $(REPO_ROOT) && if go list ./... >/dev/null 2>&1; then go test $(GOFLAGS) ./...; else echo "Skipping tests: module not available"; fi; \
 	else \
-	  cd $(REPO_ROOT) && go list ./go-gemara/... >/dev/null 2>&1 && go test $(GOFLAGS) ./go-gemara/... || echo "Skipping tests: package not available"; \
+	  cd $(REPO_ROOT) && if go list ./go-gemara/... >/dev/null 2>&1; then go test $(GOFLAGS) ./go-gemara/...; else echo "Skipping tests: package not available"; fi; \
 	fi'
 
 
@@ -81,11 +81,11 @@ testcov:
 	@echo " > Running tests with coverage (monorepo-aware; will skip if module not present)"
 	@sh -c '\
 	if [ -d "$(REPO_ROOT)/go-gemara" ]; then \
-	  cd $(REPO_ROOT)/go-gemara && go list ./... >/dev/null 2>&1 && go test $(GOFLAGS) ./... -coverprofile=$(abspath $(COVERFILE)) -covermode=count || echo "Skipping testcov: no module in go-gemara"; \
+	  cd $(REPO_ROOT)/go-gemara && if go list ./... >/dev/null 2>&1; then go test $(GOFLAGS) ./... -coverprofile=$(abspath $(COVERFILE)) -covermode=count; else echo "Skipping testcov: no module in go-gemara"; fi; \
 	elif [ -f "$(REPO_ROOT)/go.mod" ]; then \
-	  cd $(REPO_ROOT) && go list ./... >/dev/null 2>&1 && go test $(GOFLAGS) ./... -coverprofile=$(abspath $(COVERFILE)) -covermode=count || echo "Skipping testcov: module not available"; \
+	  cd $(REPO_ROOT) && if go list ./... >/dev/null 2>&1; then go test $(GOFLAGS) ./... -coverprofile=$(abspath $(COVERFILE)) -covermode=count; else echo "Skipping testcov: module not available"; fi; \
 	else \
-	  cd $(REPO_ROOT) && go list ./go-gemara/... >/dev/null 2>&1 && go test $(GOFLAGS) ./go-gemara/... -coverprofile=$(abspath $(COVERFILE)) -covermode=count || echo "Skipping testcov: package not available"; \
+	  cd $(REPO_ROOT) && if go list ./go-gemara/... >/dev/null 2>&1; then go test $(GOFLAGS) ./go-gemara/... -coverprofile=$(abspath $(COVERFILE)) -covermode=count; else echo "Skipping testcov: package not available"; fi; \
 	fi'
 	@echo " > Coverage summary:"
 	@sh -c 'if [ -f "$(abspath $(COVERFILE))" ]; then go tool cover -func=$(abspath $(COVERFILE)) | grep total || true; else echo "No coverage file generated"; fi'
@@ -96,11 +96,11 @@ race:
 	@echo " > Running tests with race detector (monorepo-aware; will skip if module not present)"
 	@sh -c '\
 	if [ -d "$(REPO_ROOT)/go-gemara" ]; then \
-	  cd $(REPO_ROOT)/go-gemara && go list ./... >/dev/null 2>&1 && go test -race ./... || echo "Skipping race: no module in go-gemara"; \
+	  cd $(REPO_ROOT)/go-gemara && if go list ./... >/dev/null 2>&1; then go test -race ./...; else echo "Skipping race: no module in go-gemara"; fi; \
 	elif [ -f "$(REPO_ROOT)/go.mod" ]; then \
-	  cd $(REPO_ROOT) && go list ./... >/dev/null 2>&1 && go test -race ./... || echo "Skipping race: module not available"; \
+	  cd $(REPO_ROOT) && if go list ./... >/dev/null 2>&1; then go test -race ./...; else echo "Skipping race: module not available"; fi; \
 	else \
-	  cd $(REPO_ROOT) && go list ./go-gemara/... >/dev/null 2>&1 && go test -race ./go-gemara/... || echo "Skipping race: package not available"; \
+	  cd $(REPO_ROOT) && if go list ./go-gemara/... >/dev/null 2>&1; then go test -race ./go-gemara/...; else echo "Skipping race: package not available"; fi; \
 	fi'
 
 
