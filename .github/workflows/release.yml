@@ -8,10 +8,14 @@ on:
       - main
 jobs:
   release:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'release'))
     permissions:
       contents: write
       pull-requests: read
-    uses: github/ospo-reusable-workflows/.github/workflows/release.yaml@3b691dff6b68489c8548e1295d125c93c9c29a4e
+    uses: github-community-projects/ospo-reusable-workflows/.github/workflows/release.yaml@3b691dff6b68489c8548e1295d125c93c9c29a4e
     with:
       publish: true
       release-config-name: release-drafter.yml
@@ -24,12 +28,12 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417
         with:
           go-version: 1.23.4
       - name: Run GoReleaser
