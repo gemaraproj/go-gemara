@@ -122,28 +122,18 @@ type RACI struct {
 	Informed []Contact `json:"informed,omitempty" yaml:"informed,omitempty"`
 }
 
-// GuidanceCatalog represents a concerted documentation effort to help bring about an optimal future without foreknowledge of the implementation details
-type GuidanceCatalog struct {
-	// title describes the contents of this catalog at a glance
+// Catalog describes a set of topically-associated entries
+type Catalog struct {
+	// title describes the purpose of this catalog at a glance
 	Title string `json:"title" yaml:"title"`
 
 	// metadata provides detailed data about this catalog
 	Metadata Metadata `json:"metadata" yaml:"metadata"`
 
-	// type categorizes this document based on the intent of its contents
-	GuidanceType GuidanceType `json:"type" yaml:"type"`
+	// extends references catalogs that this catalog builds upon
+	Extends []ArtifactMapping `json:"extends,omitempty" yaml:"extends,omitempty"`
 
-	// front-matter provides introductory text for the document to be used during rendering
-	FrontMatter string `json:"front-matter,omitempty" yaml:"front-matter,omitempty"`
-
-	// families contains a list of guidance families that can be referenced by guidance
-	Families []Group `json:"families,omitempty" yaml:"families,omitempty"`
-
-	// guidelines is a list of unique guidelines defined by this catalog
-	Guidelines []Guideline `json:"guidelines,omitempty" yaml:"guidelines,omitempty"`
-
-	// exemptions provides information about situations where this guidance is not applicable
-	Exemptions []Exemption `json:"exemptions,omitempty" yaml:"exemptions,omitempty"`
+	Imports []MultiEntryMapping `json:"imports,omitempty" yaml:"imports,omitempty"`
 }
 
 // Metadata represents common metadata fields shared across all layers
@@ -172,8 +162,8 @@ type Metadata struct {
 	// mapping-references is a list of external documents referenced within this artifact
 	MappingReferences []MappingReference `json:"mapping-references,omitempty" yaml:"mapping-references,omitempty"`
 
-	// applicability-categories is a list of categories used to classify within this artifact to specify scope
-	ApplicabilityCategories []Group `json:"applicability-categories,omitempty" yaml:"applicability-categories,omitempty"`
+	// applicability-groups is a list of groups used to classify within this artifact to specify scope
+	ApplicabilityGroups []Group `json:"applicability-groups,omitempty" yaml:"applicability-groups,omitempty"`
 
 	// draft indicates whether this artifact is a pre-release version; open to modification
 	Draft bool `json:"draft,omitempty" yaml:"draft,omitempty"`
@@ -208,6 +198,56 @@ type ArtifactMapping struct {
 	Remarks string `json:"remarks,omitempty" yaml:"remarks,omitempty"`
 }
 
+// MultiEntryMapping represents a mapping to an external reference with one or more entries.
+type MultiEntryMapping struct {
+	// ReferenceId should reference the corresponding MappingReference id from metadata
+	ReferenceId string `json:"reference-id" yaml:"reference-id"`
+
+	// entries is a list of mapping entries
+	Entries []MappingEntry `json:"entries" yaml:"entries"`
+
+	// remarks is prose regarding the mapped artifact or the mapping relationship
+	Remarks string `json:"remarks,omitempty" yaml:"remarks,omitempty"`
+}
+
+// MappingEntry represents a single entry within a mapping
+type MappingEntry struct {
+	// reference-id is the id for a MappingReference entry in the artifact's metadata
+	ReferenceId string `json:"reference-id" yaml:"reference-id"`
+
+	// remarks is prose describing the mapping relationship
+	Remarks string `json:"remarks,omitempty" yaml:"remarks,omitempty"`
+}
+
+// GuidanceCatalog represents a concerted documentation effort to help bring about an optimal future without foreknowledge of the implementation details
+type GuidanceCatalog struct {
+	// title describes the purpose of this catalog at a glance
+	Title string `json:"title" yaml:"title"`
+
+	// metadata provides detailed data about this catalog
+	Metadata Metadata `json:"metadata" yaml:"metadata"`
+
+	// extends references catalogs that this catalog builds upon
+	Extends []ArtifactMapping `json:"extends,omitempty" yaml:"extends,omitempty"`
+
+	Imports []MultiEntryMapping `json:"imports,omitempty" yaml:"imports,omitempty"`
+
+	// type categorizes this document based on the intent of its contents
+	GuidanceType GuidanceType `json:"type" yaml:"type"`
+
+	// front-matter provides introductory text for the document to be used during rendering
+	FrontMatter string `json:"front-matter,omitempty" yaml:"front-matter,omitempty"`
+
+	// groups contains a list of guidance groups that can be referenced by guidance
+	Groups []Group `json:"groups,omitempty" yaml:"groups,omitempty"`
+
+	// guidelines is a list of unique guidelines defined by this catalog
+	Guidelines []Guideline `json:"guidelines,omitempty" yaml:"guidelines,omitempty"`
+
+	// exemptions provides information about situations where this guidance is not applicable
+	Exemptions []Exemption `json:"exemptions,omitempty" yaml:"exemptions,omitempty"`
+}
+
 // Guideline provides explanatory context and recommendations for designing optimal outcomes
 type Guideline struct {
 	// id allows this entry to be referenced by other elements
@@ -219,8 +259,8 @@ type Guideline struct {
 	// objective is a unified statement of intent, which may encompass multiple situationally applicable statements
 	Objective string `json:"objective" yaml:"objective"`
 
-	// family provides an id to the family that this guideline belongs to
-	Family string `json:"family" yaml:"family"`
+	// group provides an id to the group that this guideline belongs to
+	Group string `json:"group" yaml:"group"`
 
 	// recommendations is a list of non-binding suggestions to aid in evaluation or enforcement of the guideline
 	Recommendations []string `json:"recommendations,omitempty" yaml:"recommendations,omitempty"`
@@ -290,27 +330,6 @@ type Statement struct {
 	Recommendations []string `json:"recommendations,omitempty" yaml:"recommendations,omitempty"`
 }
 
-// MultiEntryMapping represents a mapping to an external reference with one or more entries.
-type MultiEntryMapping struct {
-	// ReferenceId should reference the corresponding MappingReference id from metadata
-	ReferenceId string `json:"reference-id" yaml:"reference-id"`
-
-	// entries is a list of mapping entries
-	Entries []MappingEntry `json:"entries" yaml:"entries"`
-
-	// remarks is prose regarding the mapped artifact or the mapping relationship
-	Remarks string `json:"remarks,omitempty" yaml:"remarks,omitempty"`
-}
-
-// MappingEntry represents a single entry within a mapping
-type MappingEntry struct {
-	// reference-id is the id for a MappingReference entry in the artifact's metadata
-	ReferenceId string `json:"reference-id" yaml:"reference-id"`
-
-	// remarks is prose describing the mapping relationship
-	Remarks string `json:"remarks,omitempty" yaml:"remarks,omitempty"`
-}
-
 // Exemption describes a single scenario where the catalog is not applicable
 type Exemption struct {
 	// description identifies who or what is exempt from the full guidance
@@ -324,11 +343,16 @@ type Exemption struct {
 }
 
 type VectorCatalog struct {
-	// title describes the contents of this catalog
+	// title describes the purpose of this catalog at a glance
 	Title string `json:"title" yaml:"title"`
 
 	// metadata provides detailed data about this catalog
 	Metadata Metadata `json:"metadata" yaml:"metadata"`
+
+	// extends references catalogs that this catalog builds upon
+	Extends []ArtifactMapping `json:"extends,omitempty" yaml:"extends,omitempty"`
+
+	Imports []MultiEntryMapping `json:"imports,omitempty" yaml:"imports,omitempty"`
 
 	// vectors is a list of attack vectors documented in this catalog
 	Vectors []Vector `json:"vectors,omitempty" yaml:"vectors,omitempty"`
@@ -351,23 +375,22 @@ type Vector struct {
 
 // ControlCatalog describes a set of related controls and relevant metadata
 type ControlCatalog struct {
-	// title describes the contents of this catalog at a glance
+	// groups contains a list of control groups that can be referenced by controls
+	Groups []Group `json:"groups,omitempty" yaml:"groups,omitempty"`
+
+	// controls is a list of unique controls defined by this catalog
+	Controls []Control `json:"controls,omitempty" yaml:"controls,omitempty"`
+
+	// title describes the purpose of this catalog at a glance
 	Title string `json:"title" yaml:"title"`
 
 	// metadata provides detailed data about this catalog
 	Metadata Metadata `json:"metadata" yaml:"metadata"`
 
-	// extends references control catalogs that this catalog builds upon
+	// extends references catalogs that this catalog builds upon
 	Extends []ArtifactMapping `json:"extends,omitempty" yaml:"extends,omitempty"`
 
-	// families contains a list of control families that can be referenced by controls
-	Families []Group `json:"families,omitempty" yaml:"families,omitempty"`
-
-	// controls is a list of unique controls defined by this catalog
-	Controls []Control `json:"controls,omitempty" yaml:"controls,omitempty"`
-
-	// imports contains controls from other sources which are included as part of this document
-	Imports *ControlCatalogImports `json:"imports,omitempty" yaml:"imports,omitempty"`
+	Imports []MultiEntryMapping `json:"imports,omitempty" yaml:"imports,omitempty"`
 }
 
 // Control describes a safeguard or countermeasure with a clear objective and assessment requirements
@@ -381,8 +404,8 @@ type Control struct {
 	// objective is a unified statement of intent, which may encompass multiple situationally applicable requirements
 	Objective string `json:"objective" yaml:"objective"`
 
-	// family references by id a catalog control family that this control belongs to
-	Family string `json:"family" yaml:"family"`
+	// group references by id a catalog group that this control belongs to
+	Group string `json:"group" yaml:"group"`
 
 	// assessment-requirements is a list of requirements that must be verified to confirm the control objective has been met
 	AssessmentRequirements []AssessmentRequirement `json:"assessment-requirements" yaml:"assessment-requirements"`
@@ -429,23 +452,19 @@ type ControlCatalogImports struct {
 
 // ThreatCatalog describes a set of topically-associated threats
 type ThreatCatalog struct {
+	// threats is a list of threats defined by this catalog
+	Threats []Threat `json:"threats,omitempty" yaml:"threats,omitempty"`
+
 	// title describes the purpose of this catalog at a glance
 	Title string `json:"title" yaml:"title"`
 
 	// metadata provides detailed data about this catalog
 	Metadata Metadata `json:"metadata" yaml:"metadata"`
 
-	// extends references threat catalogs that this catalog builds upon
+	// extends references catalogs that this catalog builds upon
 	Extends []ArtifactMapping `json:"extends,omitempty" yaml:"extends,omitempty"`
 
-	// threats is a list of threats defined by this catalog
-	Threats []Threat `json:"threats,omitempty" yaml:"threats,omitempty"`
-
-	// capabilities is a list of capabilities that make up the system being assessed
-	Capabilities []Capability `json:"capabilities,omitempty" yaml:"capabilities,omitempty"`
-
-	// imports contains threats and capabilities from other sources which are included as part of this document
-	Imports *ThreatCatalogImports `json:"imports,omitempty" yaml:"imports,omitempty"`
+	Imports []MultiEntryMapping `json:"imports,omitempty" yaml:"imports,omitempty"`
 }
 
 // Threat describes a specifically-scoped opportunity for a negative impact to the organization
@@ -469,6 +488,32 @@ type Threat struct {
 	Actors []Actor `json:"actors,omitempty" yaml:"actors,omitempty"`
 }
 
+// ThreatCatalogImports defines imported entries for a threat catalog
+type ThreatCatalogImports struct {
+	// threats is a list of threats from another source
+	Threats []MultiEntryMapping `json:"threats,omitempty" yaml:"threats,omitempty"`
+
+	// capabilities is a list of capabilities from another source
+	Capabilities []MultiEntryMapping `json:"capabilities,omitempty" yaml:"capabilities,omitempty"`
+}
+
+// CapabilityCatalog describes a collection of capability entries
+type CapabilityCatalog struct {
+	// capabilities is a list of capabilities defined by this catalog
+	Capabilities []Capability `json:"capabilities,omitempty" yaml:"capabilities,omitempty"`
+
+	// title describes the purpose of this catalog at a glance
+	Title string `json:"title" yaml:"title"`
+
+	// metadata provides detailed data about this catalog
+	Metadata Metadata `json:"metadata" yaml:"metadata"`
+
+	// extends references catalogs that this catalog builds upon
+	Extends []ArtifactMapping `json:"extends,omitempty" yaml:"extends,omitempty"`
+
+	Imports []MultiEntryMapping `json:"imports,omitempty" yaml:"imports,omitempty"`
+}
+
 // Capability describes a system capability such as a feature, component or object.
 type Capability struct {
 	// id allows this entry to be referenced by other elements
@@ -481,30 +526,26 @@ type Capability struct {
 	Description string `json:"description" yaml:"description"`
 }
 
-// ThreatCatalogImports defines imported entries for a threat catalog
-type ThreatCatalogImports struct {
-	// threats is a list of threats from another source
-	Threats []MultiEntryMapping `json:"threats,omitempty" yaml:"threats,omitempty"`
-
-	// capabilities is a list of capabilities from another source
-	Capabilities []MultiEntryMapping `json:"capabilities,omitempty" yaml:"capabilities,omitempty"`
-}
-
 // A RiskCatalog is a structured collection of documented risks that may affect an organization,
 // system, or service. It provides a centralized reference for risks that can be mapped to threats
 // and referenced by policies when documenting how those risks are mitigated or accepted.
 type RiskCatalog struct {
-	// title describes the contents of this catalog at a glance
+	// groups is a list of risk groups used to classify risks
+	Groups []RiskCategory `json:"groups,omitempty" yaml:"groups,omitempty"`
+
+	// risks is a list of risks defined by this catalog
+	Risks []Risk `json:"risks,omitempty" yaml:"risks,omitempty"`
+
+	// title describes the purpose of this catalog at a glance
 	Title string `json:"title" yaml:"title"`
 
 	// metadata provides detailed data about this catalog
 	Metadata Metadata `json:"metadata" yaml:"metadata"`
 
-	// categories is a list of risk categories used to classify risks
-	Categories []RiskCategory `json:"categories,omitempty" yaml:"categories,omitempty"`
+	// extends references catalogs that this catalog builds upon
+	Extends []ArtifactMapping `json:"extends,omitempty" yaml:"extends,omitempty"`
 
-	// risks is a list of risks defined by this catalog
-	Risks []Risk `json:"risks,omitempty" yaml:"risks,omitempty"`
+	Imports []MultiEntryMapping `json:"imports,omitempty" yaml:"imports,omitempty"`
 }
 
 // RiskCategory describes a grouping of risks and defines appetite boundaries
@@ -515,7 +556,8 @@ type RiskCategory struct {
 	// id allows this entry to be referenced by other elements
 	Id string `json:"id" yaml:"id"`
 
-	// max-severity defines the highest allowed severity within this category
+	// max-severity defines the risk tolerance boundary: the highest severity
+	// the organization will accept within this category
 	MaxSeverity Severity `json:"max-severity,omitempty" yaml:"max-severity,omitempty"`
 
 	// title describes the purpose of this group at a glance
@@ -536,10 +578,10 @@ type Risk struct {
 	// description explains the risk scenario
 	Description string `json:"description" yaml:"description"`
 
-	// category references by id a catalog risk category that this risk belongs to
-	Category string `json:"category" yaml:"category"`
+	// group references by id a catalog risk group that this risk belongs to
+	Group string `json:"group" yaml:"group"`
 
-	// severity describes the impact level
+	// severity describes the assessed level of this risk
 	Severity Severity `json:"severity" yaml:"severity"`
 
 	// owner defines the RACI roles responsible for managing this risk
@@ -726,7 +768,13 @@ type Adherence struct {
 
 // AcceptedMethod defines a method for evaluation or enforcement.
 type AcceptedMethod struct {
+	Id string `json:"id" yaml:"id"`
+
 	Type MethodType `json:"type" yaml:"type"`
+
+	Mode ModeType `json:"mode" yaml:"mode"`
+
+	Required bool `json:"required" yaml:"required"`
 
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 
@@ -761,10 +809,15 @@ type Parameter struct {
 
 // EvaluationLog contains the results of evaluating a set of Layer 2 controls.
 type EvaluationLog struct {
+	// metadata provides detailed data about this log
 	Metadata Metadata `json:"metadata" yaml:"metadata"`
+
+	// result is the aggregate outcome across all evaluations in this log
+	Result Result `json:"result" yaml:"result"`
 
 	Evaluations []*ControlEvaluation `json:"evaluations" yaml:"evaluations"`
 
+	// target identifies the resource being evaluated
 	Target Resource `json:"target" yaml:"target"`
 }
 
@@ -822,6 +875,78 @@ type AssessmentLog struct {
 	ConfidenceLevel ConfidenceLevel `json:"confidence-level,omitempty" yaml:"confidence-level,omitempty"`
 }
 
+// EnforcementLog records actions taken in response to noncompliance findings from Layer 5 evaluations.
+type EnforcementLog struct {
+	// disposition is the aggregate enforcement disposition across all actions in this log
+	Disposition Disposition `json:"disposition" yaml:"disposition"`
+
+	// Enforce that Clear dispositions only contain Passed assessment results
+	Actions []*ActionLog `json:"actions" yaml:"actions"`
+
+	// metadata provides detailed data about this log
+	Metadata Metadata `json:"metadata" yaml:"metadata"`
+
+	// target identifies the resource being evaluated
+	Target Resource `json:"target" yaml:"target"`
+}
+
+// ActionLog captures a performed enforcement action.
+type ActionLog struct {
+	// disposition is the enforcement action taken
+	Disposition Disposition `json:"disposition" yaml:"disposition"`
+
+	// method references the specific AcceptedMethod entry within the Policy being enforced
+	Method EntryMapping `json:"method" yaml:"method"`
+
+	// message provides additional context about the action
+	Message *string `json:"message,omitempty" yaml:"message,omitempty"`
+
+	// start is the timestamp when the enforcement action began
+	Start Datetime `json:"start" yaml:"start"`
+
+	// end is the timestamp when the enforcement action concluded
+	End Datetime `json:"end,omitempty" yaml:"end,omitempty"`
+
+	// steps references the code paths or addresses that carried out this enforcement action
+	Steps []EnforcementStep `json:"steps" yaml:"steps"`
+
+	// justification links the action to its assessment findings and any applicable exceptions
+	Justification Justification `json:"justification" yaml:"justification"`
+}
+
+// Justification provides the assessment data and exception references that justify an enforcement action.
+type Justification struct {
+	// assessments links the action to one or more Assessment Findings
+	Assessments []AssessmentFinding `json:"assessments" yaml:"assessments"`
+
+	// exceptions references approved Policy exceptions that authorize the action
+	Exceptions []ArtifactMapping `json:"exceptions,omitempty" yaml:"exceptions,omitempty"`
+}
+
+// AssessmentFinding maps an enforcement action to its originating assessment data across Layer 2, Layer 3, and Layer 5.
+type AssessmentFinding struct {
+	// result is the assessment outcome that triggered the enforcement action
+	Result Result `json:"result" yaml:"result"`
+
+	// requirement maps to the Layer 2 assessment requirement that was evaluated
+	Requirement EntryMapping `json:"requirement,omitempty" yaml:"requirement,omitempty"`
+
+	// plan maps to the Policy assessment plan that was executed
+	Plan EntryMapping `json:"plan,omitempty" yaml:"plan,omitempty"`
+
+	// log maps to the EvaluationLog entry containing the finding
+	Log EntryMapping `json:"log" yaml:"log"`
+}
+
+// Log describes a set of recorded entries from a measurement activity
+type Log struct {
+	// metadata provides detailed data about this log
+	Metadata Metadata `json:"metadata" yaml:"metadata"`
+
+	// target identifies the resource being evaluated
+	Target Resource `json:"target" yaml:"target"`
+}
+
 // MappingDocument captures the user's intent for how entries in a source artifact relate to entries in a target artifact
 type MappingDocument struct {
 	// title describes the purpose of this mapping document at a glance
@@ -856,6 +981,9 @@ type Mapping struct {
 
 	// relationship describes the nature or purpose of the mapping
 	Relationship RelationshipType `json:"relationship" yaml:"relationship"`
+
+	// strength is the author's estimate of how completely the source entry satisfies the target entry; range 1-10
+	Strength int64 `json:"strength,omitempty" yaml:"strength,omitempty"`
 
 	ConfidenceLevel ConfidenceLevel `json:"confidence-level,omitempty" yaml:"confidence-level,omitempty"`
 
