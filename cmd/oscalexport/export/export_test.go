@@ -13,18 +13,18 @@ import (
 
 func TestGuidance(t *testing.T) {
 	tempDir := t.TempDir()
-	mockYAML := `
+mockYAML := `
 metadata:
   id: Test
   title: Test
   description: ""
-families:
+groups:
   - id: TEST
     title: Test
     description: Test
 guidelines:
   - id: TEST-01
-    family: TEST
+    group: TEST
     title: Test Guideline
 `
 	inputFilePath := filepath.Join(tempDir, "guidance.yaml")
@@ -74,18 +74,18 @@ guidelines:
 func TestCatalog(t *testing.T) {
 	tempDir := t.TempDir()
 
-	mockYAML := `
+mockYAML := `
 metadata:
   id: Test
   title: Test
   description: ""
-families:
+groups:
   - id: TEST
     title: Test
     description: Test
 controls:
   - id: TEST-01
-    family: TEST
+    group: TEST
     title: Test Control
     objective: Test objective
     assessment-requirements:

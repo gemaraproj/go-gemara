@@ -52,7 +52,7 @@ metadata:
       url: https://github.com/slsa-framework/slsa
 
 title: Open Source Project Security Baseline
-families:
+groups:
 - id: access-control
   title: Access Control
   description: |
@@ -137,7 +137,7 @@ controls:
     Reduce the risk of account compromise or insider threats by requiring
     multi-factor authentication for collaborators modifying the project
     repository settings or accessing sensitive data.
-  guideline-mappings:
+  guidelines:
   - reference-id: BPB
     entries:
     - reference-id: CC-G-1
@@ -193,7 +193,7 @@ controls:
       control system, requiring collaborators to provide a second form of
       authentication when accessing sensitive data or modifying repository
       settings. Passkeys are acceptable for this control.
-  family: access-control
+  group: access-control
 - id: OSPS-AC-02
   title: |
     The project's version control system MUST restrict collaborator
@@ -201,7 +201,7 @@ controls:
   objective: |
     Reduce the risk of unauthorized access to the project's repository by
     limiting the permissions granted to new collaborators.
-  guideline-mappings:
+  guidelines:
   - reference-id: CRA
     entries:
     - reference-id: 1.2f
@@ -249,7 +249,7 @@ controls:
       Ensure the project's version control system always assigns the lowest
       available permissions to collaborators by default when added, granting
       additional permissions only when necessary.
-  family: access-control
+  group: access-control
 - id: OSPS-AC-03
   title: |
     The project's version control system MUST prevent unintentional
