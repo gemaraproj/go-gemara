@@ -10,7 +10,7 @@ GOFLAGS :=
 COVERFILE := coverage.out
 TESTCOVERAGE_THRESHOLD := 71
 GOLANGCI_LINT := golangci-lint
-SPECVERSION := v0.22.0
+SPECVERSION := v0.23.0
 
 .PHONY: all tidy fmtcheck fmt vet lint test testcov race coverage-check build install generate ci-local clean help
 
