@@ -1,6 +1,10 @@
 package gemara
 
-import "github.com/goccy/go-yaml"
+import (
+	"slices"
+
+	"github.com/goccy/go-yaml"
+)
 
 // UnmarshalYAML allows decoding control catalogs from older/alternate YAML schemas.
 // It supports mapping `families` -> `groups`.
@@ -37,4 +41,31 @@ func (c *ControlCatalog) UnmarshalYAML(data []byte) error {
 	c.Imports = tmp.Imports
 
 	return nil
+}
+
+func (c *ControlCatalog) GetGroupNames() (groups []string) {
+	for _, group := range c.Groups {
+		groups = append(groups, group.Title)
+	}
+	return groups
+}
+
+func (c *ControlCatalog) GetControlsForGroup(group string) (controls []Control) {
+	for _, control := range c.Controls {
+		if control.Group == group {
+			controls = append(controls, control)
+		}
+	}
+	return controls
+}
+
+func (c *ControlCatalog) GetRequirementForApplicability(applicability string) (reqs []AssessmentRequirement) {
+	for _, control := range c.Controls {
+		for _, assessment := range control.AssessmentRequirements {
+			if slices.Contains(assessment.Applicability, applicability) {
+				reqs = append(reqs, assessment)
+			}
+		}
+	}
+	return reqs
 }

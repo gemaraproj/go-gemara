@@ -43,3 +43,13 @@ func (c *Control) UnmarshalYAML(data []byte) error {
 
 	return nil
 }
+
+func (c *Control) GetMappingReferences() (refs []string) {
+	for _, ref := range c.Guidelines {
+		refs = append(refs, ref.ReferenceId)
+	}
+	for _, ref := range c.Threats {
+		refs = append(refs, ref.ReferenceId)
+	}
+	return refs
+}
