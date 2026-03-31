@@ -1,0 +1,117 @@
+{{define "catalog"}}# {{.Title}}
+
+{{template "metadata" .}}
+
+{{if .TOC}}{{template "toc_section" .}}{{end}}
+{{template "extends_imports" .}}
+{{range .Groups}}{{template "group_section" .}}{{end}}
+{{end}}
+
+{{define "metadata"}}## Metadata
+
+| Field | Value |
+| --- | --- |
+| **ID** | {{.Metadata.Id}} |
+| **Type** | {{artifactType .Metadata.Type}} |
+| **Gemara version** | {{.Metadata.GemaraVersion}} |
+{{if .Metadata.Version}}| **Version** | {{.Metadata.Version}} |
+{{end}}{{if .Metadata.Date}}| **Date** | {{datetime .Metadata.Date}} |
+{{end}}| **Author** | {{.Metadata.Author.Name}} ({{entityType .Metadata.Author.Type}}{{if .Metadata.Author.Id}}, id: `{{.Metadata.Author.Id}}`{{end}}) |
+{{if .Metadata.Draft}}| **Draft** | yes |
+{{end}}{{if .Metadata.Lexicon}}| **Lexicon** | {{.Metadata.Lexicon.ReferenceId}}{{if .Metadata.Lexicon.Remarks}} — {{.Metadata.Lexicon.Remarks}}{{end}} |
+{{end}}
+
+### Description
+
+{{.Metadata.Description}}
+
+{{if .Metadata.MappingReferences}}### Mapping references
+
+{{range .Metadata.MappingReferences}}- **{{.Id}}** — {{.Title}} (v{{.Version}}){{if .Url}} — [link]({{.Url}}){{end}}{{if .Description}}
+
+  {{.Description}}{{end}}
+{{end}}
+{{end}}
+{{if .Metadata.ApplicabilityGroups}}### Applicability groups
+
+{{range .Metadata.ApplicabilityGroups}}- **{{.Id}}** — {{.Title}}: {{.Description}}
+{{end}}
+{{end}}
+_Summary: {{.NumControls}} control(s), {{.NumARs}} assessment requirement(s)._
+
+{{end}}
+
+{{define "toc_section"}}## Table of contents
+
+{{range .TOCItems}}{{if eq .Indent 0}}- [{{.Label}}](#{{.Anchor}})
+{{else}}  - [{{.Label}}](#{{.Anchor}})
+{{end}}{{end}}
+
+{{end}}
+
+{{define "extends_imports"}}
+{{if .Extends}}## Extends
+
+{{range .Extends}}- {{artifactMapping .}}
+{{end}}
+
+{{end}}
+{{if .Imports}}## Imports
+
+{{range .Imports}}{{template "multi_entry_mapping" .}}{{end}}
+
+{{end}}
+{{end}}
+
+{{define "multi_entry_mapping"}}- **{{.ReferenceId}}**{{if .Remarks}} — {{.Remarks}}{{end}}
+{{range .Entries}}  - {{template "artifact_mapping" .}}{{end}}
+{{end}}
+
+{{define "artifact_mapping"}}{{.ReferenceId}}{{if .Remarks}} — {{.Remarks}}{{end}}{{end}}
+
+{{define "group_section"}}{{if .ID}}## {{.ID}}
+
+{{if .Title}}**{{.Title}}**
+
+{{end}}{{else}}## {{.Title}}
+
+{{end}}{{if .Description}}{{.Description}}
+
+{{end}}{{range .Controls}}{{template "control_section" .}}{{end}}
+{{end}}
+
+{{define "control_section"}}### {{.Id}}
+
+**{{.Title}}**
+
+**State:** {{lifecycle .State}}{{if .ReplacedBy}} · **Replaced by:** `{{.ReplacedBy.EntryId}}`{{if .ReplacedBy.Remarks}} ({{.ReplacedBy.Remarks}}){{end}}{{end}}
+
+**Objective**
+
+{{.Objective}}
+
+{{if .Guidelines}}#### Guidelines
+
+{{range .Guidelines}}{{template "multi_entry_mapping" .}}
+{{end}}{{end}}
+{{if .Threats}}#### Threats
+
+{{range .Threats}}{{template "multi_entry_mapping" .}}
+{{end}}{{end}}
+{{range .AssessmentRequirements}}{{template "ar_section" .}}{{end}}
+{{end}}
+
+{{define "ar_section"}}#### {{.Id}}
+
+**State:** {{lifecycle .State}}{{if .ReplacedBy}} · **Replaced by:** `{{.ReplacedBy.EntryId}}`{{if .ReplacedBy.Remarks}} ({{.ReplacedBy.Remarks}}){{end}}{{end}}
+
+**Text**
+
+{{.Text}}
+
+{{if .Applicability}}**Applicability:** {{joinStrings .Applicability ", "}}
+{{end}}{{if .Recommendation}}**Recommendation**
+
+{{.Recommendation}}
+
+{{end}}{{end}}

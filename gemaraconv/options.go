@@ -64,3 +64,40 @@ func WithControlHref(controlHref string) GenerateOption {
 		opts.controlHREF = controlHref
 	}
 }
+
+type markdownOpts struct {
+	toc        bool
+	lineEnding string
+}
+
+func defaultMarkdownOpts() markdownOpts {
+	return markdownOpts{toc: true, lineEnding: "\n"}
+}
+
+func (o *markdownOpts) apply(opts ...MarkdownOption) {
+	for _, opt := range opts {
+		opt(o)
+	}
+	if o.lineEnding == "" {
+		o.lineEnding = "\n"
+	}
+}
+
+// MarkdownOption configures ControlCatalog Markdown export.
+type MarkdownOption func(*markdownOpts)
+
+// WithTOC sets whether a table of contents is emitted (default true).
+func WithTOC(toc bool) MarkdownOption {
+	return func(o *markdownOpts) {
+		o.toc = toc
+	}
+}
+
+// WithLineEnding sets the line ending sequence (default "\n"). Use "\r\n" for Windows-style output.
+func WithLineEnding(s string) MarkdownOption {
+	return func(o *markdownOpts) {
+		if s != "" {
+			o.lineEnding = s
+		}
+	}
+}
