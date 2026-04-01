@@ -56,9 +56,8 @@ This document builds upon all of the requirements and applicability groups detai
 {{end}}
 {{end}}
 
-{{define "multi_entry_mapping_table_start"}}| Mapping | Entries |
-| :--- | :--- |
-{{end}}
+{{define "multi_entry_mapping_table_start"}}| Source | References |
+| :--- | :--- |{{end}}
 
 {{define "multi_entry_mapping_table_row"}}| **{{.ReferenceId}}**{{if .Remarks}} — {{.Remarks}}{{end}} | {{if .Entries}}{{joinArtifactEntries .Entries " · "}}{{else}}—{{end}} |
 {{end}}
