@@ -68,10 +68,11 @@ func WithControlHref(controlHref string) GenerateOption {
 type markdownOpts struct {
 	toc        bool
 	lineEnding string
+	metadata   bool
 }
 
 func defaultMarkdownOpts() markdownOpts {
-	return markdownOpts{toc: true, lineEnding: "\n"}
+	return markdownOpts{toc: true, lineEnding: "\n", metadata: true}
 }
 
 func (o *markdownOpts) apply(opts ...MarkdownOption) {
@@ -99,5 +100,12 @@ func WithLineEnding(s string) MarkdownOption {
 		if s != "" {
 			o.lineEnding = s
 		}
+	}
+}
+
+// WithMetadata sets whether the metadata section is emitted (default true).
+func WithMetadata(enabled bool) MarkdownOption {
+	return func(o *markdownOpts) {
+		o.metadata = enabled
 	}
 }

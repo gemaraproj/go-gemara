@@ -249,3 +249,16 @@ func TestCatalogToMarkdown_lineEnding(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(out), "\r\n")
 }
+
+func TestCatalogToMarkdown_withoutMetadata(t *testing.T) {
+	catalog := loadControlCatalogFromTestData(t, "good-ccc.yaml")
+	out, err := CatalogToMarkdown(catalog, WithMetadata(false))
+	require.NoError(t, err)
+	s := string(out)
+
+	assert.NotContains(t, s, "_"+catalog.Title+"_ is a Gemara")
+	assert.NotContains(t, s, "### Description")
+	assert.NotContains(t, s, "### Mapping References")
+	assert.Contains(t, s, "## Table of contents")
+	assert.Contains(t, s, "### CCC.C01:")
+}

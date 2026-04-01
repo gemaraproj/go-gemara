@@ -12,6 +12,7 @@ const ungroupedSectionTitle = "Ungrouped"
 type markdownCatalogView struct {
 	Title       string
 	Metadata    gemara.Metadata
+	ShowMetadata bool
 	Extends     []gemara.ArtifactMapping
 	Imports     []gemara.MultiEntryMapping
 	TOC         bool
@@ -124,6 +125,7 @@ func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts)
 	return markdownCatalogView{
 		Title:       catalog.Title,
 		Metadata:    catalog.Metadata,
+		ShowMetadata: opts.metadata,
 		Extends:     catalog.Extends,
 		Imports:     catalog.Imports,
 		TOC:         opts.toc,

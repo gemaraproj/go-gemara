@@ -1,11 +1,11 @@
 {{ define "catalog"}}# {{.Title}} - {{.Metadata.Id}} {{.Metadata.Version}}
 
-{{ template "metadata" .}}
+{{if .ShowMetadata}}{{ template "metadata" .}}{{end}}
 
 {{if .TOC}}{{template "toc_section" .}}{{end}}
 {{ template "extends_imports" .}}
 {{ range .Groups}}{{template "group_section" .}}{{end}}
-{{if .Metadata.MappingReferences}}{{ template "mapping_references_section" .}}{{end}}
+{{if and .ShowMetadata .Metadata.MappingReferences}}{{ template "mapping_references_section" .}}{{end}}
 {{end}}
 
 {{define "metadata"}}
