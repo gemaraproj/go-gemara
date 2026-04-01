@@ -9,7 +9,7 @@
 {{end}}
 
 {{define "metadata"}}
-_{{.Title}}_ is a Gemara {{artifactType .Metadata.Type}}{{if .Metadata.GemaraVersion}}, conforming to specification version **{{.Metadata.GemaraVersion}}**{{end}}{{if .Metadata.Date}}, published **{{.Metadata.Date}}**{{end}} by {{.Metadata.Author.Name}} ({{entityType .Metadata.Author.Type}}{{if .Metadata.Author.Id}}, `{{.Metadata.Author.Id}}`{{end}}).
+_{{.Title}}_ is a Gemara{{if .Metadata.GemaraVersion}} {{.Metadata.GemaraVersion}}{{end}} {{artifactType .Metadata.Type}}{{if .Metadata.Date}}, published **{{.Metadata.Date}}**{{end}} by {{.Metadata.Author.Name}} ({{entityType .Metadata.Author.Type}}{{if .Metadata.Author.Id}}, `{{.Metadata.Author.Id}}`{{end}}).
 
 {{if .Metadata.Draft}}**Warning**: This is a draft, and should only be used as a preview of the upcoming artifact publication.{{end}}
 
