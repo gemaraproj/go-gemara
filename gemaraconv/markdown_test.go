@@ -58,9 +58,6 @@ func TestCatalogToMarkdown_goodCCCYAML(t *testing.T) {
 	numARs := 0
 	activeControls := 0
 	for _, c := range catalog.Controls {
-		if c.State != gemara.LifecycleActive {
-			continue
-		}
 		activeControls++
 		numARs += len(c.AssessmentRequirements)
 	}
@@ -202,6 +199,13 @@ func TestCatalogToMarkdown_extendsImportsReplacedBy(t *testing.T) {
 						Recommendation: "Consider Y.",
 						State:          gemara.LifecycleActive,
 					},
+					{
+						Id:             "C1.2",
+						Text:           "Retired requirement text only.",
+						Applicability:  []string{"retired-app"},
+						Recommendation: "Retired recommendation should be hidden.",
+						State:          gemara.LifecycleRetired,
+					},
 				},
 			},
 			{
@@ -234,6 +238,10 @@ func TestCatalogToMarkdown_extendsImportsReplacedBy(t *testing.T) {
 	assert.Contains(t, s, "**Applicability:** a, b")
 	assert.Contains(t, s, "**Recommendation**")
 	assert.Contains(t, s, "Consider Y.")
+	assert.Contains(t, s, "#### C1.2")
+	assert.Contains(t, s, "Retired requirement text only.")
+	assert.NotContains(t, s, "retired-app")
+	assert.NotContains(t, s, "Retired recommendation should be hidden.")
 }
 
 func TestControlCatalogConverter_ToMarkdown(t *testing.T) {

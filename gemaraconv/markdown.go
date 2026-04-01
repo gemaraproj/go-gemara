@@ -47,6 +47,7 @@ func markdownFuncMap() template.FuncMap {
 	return template.FuncMap{
 		"anchor":       markdownAnchor,
 		"lifecycle":    func(l gemara.Lifecycle) string { return l.String() },
+		"isRetired":    func(l gemara.Lifecycle) bool { return l == gemara.LifecycleRetired },
 		"artifactType": func(a gemara.ArtifactType) string { return a.String() },
 		"entityType":   func(e gemara.EntityType) string { return e.String() },
 		"datetime":     func(d gemara.Datetime) string { return string(d) },

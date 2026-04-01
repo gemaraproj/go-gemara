@@ -98,12 +98,13 @@ This control aids in the mitigation of the following threats:
 
 {{if .ReplacedBy}} · **Replaced by:** `{{.ReplacedBy.EntryId}}`{{if .ReplacedBy.Remarks}} ({{.ReplacedBy.Remarks}}){{end}}{{end}}
 
-{{.Text}}
+{{if isRetired .State}}{{.Text}}
+{{else}}{{.Text}}
 
 {{if .Applicability}}**Applicability:** {{joinStrings .Applicability ", "}}{{end}}
 
 {{if .Recommendation}}**Recommendation**: {{.Recommendation}}
-{{end}}{{end}}
+{{end}}{{end}}{{end}}
 
 {{define "mapping_references_section"}}### Mapping References
 
