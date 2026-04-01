@@ -41,7 +41,12 @@ func TestCatalogToMarkdown_goodCCCYAML(t *testing.T) {
 
 	require.NotEmpty(t, catalog.Groups)
 	group0 := catalog.Groups[0]
-	groupControls := append([]gemara.Control(nil), catalog.GetControlsForGroup(group0.Id)...)
+	var groupControls []gemara.Control
+	for _, c := range catalog.Controls {
+		if c.Group == group0.Id && c.State == gemara.LifecycleActive {
+			groupControls = append(groupControls, c)
+		}
+	}
 	require.NotEmpty(t, groupControls)
 	sort.Slice(groupControls, func(i, j int) bool { return groupControls[i].Id < groupControls[j].Id })
 	c0 := groupControls[0]
@@ -51,21 +56,26 @@ func TestCatalogToMarkdown_goodCCCYAML(t *testing.T) {
 	ar0 := ars[0]
 
 	numARs := 0
+	activeControls := 0
 	for _, c := range catalog.Controls {
+		if c.State != gemara.LifecycleActive {
+			continue
+		}
+		activeControls++
 		numARs += len(c.AssessmentRequirements)
 	}
 
-	assert.Contains(t, s, fmt.Sprintf("# %s", catalog.Title))
-	assert.Contains(t, s, fmt.Sprintf("**%s** is a", catalog.Metadata.Id))
+	assert.Contains(t, s, fmt.Sprintf("# %s - %s", catalog.Title, catalog.Metadata.Id))
+	assert.Contains(t, s, "_"+catalog.Title+"_ is a Gemara")
 	assert.Contains(t, s, "## Table of contents")
 	assert.Contains(t, s, fmt.Sprintf("- [%s](#%s)", group0.Title, markdownAnchor(group0.Id)))
-	assert.Contains(t, s, fmt.Sprintf("  - [%s — %s](#%s)", c0.Id, c0.Title, markdownAnchor(c0.Id)))
+	assert.Contains(t, s, fmt.Sprintf("  - [%s: %s](#%s)", c0.Id, c0.Title, markdownAnchor(c0.Id+": "+c0.Title)))
 	assert.Contains(t, s, fmt.Sprintf("## %s: %s", group0.Id, group0.Title))
 	assert.Contains(t, s, fmt.Sprintf("### %s", c0.Id))
 	assert.Contains(t, s, fmt.Sprintf("#### %s", ar0.Id))
 	assert.Contains(t, s, "#### Guidelines")
 	assert.Contains(t, s, "#### Threats")
-	assert.Contains(t, s, fmt.Sprintf("_Summary: %d control(s), %d assessment requirement(s)._", len(catalog.Controls), numARs))
+	assert.Contains(t, s, fmt.Sprintf("_Summary: %d control(s), %d assessment requirement(s)._", activeControls, numARs))
 }
 
 func TestCatalogToMarkdown_goodOSPSYAML(t *testing.T) {
@@ -76,11 +86,11 @@ func TestCatalogToMarkdown_goodOSPSYAML(t *testing.T) {
 	s := string(out)
 
 	assert.Contains(t, s, "# Open Source Project Security Baseline")
-	assert.Contains(t, s, "**OSPS-B** is a")
+	assert.Contains(t, s, "_Open Source Project Security Baseline_ is a Gemara")
 	assert.NotContains(t, s, "## Table of contents")
 	assert.Greater(t, len(out), 5000)
-	assert.Contains(t, s, "## Metadata")
-	assert.Contains(t, s, "### Mapping references")
+	assert.Contains(t, s, "### Description")
+	assert.Contains(t, s, "### Mapping References")
 }
 
 func TestCatalogToMarkdown_nestedGoodCCCYAML(t *testing.T) {
@@ -134,7 +144,7 @@ func TestCatalogToMarkdown_ungrouped(t *testing.T) {
 	assert.Contains(t, s, "## Ungrouped")
 	assert.Contains(t, s, "### ORPHAN")
 	assert.Contains(t, s, "- [Ungrouped](#ungrouped)")
-	assert.Contains(t, s, "  - [ORPHAN — Orphan](#orphan)")
+	assert.Contains(t, s, fmt.Sprintf("  - [ORPHAN: Orphan](#%s)", markdownAnchor("ORPHAN: Orphan")))
 }
 
 func TestCatalogToMarkdown_extendsImportsReplacedBy(t *testing.T) {
@@ -172,11 +182,7 @@ func TestCatalogToMarkdown_extendsImportsReplacedBy(t *testing.T) {
 				Group:     "G",
 				Title:     "Control one",
 				Objective: "Obj.",
-				State:     gemara.LifecycleDeprecated,
-				ReplacedBy: &gemara.EntryMapping{
-					EntryId: "C2",
-					Remarks: "use C2",
-				},
+				State:     gemara.LifecycleActive,
 				Guidelines: []gemara.MultiEntryMapping{
 					{
 						ReferenceId: "GL",
@@ -198,6 +204,17 @@ func TestCatalogToMarkdown_extendsImportsReplacedBy(t *testing.T) {
 					},
 				},
 			},
+			{
+				Id:        "C-HIDDEN",
+				Group:     "G",
+				Title:     "Not exported",
+				Objective: "Omit from markdown.",
+				State:     gemara.LifecycleDeprecated,
+				ReplacedBy: &gemara.EntryMapping{
+					EntryId: "C1",
+					Remarks: "use C1",
+				},
+			},
 		},
 	}
 
@@ -209,9 +226,9 @@ func TestCatalogToMarkdown_extendsImportsReplacedBy(t *testing.T) {
 	assert.Contains(t, s, "- base — extends base")
 	assert.Contains(t, s, "## Imports")
 	assert.Contains(t, s, "**imp**")
-	assert.Contains(t, s, "### Mapping references")
-	assert.Contains(t, s, "**State:** Deprecated")
-	assert.Contains(t, s, "**Replaced by:** `C2`")
+	assert.Contains(t, s, "### Mapping References")
+	assert.NotContains(t, s, "### C-HIDDEN")
+	assert.Contains(t, s, "### C1: Control one")
 	assert.Contains(t, s, "#### Guidelines")
 	assert.Contains(t, s, "#### Threats")
 	assert.Contains(t, s, "**Applicability:** a, b")

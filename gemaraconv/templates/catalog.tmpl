@@ -1,13 +1,11 @@
-{{ define "catalog"}}# {{.Title}} ({{.Metadata.Id}} {{.Metadata.Version}})
+{{ define "catalog"}}# {{.Title}} - {{.Metadata.Id}} {{.Metadata.Version}}
 
 {{ template "metadata" .}}
 
 {{if .TOC}}{{template "toc_section" .}}{{end}}
 {{ template "extends_imports" .}}
 {{ range .Groups}}{{template "group_section" .}}{{end}}
-{{end}}
-{{if .Metadata.MappingReferences}}
-{{ template "mapping_references_section" .}}
+{{if .Metadata.MappingReferences}}{{ template "mapping_references_section" .}}{{end}}
 {{end}}
 
 {{define "metadata"}}
@@ -44,22 +42,26 @@ _Summary: {{.NumControls}} control(s), {{.NumARs}} assessment requirement(s)._
 {{define "extends_imports"}}
 {{if .Extends}}## Extends
 
+This document builds upon all of the requirements and applicability groups detailed in:
+
 {{range .Extends}}- {{artifactMapping .}}
 {{end}}
 
 {{end}}
 {{if .Imports}}## Imports
 
-{{range .Imports}}{{template "multi_entry_mapping" .}}{{end}}
+{{template "multi_entry_mapping_table_start"}}
+{{range .Imports}}{{template "multi_entry_mapping_table_row" .}}{{end}}
 
 {{end}}
 {{end}}
 
-{{define "multi_entry_mapping"}}- **{{.ReferenceId}}**{{if .Remarks}} — {{.Remarks}}{{end}}
-{{range .Entries}}  - {{template "artifact_mapping" .}}{{end}}
+{{define "multi_entry_mapping_table_start"}}| Mapping | Entries |
+| :--- | :--- |
 {{end}}
 
-{{define "artifact_mapping"}}{{.ReferenceId}}{{if .Remarks}} — {{.Remarks}}{{end}}{{end}}
+{{define "multi_entry_mapping_table_row"}}| **{{.ReferenceId}}**{{if .Remarks}} — {{.Remarks}}{{end}} | {{if .Entries}}{{joinArtifactEntries .Entries " · "}}{{else}}—{{end}} |
+{{end}}
 
 {{define "group_section"}}
 ## {{if .ID}}{{.ID}}{{if .Title}}: {{.Title}}{{end}}{{else}}{{if .Title}}{{.Title}}{{end}}{{end}}
@@ -68,11 +70,9 @@ _Summary: {{.NumControls}} control(s), {{.NumARs}} assessment requirement(s)._
 {{range .Controls}}{{template "control_section" .}}{{end}}
 {{end}}
 
-{{define "control_section"}}### {{.Id}}
+{{define "control_section"}}### {{.Id}}: {{.Title}}
 
-**{{.Title}}**
-
-**State:** {{lifecycle .State}}{{if .ReplacedBy}} · **Replaced by:** `{{.ReplacedBy.EntryId}}`{{if .ReplacedBy.Remarks}} ({{.ReplacedBy.Remarks}}){{end}}{{end}}
+{{if .ReplacedBy}} · **Replaced by:** `{{.ReplacedBy.EntryId}}`{{if .ReplacedBy.Remarks}} ({{.ReplacedBy.Remarks}}){{end}}{{end}}
 
 **Objective**
 
@@ -80,28 +80,30 @@ _Summary: {{.NumControls}} control(s), {{.NumARs}} assessment requirement(s)._
 
 {{if .Guidelines}}#### Guidelines
 
-{{range .Guidelines}}{{template "multi_entry_mapping" .}}
-{{end}}{{end}}
+This control aids in the application of the following guidelines:
+
+{{template "multi_entry_mapping_table_start"}}
+{{range .Guidelines}}{{template "multi_entry_mapping_table_row" .}}{{end}}
+{{end}}
 {{if .Threats}}#### Threats
 
-{{range .Threats}}{{template "multi_entry_mapping" .}}
-{{end}}{{end}}
+This control aids in the mitigation of the following threats:
+
+{{template "multi_entry_mapping_table_start"}}
+{{range .Threats}}{{template "multi_entry_mapping_table_row" .}}{{end}}
+{{end}}
 {{range .AssessmentRequirements}}{{template "ar_section" .}}{{end}}
 {{end}}
 
 {{define "ar_section"}}#### {{.Id}}
 
-**State:** {{lifecycle .State}}{{if .ReplacedBy}} · **Replaced by:** `{{.ReplacedBy.EntryId}}`{{if .ReplacedBy.Remarks}} ({{.ReplacedBy.Remarks}}){{end}}{{end}}
-
-**Text**
+{{if .ReplacedBy}} · **Replaced by:** `{{.ReplacedBy.EntryId}}`{{if .ReplacedBy.Remarks}} ({{.ReplacedBy.Remarks}}){{end}}{{end}}
 
 {{.Text}}
 
-{{if .Applicability}}**Applicability:** {{joinStrings .Applicability ", "}}
-{{end}}{{if .Recommendation}}**Recommendation**
+{{if .Applicability}}**Applicability:** {{joinStrings .Applicability ", "}}{{end}}
 
-{{.Recommendation}}
-
+{{if .Recommendation}}**Recommendation**: {{.Recommendation}}
 {{end}}{{end}}
 
 {{define "mapping_references_section"}}### Mapping References

@@ -49,12 +49,25 @@ func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts)
 		known[g.Id] = struct{}{}
 	}
 
+	byGroup := make(map[string][]gemara.Control)
+	var orphans []gemara.Control
+	numARs := 0
+	numControlsShown := 0
+	for _, c := range catalog.Controls {
+		if c.State != gemara.LifecycleActive {
+			continue
+		}
+		numControlsShown++
+		numARs += len(c.AssessmentRequirements)
+		if _, ok := known[c.Group]; ok {
+			byGroup[c.Group] = append(byGroup[c.Group], c)
+		} else {
+			orphans = append(orphans, c)
+		}
+	}
+
 	var groups []markdownGroupView
 	var toc []markdownTOCItem
-	numARs := 0
-	for _, c := range catalog.Controls {
-		numARs += len(c.AssessmentRequirements)
-	}
 
 	appendGroup := func(gv markdownGroupView) {
 		groups = append(groups, gv)
@@ -64,18 +77,16 @@ func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts)
 		toc = append(toc, markdownTOCItem{Label: gv.Title, Anchor: gv.Anchor, Indent: 0, Control: false})
 		for _, ctl := range gv.Controls {
 			toc = append(toc, markdownTOCItem{
-				Label:   ctl.Id + " — " + ctl.Title,
-				Anchor:  markdownAnchor(ctl.Id),
+				Label:   ctl.Id + ": " + ctl.Title,
+				Anchor:  markdownAnchor(ctl.Id + ": " + ctl.Title),
 				Indent:  1,
 				Control: true,
 			})
 		}
 	}
 
-	// Known groups in catalog order (skip empty).
 	for _, g := range catalog.Groups {
-		// Copy before sort so we never mutate a future controls_cache slice in place.
-		ctrls := append([]gemara.Control(nil), catalog.GetControlsForGroup(g.Id)...)
+		ctrls := append([]gemara.Control(nil), byGroup[g.Id]...)
 		if len(ctrls) == 0 {
 			continue
 		}
@@ -95,16 +106,10 @@ func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts)
 		})
 	}
 
-	// Controls whose Group id is not in catalog.Groups.
-	var ungrouped []gemara.Control
-	for _, c := range catalog.Controls {
-		if _, ok := known[c.Group]; !ok {
-			ungrouped = append(ungrouped, c)
-		}
-	}
-	sort.Slice(ungrouped, func(i, j int) bool { return ungrouped[i].Id < ungrouped[j].Id })
-	if len(ungrouped) > 0 {
-		ungrouped = copyControlsWithSortedARs(ungrouped)
+	if len(orphans) > 0 {
+		ctrls := append([]gemara.Control(nil), orphans...)
+		sort.Slice(ctrls, func(i, j int) bool { return ctrls[i].Id < ctrls[j].Id })
+		ctrls = copyControlsWithSortedARs(ctrls)
 		uAnchor := markdownAnchor(ungroupedSectionTitle)
 		appendGroup(markdownGroupView{
 			ID:          "",
@@ -112,7 +117,7 @@ func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts)
 			Description: "Controls whose group id is not listed in the catalog groups.",
 			Anchor:      uAnchor,
 			IsUngrouped: true,
-			Controls:    ungrouped,
+			Controls:    ctrls,
 		})
 	}
 
@@ -125,11 +130,13 @@ func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts)
 		LineEnding:  opts.lineEnding,
 		Groups:      groups,
 		TOCItems:    toc,
-		NumControls: len(catalog.Controls),
+		NumControls: numControlsShown,
 		NumARs:      numARs,
 	}
 }
 
+// copyControlsWithSortedARs returns a deep copy of ctrls with AssessmentRequirements
+// sorted by id for stable Markdown output. The source slice and catalog are not modified.
 func copyControlsWithSortedARs(ctrls []gemara.Control) []gemara.Control {
 	out := make([]gemara.Control, len(ctrls))
 	for i, c := range ctrls {

@@ -15,6 +15,7 @@ import (
 var markdownTemplates embed.FS
 
 // CatalogToMarkdown renders a ControlCatalog as Markdown using embedded templates.
+// Only controls whose state is LifecycleActive are included (TOC, body, and summary counts).
 func CatalogToMarkdown(catalog *gemara.ControlCatalog, opts ...MarkdownOption) ([]byte, error) {
 	if catalog == nil {
 		return nil, fmt.Errorf("catalog is nil")
@@ -50,6 +51,20 @@ func markdownFuncMap() template.FuncMap {
 		"entityType":   func(e gemara.EntityType) string { return e.String() },
 		"datetime":     func(d gemara.Datetime) string { return string(d) },
 		"joinStrings":  func(ss []string, sep string) string { return strings.Join(ss, sep) },
+		"joinArtifactEntries": func(entries []gemara.ArtifactMapping, sep string) string {
+			if len(entries) == 0 {
+				return ""
+			}
+			parts := make([]string, 0, len(entries))
+			for _, e := range entries {
+				s := e.ReferenceId
+				if e.Remarks != "" {
+					s += " — " + e.Remarks
+				}
+				parts = append(parts, s)
+			}
+			return strings.Join(parts, sep)
+		},
 		"artifactMapping": func(m gemara.ArtifactMapping) string {
 			s := m.ReferenceId
 			if m.Remarks != "" {
