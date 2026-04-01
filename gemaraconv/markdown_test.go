@@ -56,12 +56,11 @@ func TestCatalogToMarkdown_goodCCCYAML(t *testing.T) {
 	}
 
 	assert.Contains(t, s, fmt.Sprintf("# %s", catalog.Title))
-	assert.Contains(t, s, fmt.Sprintf("| **ID** | %s |", catalog.Metadata.Id))
+	assert.Contains(t, s, fmt.Sprintf("**%s** is a", catalog.Metadata.Id))
 	assert.Contains(t, s, "## Table of contents")
 	assert.Contains(t, s, fmt.Sprintf("- [%s](#%s)", group0.Title, markdownAnchor(group0.Id)))
 	assert.Contains(t, s, fmt.Sprintf("  - [%s — %s](#%s)", c0.Id, c0.Title, markdownAnchor(c0.Id)))
-	assert.Contains(t, s, fmt.Sprintf("## %s", group0.Id))
-	assert.Contains(t, s, fmt.Sprintf("**%s**", group0.Title))
+	assert.Contains(t, s, fmt.Sprintf("## %s: %s", group0.Id, group0.Title))
 	assert.Contains(t, s, fmt.Sprintf("### %s", c0.Id))
 	assert.Contains(t, s, fmt.Sprintf("#### %s", ar0.Id))
 	assert.Contains(t, s, "#### Guidelines")
@@ -77,7 +76,7 @@ func TestCatalogToMarkdown_goodOSPSYAML(t *testing.T) {
 	s := string(out)
 
 	assert.Contains(t, s, "# Open Source Project Security Baseline")
-	assert.Contains(t, s, "| **ID** | OSPS-B |")
+	assert.Contains(t, s, "**OSPS-B** is a")
 	assert.NotContains(t, s, "## Table of contents")
 	assert.Greater(t, len(out), 5000)
 	assert.Contains(t, s, "## Metadata")
