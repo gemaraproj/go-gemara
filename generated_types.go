@@ -594,6 +594,45 @@ type Exemption struct {
 	Redirect *MultiEntryMapping `json:"redirect,omitempty" yaml:"redirect,omitempty"`
 }
 
+// Lexicon is a controlled vocabulary or glossary artifact referenced by Metadata.lexicon
+type Lexicon struct {
+	// title describes the purpose of this lexicon at a glance
+	Title string `json:"title" yaml:"title"`
+
+	// metadata provides detailed data about this document
+	Metadata Metadata `json:"metadata" yaml:"metadata"`
+
+	// terms is one or more defined entries for linking and rendering
+	Terms []LexiconTerm `json:"terms" yaml:"terms"`
+}
+
+// LexiconTerm is a single definition within a lexicon
+type LexiconTerm struct {
+	// id allows this entry to be referenced for anchors and tooling
+	Id string `json:"id" yaml:"id"`
+
+	// title is the canonical name of the defined concept
+	Title string `json:"title" yaml:"title"`
+
+	// definition explains the meaning of the term
+	Definition string `json:"definition" yaml:"definition"`
+
+	// synonyms lists alternative labels that should resolve to this term for linking
+	Synonyms []string `json:"synonyms,omitempty" yaml:"synonyms,omitempty"`
+
+	// references cites external authorities supporting the definition
+	References []LexiconReference `json:"references,omitempty" yaml:"references,omitempty"`
+}
+
+// LexiconReference cites a source supporting a lexicon definition
+type LexiconReference struct {
+	// citation identifies the source material in prose
+	Citation string `json:"citation" yaml:"citation"`
+
+	// url points to supporting material when available
+	Url string `json:"url,omitempty" yaml:"url,omitempty"`
+}
+
 // Log describes a set of recorded entries from a measurement activity
 type Log struct {
 	// metadata provides detailed data about this log
@@ -905,7 +944,7 @@ type AuditResult struct {
 	Description string `json:"description" yaml:"description"`
 
 	// criteria-reference maps this result to specific criteria entries
-	Criteria_reference MultiEntryMapping `json:"criteria-reference" yaml:"criteria-reference"`
+	CriteriaReference MultiEntryMapping `json:"criteria-reference" yaml:"criteria-reference"`
 
 	// evidence records the data sources that support this result
 	Evidence []Evidence `json:"evidence,omitempty" yaml:"evidence,omitempty"`
