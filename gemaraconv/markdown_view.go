@@ -79,15 +79,15 @@ func buildLexiconGlossaryView(entries []lexiconEntry) []markdownLexiconGlossaryE
 		return nil
 	}
 	out := make([]markdownLexiconGlossaryEntry, len(entries))
-	for i, e := range entries {
-		refs := make([]markdownLexiconRefLine, len(e.Refs))
-		for j, r := range e.Refs {
-			refs[j] = markdownLexiconRefLine{Citation: r.Citation, URL: r.URL}
+	for entryIdx, entry := range entries {
+		refs := make([]markdownLexiconRefLine, len(entry.Refs))
+		for refIdx, refLine := range entry.Refs {
+			refs[refIdx] = markdownLexiconRefLine{Citation: refLine.Citation, URL: refLine.URL}
 		}
-		out[i] = markdownLexiconGlossaryEntry{
-			Canonical:  e.Canonical,
-			Definition: e.Definition,
-			RefTarget:  lexiconRefSlug(e.Canonical),
+		out[entryIdx] = markdownLexiconGlossaryEntry{
+			Canonical:  entry.Canonical,
+			Definition: entry.Definition,
+			RefTarget:  lexiconRefSlug(entry.Canonical),
 			Refs:       refs,
 		}
 	}

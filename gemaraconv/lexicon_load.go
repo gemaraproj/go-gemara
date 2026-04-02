@@ -11,21 +11,21 @@ import (
 // resolveLexiconURL returns the https:// or file:// URI for the lexicon artifact.
 // Precedence: metadata.mapping-references entry whose id matches metadata.lexicon.reference-id;
 // else metadata.lexicon.remarks if it is a fetchable URL.
-func resolveLexiconURL(md gemara.Metadata) (string, error) {
-	if md.Lexicon == nil {
+func resolveLexiconURL(meta gemara.Metadata) (string, error) {
+	if meta.Lexicon == nil {
 		return "", fmt.Errorf("lexicon mapping is nil")
 	}
-	refID := strings.TrimSpace(md.Lexicon.ReferenceId)
-	for _, m := range md.MappingReferences {
-		if m.Id == refID && refID != "" {
-			u := strings.TrimSpace(m.Url)
-			if u == "" {
+	refID := strings.TrimSpace(meta.Lexicon.ReferenceId)
+	for _, mappingRef := range meta.MappingReferences {
+		if mappingRef.Id == refID && refID != "" {
+			mappedURL := strings.TrimSpace(mappingRef.Url)
+			if mappedURL == "" {
 				return "", fmt.Errorf("mapping-references entry %q has empty url", refID)
 			}
-			return u, nil
+			return mappedURL, nil
 		}
 	}
-	remarks := strings.TrimSpace(md.Lexicon.Remarks)
+	remarks := strings.TrimSpace(meta.Lexicon.Remarks)
 	if isLexiconFetchURL(remarks) {
 		return remarks, nil
 	}
@@ -60,51 +60,51 @@ func parseLexiconYAML(data []byte) ([]lexiconEntry, error) {
 	return parseLexiconDocument(&doc)
 }
 
-func validateLexicon(l *gemara.Lexicon) error {
-	if l == nil {
+func validateLexicon(lexDoc *gemara.Lexicon) error {
+	if lexDoc == nil {
 		return fmt.Errorf("lexicon is nil")
 	}
-	if len(l.Terms) == 0 {
+	if len(lexDoc.Terms) == 0 {
 		return fmt.Errorf("lexicon has no terms")
 	}
-	for i, t := range l.Terms {
-		if strings.TrimSpace(t.Title) == "" && strings.TrimSpace(t.Id) == "" {
-			return fmt.Errorf("lexicon terms[%d]: title and id are both empty", i)
+	for termIdx, term := range lexDoc.Terms {
+		if strings.TrimSpace(term.Title) == "" && strings.TrimSpace(term.Id) == "" {
+			return fmt.Errorf("lexicon terms[%d]: title and id are both empty", termIdx)
 		}
-		if strings.TrimSpace(t.Definition) == "" {
-			return fmt.Errorf("lexicon terms[%d]: definition is empty", i)
+		if strings.TrimSpace(term.Definition) == "" {
+			return fmt.Errorf("lexicon terms[%d]: definition is empty", termIdx)
 		}
-		for j, r := range t.References {
-			if strings.TrimSpace(r.Citation) == "" {
-				return fmt.Errorf("lexicon terms[%d].references[%d]: citation is empty", i, j)
+		for refIdx, refLine := range term.References {
+			if strings.TrimSpace(refLine.Citation) == "" {
+				return fmt.Errorf("lexicon terms[%d].references[%d]: citation is empty", termIdx, refIdx)
 			}
 		}
 	}
 	return nil
 }
 
-func normalizeLexicon(l *gemara.Lexicon) ([]lexiconEntry, error) {
+func normalizeLexicon(lexDoc *gemara.Lexicon) ([]lexiconEntry, error) {
 	seen := make(map[string]struct{})
-	out := make([]lexiconEntry, 0, len(l.Terms))
-	for i, t := range l.Terms {
-		canonical := strings.TrimSpace(t.Title)
+	out := make([]lexiconEntry, 0, len(lexDoc.Terms))
+	for termIdx, term := range lexDoc.Terms {
+		canonical := strings.TrimSpace(term.Title)
 		if canonical == "" {
-			canonical = strings.TrimSpace(t.Id)
+			canonical = strings.TrimSpace(term.Id)
 		}
 		if err := markGemaraCanonicalSeen(seen, canonical); err != nil {
 			return nil, err
 		}
 
-		syns, err := trimSynonyms(t.Synonyms, i, "lexicon terms")
+		syns, err := trimSynonyms(term.Synonyms, termIdx, "lexicon terms")
 		if err != nil {
 			return nil, err
 		}
 
 		out = append(out, lexiconEntry{
 			Canonical:  canonical,
-			Definition: strings.TrimSpace(t.Definition),
+			Definition: strings.TrimSpace(term.Definition),
 			Synonyms:   syns,
-			Refs:       refLinesFromGemara(t.References),
+			Refs:       refLinesFromGemara(term.References),
 		})
 	}
 	return out, nil

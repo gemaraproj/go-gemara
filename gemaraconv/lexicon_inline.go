@@ -21,20 +21,20 @@ func normalizeInlineLexicon(terms []InlineLexiconTerm) ([]lexiconEntry, error) {
 	}
 	seen := make(map[string]struct{})
 	out := make([]lexiconEntry, 0, len(terms))
-	for i, t := range terms {
-		canonical := strings.TrimSpace(t.Term)
+	for rowIdx, row := range terms {
+		canonical := strings.TrimSpace(row.Term)
 		if canonical == "" {
-			return nil, fmt.Errorf("inline lexicon[%d]: empty term", i)
+			return nil, fmt.Errorf("inline lexicon[%d]: empty term", rowIdx)
 		}
-		def := strings.TrimSpace(t.Definition)
+		def := strings.TrimSpace(row.Definition)
 		if def == "" {
-			return nil, fmt.Errorf("inline lexicon[%d]: empty definition", i)
+			return nil, fmt.Errorf("inline lexicon[%d]: empty definition", rowIdx)
 		}
 		if err := markInlineLexiconTermSeen(seen, canonical); err != nil {
 			return nil, err
 		}
 
-		syns, err := trimSynonyms(t.Synonyms, i, "inline lexicon")
+		syns, err := trimSynonyms(row.Synonyms, rowIdx, "inline lexicon")
 		if err != nil {
 			return nil, err
 		}
@@ -43,7 +43,7 @@ func normalizeInlineLexicon(terms []InlineLexiconTerm) ([]lexiconEntry, error) {
 			Canonical:  canonical,
 			Definition: def,
 			Synonyms:   syns,
-			Refs:       refLinesFromStrings(t.References),
+			Refs:       refLinesFromStrings(row.References),
 		})
 	}
 	return out, nil

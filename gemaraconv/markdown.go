@@ -27,11 +27,11 @@ func CatalogToMarkdown(catalog *gemara.ControlCatalog, opts ...MarkdownOption) (
 	var lexEntries []lexiconEntry
 	switch {
 	case o.lexiconAutolink && catalog.Metadata.Lexicon != nil:
-		u, err := resolveLexiconURL(catalog.Metadata)
+		lexiconURI, err := resolveLexiconURL(catalog.Metadata)
 		if err != nil {
 			return nil, fmt.Errorf("lexicon: resolve URL: %w", err)
 		}
-		loaded, err := loadLexiconFromURI(u)
+		loaded, err := loadLexiconFromURI(lexiconURI)
 		if err != nil {
 			return nil, fmt.Errorf("lexicon: %w", err)
 		}

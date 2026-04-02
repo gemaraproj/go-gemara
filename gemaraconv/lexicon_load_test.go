@@ -11,16 +11,16 @@ import (
 
 func readLexiconTestdata(t *testing.T, name string) []byte {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("testdata", name))
+	fileBytes, err := os.ReadFile(filepath.Join("testdata", name))
 	require.NoError(t, err)
-	return b
+	return fileBytes
 }
 
 func lexiconFileURL(t *testing.T, name string) string {
 	t.Helper()
-	p, err := filepath.Abs(filepath.Join("testdata", name))
+	absPath, err := filepath.Abs(filepath.Join("testdata", name))
 	require.NoError(t, err)
-	return "file://" + filepath.ToSlash(p)
+	return "file://" + filepath.ToSlash(absPath)
 }
 
 func TestParseLexiconYAML_golden(t *testing.T) {
@@ -60,32 +60,32 @@ func TestLoadLexiconFromURI_file(t *testing.T) {
 }
 
 func TestResolveLexiconURL(t *testing.T) {
-	md := gemaraMetadataWithLexicon("lex", "https://example.com/lex.yaml")
-	u, err := resolveLexiconURL(md)
+	meta := gemaraMetadataWithLexicon("lex", "https://example.com/lex.yaml")
+	resolvedURL, err := resolveLexiconURL(meta)
 	require.NoError(t, err)
-	require.Equal(t, "https://example.com/lex.yaml", u)
+	require.Equal(t, "https://example.com/lex.yaml", resolvedURL)
 }
 
 func TestResolveLexiconURL_remarksFallback(t *testing.T) {
-	md := gemara.Metadata{
+	meta := gemara.Metadata{
 		Lexicon: &gemara.ArtifactMapping{
 			ReferenceId: "missing",
 			Remarks:     "https://gist.example/raw/lex.yaml",
 		},
 	}
-	u, err := resolveLexiconURL(md)
+	resolvedURL, err := resolveLexiconURL(meta)
 	require.NoError(t, err)
-	require.Equal(t, "https://gist.example/raw/lex.yaml", u)
+	require.Equal(t, "https://gist.example/raw/lex.yaml", resolvedURL)
 }
 
 func TestResolveLexiconURL_errors(t *testing.T) {
 	_, err := resolveLexiconURL(gemara.Metadata{})
 	require.Error(t, err)
 
-	md := gemara.Metadata{
+	meta := gemara.Metadata{
 		Lexicon: &gemara.ArtifactMapping{ReferenceId: "x"},
 	}
-	_, err = resolveLexiconURL(md)
+	_, err = resolveLexiconURL(meta)
 	require.Error(t, err)
 }
 

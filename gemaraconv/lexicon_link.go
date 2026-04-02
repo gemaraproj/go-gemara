@@ -50,8 +50,8 @@ func addLexiconLinksForTerm(lexicon []lexiconEntry, text, term string) string {
 	escapedTerm := regexp.QuoteMeta(term)
 	termRegex := regexp.MustCompile(`(?i)\b` + escapedTerm + `(?:s)?\b`)
 
-	termIdx := slices.IndexFunc(lexicon, func(t lexiconEntry) bool {
-		return containsLexiconSynonym(t.Synonyms, t.Canonical, term)
+	termIdx := slices.IndexFunc(lexicon, func(entry lexiconEntry) bool {
+		return containsLexiconSynonym(entry.Synonyms, entry.Canonical, term)
 	})
 	if termIdx == -1 {
 		panic(fmt.Sprintf("gemaraconv: addLexiconLinksForTerm called for unknown term %q", term))
@@ -79,7 +79,7 @@ func addLexiconLinks(lexicon []lexiconEntry, text string) string {
 
 func newLexiconLinker(entries []lexiconEntry) func(string) string {
 	if len(entries) == 0 {
-		return func(s string) string { return s }
+		return func(plain string) string { return plain }
 	}
 	return func(text string) string {
 		return addLexiconLinks(entries, text)
@@ -88,11 +88,11 @@ func newLexiconLinker(entries []lexiconEntry) func(string) string {
 
 // lexiconRefSlug matches security-baseline asLink: lowercase, drop '.', other non-alnum → '-'.
 func lexiconRefSlug(text string) string {
-	return "#" + strings.Map(func(r rune) rune {
+	return "#" + strings.Map(func(ch rune) rune {
 		switch {
-		case unicode.IsLetter(r) || unicode.IsNumber(r):
-			return unicode.ToLower(r)
-		case r == '.':
+		case unicode.IsLetter(ch) || unicode.IsNumber(ch):
+			return unicode.ToLower(ch)
+		case ch == '.':
 			return -1
 		default:
 			return '-'
