@@ -26,7 +26,7 @@ func resolveLexiconURL(md gemara.Metadata) (string, error) {
 		}
 	}
 	remarks := strings.TrimSpace(md.Lexicon.Remarks)
-	if strings.HasPrefix(remarks, "https://") || strings.HasPrefix(remarks, "http://") || strings.HasPrefix(remarks, "file://") {
+	if isLexiconFetchURL(remarks) {
 		return remarks, nil
 	}
 	if refID == "" {
@@ -91,31 +91,20 @@ func normalizeLexicon(l *gemara.Lexicon) ([]lexiconEntry, error) {
 		if canonical == "" {
 			canonical = strings.TrimSpace(t.Id)
 		}
-		key := strings.ToLower(canonical)
-		if _, dup := seen[key]; dup {
-			return nil, fmt.Errorf("duplicate lexicon canonical %q", canonical)
-		}
-		seen[key] = struct{}{}
-
-		var syns []string
-		for _, s := range t.Synonyms {
-			s = strings.TrimSpace(s)
-			if s == "" {
-				return nil, fmt.Errorf("lexicon terms[%d]: empty synonym", i)
-			}
-			syns = append(syns, s)
+		if err := markGemaraCanonicalSeen(seen, canonical); err != nil {
+			return nil, err
 		}
 
-		refs := make([]lexiconRefLine, len(t.References))
-		for j, r := range t.References {
-			refs[j] = lexiconRefLine{Citation: strings.TrimSpace(r.Citation), URL: strings.TrimSpace(r.Url)}
+		syns, err := trimSynonyms(t.Synonyms, i, "lexicon terms")
+		if err != nil {
+			return nil, err
 		}
 
 		out = append(out, lexiconEntry{
 			Canonical:  canonical,
 			Definition: strings.TrimSpace(t.Definition),
 			Synonyms:   syns,
-			Refs:       refs,
+			Refs:       refLinesFromGemara(t.References),
 		})
 	}
 	return out, nil

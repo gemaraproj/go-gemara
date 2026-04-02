@@ -30,39 +30,20 @@ func normalizeInlineLexicon(terms []InlineLexiconTerm) ([]lexiconEntry, error) {
 		if def == "" {
 			return nil, fmt.Errorf("inline lexicon[%d]: empty definition", i)
 		}
-		key := strings.ToLower(canonical)
-		if _, dup := seen[key]; dup {
-			return nil, fmt.Errorf("duplicate inline lexicon term %q", canonical)
-		}
-		seen[key] = struct{}{}
-
-		var syns []string
-		for _, s := range t.Synonyms {
-			s = strings.TrimSpace(s)
-			if s == "" {
-				return nil, fmt.Errorf("inline lexicon[%d]: empty synonym", i)
-			}
-			syns = append(syns, s)
+		if err := markInlineLexiconTermSeen(seen, canonical); err != nil {
+			return nil, err
 		}
 
-		var refs []lexiconRefLine
-		for _, r := range t.References {
-			r = strings.TrimSpace(r)
-			if r == "" {
-				continue
-			}
-			if strings.HasPrefix(r, "http://") || strings.HasPrefix(r, "https://") {
-				refs = append(refs, lexiconRefLine{Citation: r, URL: r})
-			} else {
-				refs = append(refs, lexiconRefLine{Citation: r})
-			}
+		syns, err := trimSynonyms(t.Synonyms, i, "inline lexicon")
+		if err != nil {
+			return nil, err
 		}
 
 		out = append(out, lexiconEntry{
 			Canonical:  canonical,
 			Definition: def,
 			Synonyms:   syns,
-			Refs:       refs,
+			Refs:       refLinesFromStrings(t.References),
 		})
 	}
 	return out, nil
