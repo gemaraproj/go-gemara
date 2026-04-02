@@ -24,9 +24,31 @@ func CatalogToMarkdown(catalog *gemara.ControlCatalog, opts ...MarkdownOption) (
 	o := defaultMarkdownOpts()
 	o.apply(opts...)
 
-	view := buildMarkdownCatalogView(catalog, o)
+	var lexEntries []lexiconEntry
+	switch {
+	case o.lexiconAutolink && catalog.Metadata.Lexicon != nil:
+		u, err := resolveLexiconURL(catalog.Metadata)
+		if err != nil {
+			return nil, fmt.Errorf("lexicon: resolve URL: %w", err)
+		}
+		loaded, err := loadLexiconFromURI(u)
+		if err != nil {
+			return nil, fmt.Errorf("lexicon: %w", err)
+		}
+		lexEntries = loaded
+	case len(o.inlineLexicon) > 0:
+		loaded, err := normalizeInlineLexicon(o.inlineLexicon)
+		if err != nil {
+			return nil, fmt.Errorf("lexicon: %w", err)
+		}
+		lexEntries = loaded
+	}
 
-	t, err := template.New("").Funcs(markdownFuncMap()).ParseFS(markdownTemplates, "templates/*.tmpl")
+	lexGlossary := buildLexiconGlossaryView(lexEntries)
+	view := buildMarkdownCatalogView(catalog, o, lexGlossary)
+
+	linker := newLexiconLinker(lexEntries)
+	t, err := template.New("").Funcs(markdownFuncMap(linker)).ParseFS(markdownTemplates, "templates/*.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("parse markdown templates: %w", err)
 	}
@@ -43,8 +65,9 @@ func CatalogToMarkdown(catalog *gemara.ControlCatalog, opts ...MarkdownOption) (
 	return out, nil
 }
 
-func markdownFuncMap() template.FuncMap {
+func markdownFuncMap(lexiconLink func(string) string) template.FuncMap {
 	return template.FuncMap{
+		"lexiconLink":  lexiconLink,
 		"anchor":       markdownAnchor,
 		"lifecycle":    func(l gemara.Lifecycle) string { return l.String() },
 		"isRetired":    func(l gemara.Lifecycle) bool { return l == gemara.LifecycleRetired },

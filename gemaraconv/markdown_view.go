@@ -25,6 +25,23 @@ type markdownCatalogView struct {
 	TOCItems                   []markdownTOCItem
 	NumControls                int
 	NumARs                     int
+	// LexiconGlossary is non-empty when lexicon autolink loaded a valid document.
+	LexiconGlossary []markdownLexiconGlossaryEntry
+}
+
+// markdownLexiconGlossaryEntry is one term in the rendered ## Lexicon section.
+type markdownLexiconGlossaryEntry struct {
+	Canonical  string
+	Definition string
+	// RefTarget is the link target for reference-style definitions (includes leading '#').
+	RefTarget string
+	Refs      []markdownLexiconRefLine
+}
+
+// markdownLexiconRefLine is one citation (optional URL) in the glossary.
+type markdownLexiconRefLine struct {
+	Citation string
+	URL      string
 }
 
 // markdownApplicabilityColumn is one applicability dimension in the matrix header.
@@ -57,9 +74,29 @@ type markdownGroupView struct {
 	Controls    []gemara.Control
 }
 
-func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts) markdownCatalogView {
+func buildLexiconGlossaryView(entries []lexiconEntry) []markdownLexiconGlossaryEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+	out := make([]markdownLexiconGlossaryEntry, len(entries))
+	for i, e := range entries {
+		refs := make([]markdownLexiconRefLine, len(e.Refs))
+		for j, r := range e.Refs {
+			refs[j] = markdownLexiconRefLine{Citation: r.Citation, URL: r.URL}
+		}
+		out[i] = markdownLexiconGlossaryEntry{
+			Canonical:  e.Canonical,
+			Definition: e.Definition,
+			RefTarget:  lexiconRefSlug(e.Canonical),
+			Refs:       refs,
+		}
+	}
+	return out
+}
+
+func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts, lexGlossary []markdownLexiconGlossaryEntry) markdownCatalogView {
 	if catalog == nil {
-		return markdownCatalogView{LineEnding: opts.lineEnding}
+		return markdownCatalogView{LineEnding: opts.lineEnding, LexiconGlossary: lexGlossary}
 	}
 
 	known := make(map[string]struct{}, len(catalog.Groups))
@@ -156,6 +193,7 @@ func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts)
 		TOCItems:                   toc,
 		NumControls:                numControlsShown,
 		NumARs:                     numARs,
+		LexiconGlossary:            lexGlossary,
 	}
 }
 

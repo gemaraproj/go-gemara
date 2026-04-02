@@ -70,6 +70,8 @@ type markdownOpts struct {
 	lineEnding          string
 	metadata            bool
 	applicabilityMatrix bool
+	lexiconAutolink     bool
+	inlineLexicon       []InlineLexiconTerm
 }
 
 func defaultMarkdownOpts() markdownOpts {
@@ -115,5 +117,23 @@ func WithMetadata(enabled bool) MarkdownOption {
 func WithApplicabilityMatrix(enabled bool) MarkdownOption {
 	return func(o *markdownOpts) {
 		o.applicabilityMatrix = enabled
+	}
+}
+
+// WithLexiconAutolink enables loading metadata.lexicon from mapping-references (or remarks URL),
+// strict Gemara Lexicon YAML, term autolinking in prose, and a trailing glossary (default false).
+// When enabled and metadata.lexicon is set, this takes precedence over WithInlineLexicon.
+func WithLexiconAutolink(enabled bool) MarkdownOption {
+	return func(o *markdownOpts) {
+		o.lexiconAutolink = enabled
+	}
+}
+
+// WithInlineLexicon supplies list-shaped lexicon entries (term / definition / synonyms / string references)
+// for autolinking and the trailing glossary without network I/O. Used when the catalog does not
+// reference a remote Gemara Lexicon document.
+func WithInlineLexicon(terms []InlineLexiconTerm) MarkdownOption {
+	return func(o *markdownOpts) {
+		o.inlineLexicon = terms
 	}
 }

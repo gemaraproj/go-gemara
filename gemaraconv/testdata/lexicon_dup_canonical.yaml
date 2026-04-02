@@ -1,0 +1,12 @@
+title: Bad
+metadata:
+  id: bad
+  type: Lexicon
+  description: x
+terms:
+  - id: a
+    title: Same
+    definition: d1
+  - id: b
+    title: Same
+    definition: d2

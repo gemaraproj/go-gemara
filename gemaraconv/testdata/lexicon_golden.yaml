@@ -1,0 +1,21 @@
+title: Example Lexicon
+metadata:
+  id: example-lexicon
+  type: Lexicon
+  description: Tiny lexicon for testing.
+terms:
+  - id: example-term
+    title: Example Term
+    definition: |
+      A short definition of the example term used in this catalog.
+    synonyms:
+      - ET
+      - sample term
+    references:
+      - citation: Example spec
+        url: https://example.com/docs/example-term
+
+  - id: second-term
+    title: Second Term
+    definition: |
+      Another definition for linking tests.

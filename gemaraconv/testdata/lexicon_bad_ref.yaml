@@ -1,0 +1,12 @@
+title: Bad
+metadata:
+  id: bad
+  type: Lexicon
+  description: x
+terms:
+  - id: t1
+    title: T1
+    definition: def
+    references:
+      - citation: ""
+        url: https://example.com

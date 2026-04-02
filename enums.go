@@ -78,6 +78,7 @@ const (
 	ThreatCatalogArtifact
 	VectorCatalogArtifact
 	RiskCatalogArtifact
+	LexiconArtifact
 )
 
 const (
@@ -217,6 +218,7 @@ var (
 		ThreatCatalogArtifact:   "ThreatCatalog",
 		VectorCatalogArtifact:   "VectorCatalog",
 		RiskCatalogArtifact:     "RiskCatalog",
+		LexiconArtifact:         "Lexicon",
 	}
 
 	stringToArtifactType = map[string]ArtifactType{
@@ -228,6 +230,7 @@ var (
 		"ThreatCatalog":   ThreatCatalogArtifact,
 		"VectorCatalog":   VectorCatalogArtifact,
 		"RiskCatalog":     RiskCatalogArtifact,
+		"Lexicon":         LexiconArtifact,
 	}
 
 	entityTypeToString = map[EntityType]string{

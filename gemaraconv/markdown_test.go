@@ -327,3 +327,113 @@ func TestCatalogToMarkdown_applicabilityMatrix_offByDefault(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(out), "## Applicability coverage")
 }
+
+func TestCatalogToMarkdown_lexiconAutolink(t *testing.T) {
+	catalog := &gemara.ControlCatalog{
+		Metadata: gemara.Metadata{
+			Id:            "m",
+			Type:          gemara.ControlCatalogArtifact,
+			Description:   "d",
+			Author:        gemara.Actor{Name: "Author", Type: gemara.Human},
+			GemaraVersion: "1.0",
+			Lexicon:       &gemara.ArtifactMapping{ReferenceId: "lex"},
+			MappingReferences: []gemara.MappingReference{
+				{Id: "lex", Title: "Lex", Version: "1", Url: lexiconFileURL(t, "lexicon_golden.yaml")},
+			},
+		},
+		Title:  "Lex test",
+		Groups: []gemara.Group{{Id: "G", Title: "Group"}},
+		Controls: []gemara.Control{
+			{
+				Id:        "C1",
+				Group:     "G",
+				Title:     "Uses Example Term in title",
+				Objective: "Objective mentions sample term and Second Term.",
+				State:     gemara.LifecycleActive,
+				Guidelines: []gemara.MultiEntryMapping{
+					{ReferenceId: "Example Term", Entries: []gemara.ArtifactMapping{{ReferenceId: "x"}}},
+				},
+				AssessmentRequirements: []gemara.AssessmentRequirement{
+					{Id: "C1.1", Text: "See Second Term.", Recommendation: "Read Example Term.", State: gemara.LifecycleActive},
+				},
+			},
+		},
+	}
+
+	out, err := CatalogToMarkdown(catalog, WithLexiconAutolink(true), WithTOC(false))
+	require.NoError(t, err)
+	s := string(out)
+
+	assert.Contains(t, s, "## Lexicon")
+	assert.Contains(t, s, "### Example Term")
+	assert.Contains(t, s, "### Second Term")
+	assert.Contains(t, s, "[Example Term][Example Term]")
+	assert.Contains(t, s, "[Second Term][Second Term]")
+	assert.Contains(t, s, "[sample term][Example Term]")
+	assert.Contains(t, s, "[Example Term]: #example-term")
+}
+
+func TestCatalogToMarkdown_lexiconAutolink_offByDefault(t *testing.T) {
+	catalog := &gemara.ControlCatalog{
+		Metadata: gemara.Metadata{
+			Id:          "m",
+			Type:        gemara.ControlCatalogArtifact,
+			Description: "d",
+			Author:      gemara.Actor{Name: "a", Type: gemara.Human},
+			Lexicon:     &gemara.ArtifactMapping{ReferenceId: "lex"},
+			MappingReferences: []gemara.MappingReference{
+				{Id: "lex", Title: "L", Version: "1", Url: lexiconFileURL(t, "lexicon_golden.yaml")},
+			},
+		},
+		Title:  "x",
+		Groups: []gemara.Group{{Id: "G", Title: "G"}},
+		Controls: []gemara.Control{
+			{Id: "C", Group: "G", Title: "T", Objective: "Example Term", State: gemara.LifecycleActive},
+		},
+	}
+	out, err := CatalogToMarkdown(catalog, WithTOC(false))
+	require.NoError(t, err)
+	assert.NotContains(t, string(out), "## Lexicon")
+}
+
+func TestCatalogToMarkdown_inlineLexicon(t *testing.T) {
+	catalog := &gemara.ControlCatalog{
+		Metadata: gemara.Metadata{
+			Id:            "m",
+			Type:          gemara.ControlCatalogArtifact,
+			Description:   "d",
+			Author:        gemara.Actor{Name: "a", Type: gemara.Human},
+			GemaraVersion: "1.0",
+		},
+		Title:  "T",
+		Groups: []gemara.Group{{Id: "G", Title: "G"}},
+		Controls: []gemara.Control{
+			{Id: "C", Group: "G", Title: "Widget talk", Objective: "widgets", State: gemara.LifecycleActive},
+		},
+	}
+	out, err := CatalogToMarkdown(catalog, WithTOC(false), WithInlineLexicon([]InlineLexiconTerm{
+		{Term: "Widget", Definition: "A widget."},
+	}))
+	require.NoError(t, err)
+	s := string(out)
+	assert.Contains(t, s, "## Lexicon")
+	assert.Contains(t, s, "### Widget")
+	assert.Contains(t, s, "[widgets][Widget]")
+}
+
+func TestCatalogToMarkdown_lexiconAutolink_resolveError(t *testing.T) {
+	catalog := &gemara.ControlCatalog{
+		Metadata: gemara.Metadata{
+			Id:          "m",
+			Type:        gemara.ControlCatalogArtifact,
+			Description: "d",
+			Author:      gemara.Actor{Name: "a", Type: gemara.Human},
+			Lexicon:     &gemara.ArtifactMapping{ReferenceId: "missing"},
+		},
+		Title:    "x",
+		Groups:   []gemara.Group{{Id: "G", Title: "G"}},
+		Controls: []gemara.Control{{Id: "C", Group: "G", Title: "T", Objective: "o", State: gemara.LifecycleActive}},
+	}
+	_, err := CatalogToMarkdown(catalog, WithLexiconAutolink(true))
+	require.Error(t, err)
+}

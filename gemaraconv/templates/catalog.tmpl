@@ -7,6 +7,7 @@
 {{ template "extends_imports" .}}
 {{ range .Groups}}{{template "group_section" .}}{{end}}
 {{if and .ShowMetadata .Metadata.MappingReferences}}{{ template "mapping_references_section" .}}{{end}}
+{{if .LexiconGlossary}}{{template "lexicon_section" .}}{{end}}
 {{end}}
 
 {{define "metadata"}}
@@ -69,7 +70,7 @@ This document builds upon all of the requirements and applicability groups detai
 {{define "multi_entry_mapping_table_start"}}| Source | References |
 | :--- | :--- |{{end}}
 
-{{define "multi_entry_mapping_table_row"}}| **{{.ReferenceId}}**{{if .Remarks}} — {{.Remarks}}{{end}} | {{if .Entries}}{{joinArtifactEntries .Entries " · "}}{{else}}—{{end}} |
+{{define "multi_entry_mapping_table_row"}}| **{{lexiconLink .ReferenceId}}**{{if .Remarks}} — {{.Remarks}}{{end}} | {{if .Entries}}{{joinArtifactEntries .Entries " · "}}{{else}}—{{end}} |
 {{end}}
 
 {{define "group_section"}}
@@ -79,13 +80,13 @@ This document builds upon all of the requirements and applicability groups detai
 {{range .Controls}}{{template "control_section" .}}{{end}}
 {{end}}
 
-{{define "control_section"}}### {{.Id}}: {{.Title}}
+{{define "control_section"}}### {{.Id}}: {{lexiconLink .Title}}
 
 {{if .ReplacedBy}} · **Replaced by:** `{{.ReplacedBy.EntryId}}`{{if .ReplacedBy.Remarks}} ({{.ReplacedBy.Remarks}}){{end}}{{end}}
 
 **Objective**
 
-{{.Objective}}
+{{lexiconLink .Objective}}
 
 {{if .Guidelines}}#### Guidelines
 
@@ -108,12 +109,12 @@ This control aids in the mitigation of the following threats:
 
 {{if .ReplacedBy}} · **Replaced by:** `{{.ReplacedBy.EntryId}}`{{if .ReplacedBy.Remarks}} ({{.ReplacedBy.Remarks}}){{end}}{{end}}
 
-{{if isRetired .State}}{{.Text}}
-{{else}}{{.Text}}
+{{if isRetired .State}}{{lexiconLink .Text}}
+{{else}}{{lexiconLink .Text}}
 
 {{if .Applicability}}**Applicability:** {{joinStrings .Applicability ", "}}{{end}}
 
-{{if .Recommendation}}**Recommendation**: {{.Recommendation}}
+{{if .Recommendation}}**Recommendation**: {{lexiconLink .Recommendation}}
 {{end}}{{end}}{{end}}
 
 {{define "mapping_references_section"}}### Mapping References
@@ -122,4 +123,21 @@ This control aids in the mitigation of the following threats:
 
   {{.Description}}{{end}}
 {{end}}
+{{end}}
+
+{{define "lexicon_section"}}## Lexicon
+
+{{range .LexiconGlossary}}### {{.Canonical}}
+
+{{.Definition}}
+{{if .Refs}}**References:**
+{{range .Refs}}{{if .URL}}- [{{.Citation}}]({{.URL}})
+{{else}}- {{.Citation}}
+{{end}}{{end}}
+{{end}}
+{{end}}
+
+{{range .LexiconGlossary}}[{{.Canonical}}]: {{.RefTarget}}
+{{end}}
+
 {{end}}
