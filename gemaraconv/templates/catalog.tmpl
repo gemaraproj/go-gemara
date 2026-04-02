@@ -3,6 +3,7 @@
 {{if .ShowMetadata}}{{ template "metadata" .}}{{end}}
 
 {{if .TOC}}{{template "toc_section" .}}{{end}}
+{{if .ShowApplicabilityMatrix}}{{template "applicability_matrix_section" .}}{{end}}
 {{ template "extends_imports" .}}
 {{ range .Groups}}{{template "group_section" .}}{{end}}
 {{if and .ShowMetadata .Metadata.MappingReferences}}{{ template "mapping_references_section" .}}{{end}}
@@ -36,6 +37,15 @@ _Summary: {{.NumControls}} control(s), {{.NumARs}} assessment requirement(s)._
 {{range .TOCItems}}{{if eq .Indent 0}}- [{{.Label}}](#{{.Anchor}})
 {{else}}  - [{{.Label}}](#{{.Anchor}})
 {{end}}{{end}}
+
+{{end}}
+
+{{define "applicability_matrix_section"}}## Applicability coverage
+
+| Control |{{range .ApplicabilityMatrixColumns}} {{.Label}} |{{end}}
+| :--- |{{range .ApplicabilityMatrixColumns}} :---: |{{end}}
+{{range .ApplicabilityMatrixRows}}| **{{.ControlID}}**: {{.ControlTitle}} |{{range .Cells}}{{.}}|{{end}}
+{{end}}
 
 {{end}}
 

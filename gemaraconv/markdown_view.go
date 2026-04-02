@@ -10,17 +10,34 @@ const ungroupedSectionTitle = "Ungrouped"
 
 // markdownCatalogView is the template root: deterministic ordering and explicit Ungrouped bucket.
 type markdownCatalogView struct {
-	Title       string
-	Metadata    gemara.Metadata
+	Title        string
+	Metadata     gemara.Metadata
 	ShowMetadata bool
-	Extends     []gemara.ArtifactMapping
-	Imports     []gemara.MultiEntryMapping
-	TOC         bool
-	LineEnding  string
-	Groups      []markdownGroupView
-	TOCItems    []markdownTOCItem
-	NumControls int
-	NumARs      int
+	// ShowApplicabilityMatrix is true when WithApplicabilityMatrix is set and the matrix can be built.
+	ShowApplicabilityMatrix    bool
+	ApplicabilityMatrixColumns []markdownApplicabilityColumn
+	ApplicabilityMatrixRows    []markdownApplicabilityMatrixRow
+	Extends                    []gemara.ArtifactMapping
+	Imports                    []gemara.MultiEntryMapping
+	TOC                        bool
+	LineEnding                 string
+	Groups                     []markdownGroupView
+	TOCItems                   []markdownTOCItem
+	NumControls                int
+	NumARs                     int
+}
+
+// markdownApplicabilityColumn is one applicability dimension in the matrix header.
+type markdownApplicabilityColumn struct {
+	ID    string
+	Label string
+}
+
+// markdownApplicabilityMatrixRow is one control row; Cells align with ApplicabilityMatrixColumns.
+type markdownApplicabilityMatrixRow struct {
+	ControlID    string
+	ControlTitle string
+	Cells        []string // "X" or empty
 }
 
 // markdownTOCItem is one line in the table of contents (group or control).
@@ -122,18 +139,23 @@ func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts)
 		})
 	}
 
+	applicabilityCols, applicabilityRows, showMatrix := buildApplicabilityMatrix(catalog, groups, opts.applicabilityMatrix)
+
 	return markdownCatalogView{
-		Title:       catalog.Title,
-		Metadata:    catalog.Metadata,
-		ShowMetadata: opts.metadata,
-		Extends:     catalog.Extends,
-		Imports:     catalog.Imports,
-		TOC:         opts.toc,
-		LineEnding:  opts.lineEnding,
-		Groups:      groups,
-		TOCItems:    toc,
-		NumControls: numControlsShown,
-		NumARs:      numARs,
+		Title:                      catalog.Title,
+		Metadata:                   catalog.Metadata,
+		ShowMetadata:               opts.metadata,
+		ShowApplicabilityMatrix:    showMatrix,
+		ApplicabilityMatrixColumns: applicabilityCols,
+		ApplicabilityMatrixRows:    applicabilityRows,
+		Extends:                    catalog.Extends,
+		Imports:                    catalog.Imports,
+		TOC:                        opts.toc,
+		LineEnding:                 opts.lineEnding,
+		Groups:                     groups,
+		TOCItems:                   toc,
+		NumControls:                numControlsShown,
+		NumARs:                     numARs,
 	}
 }
 
@@ -148,4 +170,90 @@ func copyControlsWithSortedARs(ctrls []gemara.Control) []gemara.Control {
 		out[i].AssessmentRequirements = ars
 	}
 	return out
+}
+
+// applicabilityColumnIDs returns ordered applicability ids for matrix columns:
+// metadata applicability-groups order if present, else sorted union of all AR applicability strings on active controls.
+func applicabilityColumnIDs(catalog *gemara.ControlCatalog) []string {
+	if len(catalog.Metadata.ApplicabilityGroups) > 0 {
+		out := make([]string, 0, len(catalog.Metadata.ApplicabilityGroups))
+		for _, g := range catalog.Metadata.ApplicabilityGroups {
+			out = append(out, g.Id)
+		}
+		return out
+	}
+	seen := make(map[string]struct{})
+	for _, c := range catalog.Controls {
+		if c.State != gemara.LifecycleActive {
+			continue
+		}
+		for _, ar := range c.AssessmentRequirements {
+			for _, a := range ar.Applicability {
+				seen[a] = struct{}{}
+			}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for id := range seen {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func buildApplicabilityMatrix(catalog *gemara.ControlCatalog, groups []markdownGroupView, enabled bool) (cols []markdownApplicabilityColumn, rows []markdownApplicabilityMatrixRow, show bool) {
+	if !enabled || catalog == nil {
+		return nil, nil, false
+	}
+	colIDs := applicabilityColumnIDs(catalog)
+	if len(colIDs) == 0 {
+		return nil, nil, false
+	}
+	idToLabel := make(map[string]string, len(catalog.Metadata.ApplicabilityGroups))
+	for _, g := range catalog.Metadata.ApplicabilityGroups {
+		label := g.Title
+		if label == "" {
+			label = g.Id
+		}
+		idToLabel[g.Id] = label
+	}
+	cols = make([]markdownApplicabilityColumn, len(colIDs))
+	for i, id := range colIDs {
+		label := idToLabel[id]
+		if label == "" {
+			label = id
+		}
+		cols[i] = markdownApplicabilityColumn{ID: id, Label: label}
+	}
+
+	var flat []gemara.Control
+	for _, gv := range groups {
+		for _, c := range gv.Controls {
+			flat = append(flat, c)
+		}
+	}
+	if len(flat) == 0 {
+		return nil, nil, false
+	}
+
+	for _, c := range flat {
+		set := make(map[string]struct{})
+		for _, ar := range c.AssessmentRequirements {
+			for _, a := range ar.Applicability {
+				set[a] = struct{}{}
+			}
+		}
+		cells := make([]string, len(colIDs))
+		for i, id := range colIDs {
+			if _, ok := set[id]; ok {
+				cells[i] = "X"
+			}
+		}
+		rows = append(rows, markdownApplicabilityMatrixRow{
+			ControlID:    c.Id,
+			ControlTitle: c.Title,
+			Cells:        cells,
+		})
+	}
+	return cols, rows, true
 }

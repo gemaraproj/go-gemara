@@ -270,3 +270,60 @@ func TestCatalogToMarkdown_withoutMetadata(t *testing.T) {
 	assert.Contains(t, s, "## Table of contents")
 	assert.Contains(t, s, "### CCC.C01:")
 }
+
+func TestCatalogToMarkdown_applicabilityMatrix(t *testing.T) {
+	catalog := &gemara.ControlCatalog{
+		Metadata: gemara.Metadata{
+			Id:          "m",
+			Type:        gemara.ControlCatalogArtifact,
+			Description: "d",
+			Author:      gemara.Actor{Name: "a", Type: gemara.Human},
+			ApplicabilityGroups: []gemara.Group{
+				{Id: "L1", Title: "Level 1"},
+				{Id: "L2", Title: "Level 2"},
+			},
+		},
+		Title: "Matrix Test",
+		Groups: []gemara.Group{
+			{Id: "G", Title: "Group"},
+		},
+		Controls: []gemara.Control{
+			{
+				Id:        "C-A",
+				Group:     "G",
+				Title:     "Alpha",
+				Objective: "o1",
+				State:     gemara.LifecycleActive,
+				AssessmentRequirements: []gemara.AssessmentRequirement{
+					{Id: "C-A.1", Text: "t", State: gemara.LifecycleActive, Applicability: []string{"L1"}},
+				},
+			},
+			{
+				Id:        "C-B",
+				Group:     "G",
+				Title:     "Beta",
+				Objective: "o2",
+				State:     gemara.LifecycleActive,
+				AssessmentRequirements: []gemara.AssessmentRequirement{
+					{Id: "C-B.1", Text: "t", State: gemara.LifecycleActive, Applicability: []string{"L1", "L2"}},
+				},
+			},
+		},
+	}
+
+	out, err := CatalogToMarkdown(catalog, WithApplicabilityMatrix(true), WithMetadata(false), WithTOC(false))
+	require.NoError(t, err)
+	s := string(out)
+
+	assert.Contains(t, s, "## Applicability coverage")
+	assert.Contains(t, s, "| Control | Level 1 | Level 2 |")
+	assert.Contains(t, s, "| **C-A**: Alpha |X||")
+	assert.Contains(t, s, "| **C-B**: Beta |X|X|")
+}
+
+func TestCatalogToMarkdown_applicabilityMatrix_offByDefault(t *testing.T) {
+	catalog := loadControlCatalogFromTestData(t, "good-ccc.yaml")
+	out, err := CatalogToMarkdown(catalog)
+	require.NoError(t, err)
+	assert.NotContains(t, string(out), "## Applicability coverage")
+}

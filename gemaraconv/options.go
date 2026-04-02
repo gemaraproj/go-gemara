@@ -66,13 +66,14 @@ func WithControlHref(controlHref string) GenerateOption {
 }
 
 type markdownOpts struct {
-	toc        bool
-	lineEnding string
-	metadata   bool
+	toc                 bool
+	lineEnding          string
+	metadata            bool
+	applicabilityMatrix bool
 }
 
 func defaultMarkdownOpts() markdownOpts {
-	return markdownOpts{toc: true, lineEnding: "\n", metadata: true}
+	return markdownOpts{toc: true, lineEnding: "\n", metadata: true, applicabilityMatrix: false}
 }
 
 func (o *markdownOpts) apply(opts ...MarkdownOption) {
@@ -107,5 +108,12 @@ func WithLineEnding(s string) MarkdownOption {
 func WithMetadata(enabled bool) MarkdownOption {
 	return func(o *markdownOpts) {
 		o.metadata = enabled
+	}
+}
+
+// WithApplicabilityMatrix sets whether a control × applicability matrix is emitted (default false).
+func WithApplicabilityMatrix(enabled bool) MarkdownOption {
+	return func(o *markdownOpts) {
+		o.applicabilityMatrix = enabled
 	}
 }
