@@ -35,13 +35,7 @@ type markdownLexiconGlossaryEntry struct {
 	Definition string
 	// RefTarget is the link target for reference-style definitions (includes leading '#').
 	RefTarget string
-	Refs      []markdownLexiconRefLine
-}
-
-// markdownLexiconRefLine is one citation (optional URL) in the glossary.
-type markdownLexiconRefLine struct {
-	Citation string
-	URL      string
+	Refs      []lexiconRefLine
 }
 
 // markdownApplicabilityColumn is one applicability dimension in the matrix header.
@@ -80,15 +74,11 @@ func buildLexiconGlossaryView(entries []lexiconEntry) []markdownLexiconGlossaryE
 	}
 	out := make([]markdownLexiconGlossaryEntry, len(entries))
 	for entryIdx, entry := range entries {
-		refs := make([]markdownLexiconRefLine, len(entry.Refs))
-		for refIdx, refLine := range entry.Refs {
-			refs[refIdx] = markdownLexiconRefLine{Citation: refLine.Citation, URL: refLine.URL}
-		}
 		out[entryIdx] = markdownLexiconGlossaryEntry{
 			Canonical:  entry.Canonical,
 			Definition: entry.Definition,
 			RefTarget:  lexiconRefSlug(entry.Canonical),
-			Refs:       refs,
+			Refs:       append([]lexiconRefLine(nil), entry.Refs...),
 		}
 	}
 	return out
