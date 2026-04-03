@@ -2,9 +2,17 @@ package markdown
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/gemaraproj/go-gemara"
 )
+
+// sanitizeMarkdownTableCell flattens whitespace and escapes '|' so pipe-table rows
+// stay on one line (YAML block scalars often end with a newline).
+func sanitizeMarkdownTableCell(s string) string {
+	s = strings.Join(strings.Fields(s), " ")
+	return strings.ReplaceAll(s, "|", `\|`)
+}
 
 const ungroupedSectionTitle = "Ungrouped"
 
@@ -44,11 +52,10 @@ type markdownApplicabilityColumn struct {
 	Label string
 }
 
-// markdownApplicabilityMatrixRow is one control row; Cells align with ApplicabilityMatrixColumns.
+// markdownApplicabilityMatrixRow is one assessment-requirement row; Cells align with ApplicabilityMatrixColumns.
 type markdownApplicabilityMatrixRow struct {
-	ControlID    string
-	ControlTitle string
-	Cells        []string // "X" or empty
+	RequirementID string
+	Cells         []string // "X" or empty
 }
 
 // markdownTOCItem is one line in the table of contents (group or control).
@@ -200,8 +207,13 @@ func copyControlsWithSortedARs(ctrls []gemara.Control) []gemara.Control {
 	return out
 }
 
+func arIncludedInApplicabilityMatrix(ar gemara.AssessmentRequirement) bool {
+	return ar.State != gemara.LifecycleRetired
+}
+
 // applicabilityColumnIDs returns ordered applicability ids for matrix columns:
-// metadata applicability-groups order if present, else sorted union of all AR applicability strings on active controls.
+// metadata applicability-groups order if present, else sorted union of applicability
+// on non-retired assessment requirements under active controls.
 func applicabilityColumnIDs(catalog *gemara.ControlCatalog) []string {
 	if len(catalog.Metadata.ApplicabilityGroups) > 0 {
 		out := make([]string, 0, len(catalog.Metadata.ApplicabilityGroups))
@@ -216,6 +228,9 @@ func applicabilityColumnIDs(catalog *gemara.ControlCatalog) []string {
 			continue
 		}
 		for _, ar := range c.AssessmentRequirements {
+			if !arIncludedInApplicabilityMatrix(ar) {
+				continue
+			}
 			for _, a := range ar.Applicability {
 				seen[a] = struct{}{}
 			}
@@ -251,7 +266,7 @@ func buildApplicabilityMatrix(catalog *gemara.ControlCatalog, groups []markdownG
 		if label == "" {
 			label = id
 		}
-		cols[i] = markdownApplicabilityColumn{ID: id, Label: label}
+		cols[i] = markdownApplicabilityColumn{ID: id, Label: sanitizeMarkdownTableCell(label)}
 	}
 
 	var flat []gemara.Control
@@ -263,23 +278,28 @@ func buildApplicabilityMatrix(catalog *gemara.ControlCatalog, groups []markdownG
 	}
 
 	for _, c := range flat {
-		set := make(map[string]struct{})
 		for _, ar := range c.AssessmentRequirements {
+			if !arIncludedInApplicabilityMatrix(ar) {
+				continue
+			}
+			set := make(map[string]struct{}, len(ar.Applicability))
 			for _, a := range ar.Applicability {
 				set[a] = struct{}{}
 			}
-		}
-		cells := make([]string, len(colIDs))
-		for i, id := range colIDs {
-			if _, ok := set[id]; ok {
-				cells[i] = "X"
+			cells := make([]string, len(colIDs))
+			for i, id := range colIDs {
+				if _, ok := set[id]; ok {
+					cells[i] = "X"
+				}
 			}
+			rows = append(rows, markdownApplicabilityMatrixRow{
+				RequirementID: sanitizeMarkdownTableCell(ar.Id),
+				Cells:         cells,
+			})
 		}
-		rows = append(rows, markdownApplicabilityMatrixRow{
-			ControlID:    c.Id,
-			ControlTitle: c.Title,
-			Cells:        cells,
-		})
+	}
+	if len(rows) == 0 {
+		return nil, nil, false
 	}
 	return cols, rows, true
 }

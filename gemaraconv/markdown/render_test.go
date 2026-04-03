@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gemaraproj/go-gemara"
@@ -182,9 +183,39 @@ func TestCatalogToMarkdown_applicabilityMatrixImplicitColumns(t *testing.T) {
 	})
 	require.NoError(t, err)
 	s := string(out)
-	assert.Contains(t, s, "## Applicability coverage")
+	assert.Contains(t, s, "## Requirements and Applicability")
 	assert.Contains(t, s, "| Alpha |")
 	assert.Contains(t, s, "| Zebra |")
+}
+
+func TestCatalogToMarkdown_applicabilityMatrix_noNewlineInTableRow(t *testing.T) {
+	catalog := &gemara.ControlCatalog{
+		Metadata: gemara.Metadata{
+			Id: "m", Type: gemara.ControlCatalogArtifact, Description: "d", Author: gemara.Actor{Name: "a", Type: gemara.Human},
+			ApplicabilityGroups: []gemara.Group{{Id: "L1", Title: "Level 1"}},
+		},
+		Title:  "T",
+		Groups: []gemara.Group{{Id: "G", Title: "G"}},
+		Controls: []gemara.Control{
+			{
+				Id: "C-1", Group: "G", Title: "Ctl", Objective: "o", State: gemara.LifecycleActive,
+				AssessmentRequirements: []gemara.AssessmentRequirement{
+					{Id: "C-1.1\n", Text: "t", State: gemara.LifecycleActive, Applicability: []string{"L1"}},
+				},
+			},
+		},
+	}
+	out, err := CatalogToMarkdown(catalog, Config{TOC: false, Metadata: false, ApplicabilityMatrix: true})
+	require.NoError(t, err)
+	s := string(out)
+	idx := strings.Index(s, "## Requirements and Applicability")
+	require.GreaterOrEqual(t, idx, 0)
+	section := s[idx:]
+	if end := strings.Index(section, "\n\n## "); end > 0 {
+		section = section[:end]
+	}
+	assert.NotContains(t, section, "C-1.1\n |")
+	assert.Contains(t, section, "| [**C-1.1**](#c-1-1) |X|")
 }
 
 func TestCatalogToMarkdown_ungroupedBucket(t *testing.T) {

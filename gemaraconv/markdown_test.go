@@ -316,17 +316,17 @@ func TestCatalogToMarkdown_applicabilityMatrix(t *testing.T) {
 	require.NoError(t, err)
 	s := string(out)
 
-	assert.Contains(t, s, "## Applicability coverage")
-	assert.Contains(t, s, "| Control | Level 1 | Level 2 |")
-	assert.Contains(t, s, "| **C-A**: Alpha |X||")
-	assert.Contains(t, s, "| **C-B**: Beta |X|X|")
+	assert.Contains(t, s, "## Requirements and Applicability")
+	assert.Contains(t, s, "| Requirement | Level 1 | Level 2 |")
+	assert.Contains(t, s, "| [**C-A.1**](#c-a-1) |X||")
+	assert.Contains(t, s, "| [**C-B.1**](#c-b-1) |X|X|")
 }
 
 func TestCatalogToMarkdown_applicabilityMatrix_offByDefault(t *testing.T) {
 	catalog := loadControlCatalogFromTestData(t, "good-ccc.yaml")
 	out, err := CatalogToMarkdown(catalog)
 	require.NoError(t, err)
-	assert.NotContains(t, string(out), "## Applicability coverage")
+	assert.NotContains(t, string(out), "## Requirements and Applicability")
 }
 
 func TestCatalogToMarkdown_lexiconAutolink(t *testing.T) {

@@ -41,11 +41,11 @@ _Summary: {{.NumControls}} control(s), {{.NumARs}} assessment requirement(s)._
 
 {{end}}
 
-{{define "applicability_matrix_section"}}## Applicability coverage
+{{define "applicability_matrix_section"}}## Requirements and Applicability
 
-| Control |{{range .ApplicabilityMatrixColumns}} {{.Label}} |{{end}}
+| Requirement |{{range .ApplicabilityMatrixColumns}} {{.Label}} |{{end}}
 | :--- |{{range .ApplicabilityMatrixColumns}} :---: |{{end}}
-{{range .ApplicabilityMatrixRows}}| **{{.ControlID}}**: {{.ControlTitle}} |{{range .Cells}}{{.}}|{{end}}
+{{range .ApplicabilityMatrixRows}}| [**{{.RequirementID}}**](#{{anchor .RequirementID}}) |{{range .Cells}}{{.}}|{{end}}
 {{end}}
 
 {{end}}

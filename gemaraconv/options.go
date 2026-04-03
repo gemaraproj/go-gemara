@@ -113,7 +113,7 @@ func WithMetadata(enabled bool) MarkdownOption {
 	}
 }
 
-// WithApplicabilityMatrix sets whether a control × applicability matrix is emitted (default false).
+// WithApplicabilityMatrix sets whether an assessment-requirement × applicability matrix is emitted (default false).
 func WithApplicabilityMatrix(enabled bool) MarkdownOption {
 	return func(o *markdownOpts) {
 		o.applicabilityMatrix = enabled
