@@ -87,7 +87,8 @@ const (
 )
 
 const (
-	Human EntityType = iota
+	InvalidEntityType EntityType = iota
+	Human
 	Software
 	SoftwareAssisted
 )
@@ -100,7 +101,8 @@ const (
 )
 
 const (
-	EntryTypeGuideline EntryType = iota
+	InvalidEntryType EntryType = iota
+	EntryTypeGuideline
 	EntryTypeStatement
 	EntryTypeControl
 	EntryTypeAssessmentRequirement
@@ -119,7 +121,8 @@ const (
 )
 
 const (
-	RelImplements RelationshipType = iota
+	InvalidRelationshipType RelationshipType = iota
+	RelImplements
 	RelImplementedBy
 	RelSupports
 	RelSupportedBy
@@ -130,14 +133,16 @@ const (
 )
 
 const (
-	MethodBehavioral MethodType = iota
+	InvalidMethodType MethodType = iota
+	MethodBehavioral
 	MethodIntent
 	MethodRemediation
 	MethodGate
 )
 
 const (
-	ModeManual ModeType = iota
+	InvalidModeType ModeType = iota
+	ModeManual
 	ModeAutomated
 )
 
@@ -149,14 +154,16 @@ const (
 )
 
 const (
-	SeverityLow Severity = iota
+	InvalidSeverity Severity = iota
+	SeverityLow
 	SeverityMedium
 	SeverityHigh
 	SeverityCritical
 )
 
 const (
-	GuidanceStandard GuidanceType = iota
+	InvalidGuidanceType GuidanceType = iota
+	GuidanceStandard
 	GuidanceRegulation
 	GuidanceBestPractice
 	GuidanceFramework
@@ -170,7 +177,8 @@ const (
 )
 
 const (
-	ModAdd ModType = iota
+	InvalidModType ModType = iota
+	ModAdd
 	ModModify
 	ModRemove
 	ModReplace
@@ -178,7 +186,8 @@ const (
 )
 
 const (
-	ResultObservation ResultType = iota
+	InvalidResultType ResultType = iota
+	ResultObservation
 	ResultStrength
 	ResultFinding
 	ResultGap
@@ -251,7 +260,8 @@ var (
 	}
 
 	entityTypeToString = map[EntityType]string{
-		Human:            "Human",
+		InvalidEntityType: "Invalid",
+		Human:             "Human",
 		Software:         "Software",
 		SoftwareAssisted: "Software Assisted",
 	}
@@ -263,6 +273,7 @@ var (
 	}
 
 	entryTypeToString = map[EntryType]string{
+		InvalidEntryType:               "Invalid",
 		EntryTypeGuideline:             "Guideline",
 		EntryTypeStatement:             "Statement",
 		EntryTypeControl:               "Control",
@@ -301,7 +312,8 @@ var (
 	}
 
 	relationshipTypeToString = map[RelationshipType]string{
-		RelImplements:    "implements",
+		InvalidRelationshipType: "invalid",
+		RelImplements:           "implements",
 		RelImplementedBy: "implemented-by",
 		RelSupports:      "supports",
 		RelSupportedBy:   "supported-by",
@@ -323,6 +335,7 @@ var (
 	}
 
 	methodTypeToString = map[MethodType]string{
+		InvalidMethodType: "Invalid",
 		MethodBehavioral:  "Behavioral",
 		MethodIntent:      "Intent",
 		MethodRemediation: "Remediation",
@@ -337,7 +350,8 @@ var (
 	}
 
 	modeTypeToString = map[ModeType]string{
-		ModeManual:    "Manual",
+		InvalidModeType: "Invalid",
+		ModeManual:      "Manual",
 		ModeAutomated: "Automated",
 	}
 
@@ -361,6 +375,7 @@ var (
 	}
 
 	severityToString = map[Severity]string{
+		InvalidSeverity:  "Invalid",
 		SeverityLow:      "Low",
 		SeverityMedium:   "Medium",
 		SeverityHigh:     "High",
@@ -375,6 +390,7 @@ var (
 	}
 
 	guidanceTypeToString = map[GuidanceType]string{
+		InvalidGuidanceType:  "Invalid",
 		GuidanceStandard:     "Standard",
 		GuidanceRegulation:   "Regulation",
 		GuidanceBestPractice: "Best Practice",
@@ -403,7 +419,8 @@ var (
 	}
 
 	modTypeToString = map[ModType]string{
-		ModAdd:      "Add",
+		InvalidModType: "Invalid",
+		ModAdd:         "Add",
 		ModModify:   "Modify",
 		ModRemove:   "Remove",
 		ModReplace:  "Replace",
@@ -419,6 +436,7 @@ var (
 	}
 
 	resultTypeToString = map[ResultType]string{
+		InvalidResultType: "Invalid",
 		ResultObservation: "Observation",
 		ResultStrength:    "Strength",
 		ResultFinding:     "Finding",
