@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gemaraproj/go-gemara"
+	"github.com/gemaraproj/go-gemara/gemaraconv/markdown"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,12 +26,6 @@ func loadControlCatalogFromTestData(t *testing.T, name string) *gemara.ControlCa
 	err := c.LoadFile(testDataFileURL(t, name))
 	require.NoError(t, err, "load %s", name)
 	return c
-}
-
-func TestCollapseExtraNewlines(t *testing.T) {
-	assert.Equal(t, "a\n\nb", collapseExtraNewlines("a\n\n\nb"))
-	assert.Equal(t, "a\n\nb", collapseExtraNewlines("a\n\n\n\n\n\n\nb"))
-	assert.Equal(t, "a\n\nb", collapseExtraNewlines("a\n\nb"))
 }
 
 func TestCatalogToMarkdown_nil(t *testing.T) {
@@ -71,8 +66,8 @@ func TestCatalogToMarkdown_goodCCCYAML(t *testing.T) {
 	assert.Contains(t, s, fmt.Sprintf("# %s - %s", catalog.Title, catalog.Metadata.Id))
 	assert.Contains(t, s, "_"+catalog.Title+"_ is a Gemara")
 	assert.Contains(t, s, "## Table of contents")
-	assert.Contains(t, s, fmt.Sprintf("- [%s](#%s)", group0.Title, markdownAnchor(group0.Id)))
-	assert.Contains(t, s, fmt.Sprintf("  - [%s: %s](#%s)", c0.Id, c0.Title, markdownAnchor(c0.Id+": "+c0.Title)))
+	assert.Contains(t, s, fmt.Sprintf("- [%s](#%s)", group0.Title, markdown.Anchor(group0.Id)))
+	assert.Contains(t, s, fmt.Sprintf("  - [%s: %s](#%s)", c0.Id, c0.Title, markdown.Anchor(c0.Id+": "+c0.Title)))
 	assert.Contains(t, s, fmt.Sprintf("## %s: %s", group0.Id, group0.Title))
 	assert.Contains(t, s, fmt.Sprintf("### %s", c0.Id))
 	assert.Contains(t, s, fmt.Sprintf("#### %s", ar0.Id))
@@ -147,7 +142,7 @@ func TestCatalogToMarkdown_ungrouped(t *testing.T) {
 	assert.Contains(t, s, "## Ungrouped")
 	assert.Contains(t, s, "### ORPHAN")
 	assert.Contains(t, s, "- [Ungrouped](#ungrouped)")
-	assert.Contains(t, s, fmt.Sprintf("  - [ORPHAN: Orphan](#%s)", markdownAnchor("ORPHAN: Orphan")))
+	assert.Contains(t, s, fmt.Sprintf("  - [ORPHAN: Orphan](#%s)", markdown.Anchor("ORPHAN: Orphan")))
 }
 
 func TestCatalogToMarkdown_extendsImportsReplacedBy(t *testing.T) {
@@ -344,7 +339,7 @@ func TestCatalogToMarkdown_lexiconAutolink(t *testing.T) {
 			GemaraVersion: "1.0",
 			Lexicon:       &gemara.ArtifactMapping{ReferenceId: "lex"},
 			MappingReferences: []gemara.MappingReference{
-				{Id: "lex", Title: "Lex", Version: "1", Url: lexiconFileURL(t, "lexicon_good.yaml")},
+				{Id: "lex", Title: "Lex", Version: "1", Url: testDataFileURL(t, "lexicon_good.yaml")},
 			},
 		},
 		Title:  "Lex test",
@@ -388,7 +383,7 @@ func TestCatalogToMarkdown_lexiconAutolink_offByDefault(t *testing.T) {
 			Author:      gemara.Actor{Name: "a", Type: gemara.Human},
 			Lexicon:     &gemara.ArtifactMapping{ReferenceId: "lex"},
 			MappingReferences: []gemara.MappingReference{
-				{Id: "lex", Title: "L", Version: "1", Url: lexiconFileURL(t, "lexicon_good.yaml")},
+				{Id: "lex", Title: "L", Version: "1", Url: testDataFileURL(t, "lexicon_good.yaml")},
 			},
 		},
 		Title:  "x",

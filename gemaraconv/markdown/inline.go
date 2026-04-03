@@ -1,4 +1,4 @@
-package gemaraconv
+package markdown
 
 import (
 	"fmt"

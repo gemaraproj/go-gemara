@@ -1,4 +1,4 @@
-package gemaraconv
+package markdown
 
 import (
 	"fmt"
@@ -7,20 +7,6 @@ import (
 	"strings"
 	"unicode"
 )
-
-// lexiconRefLine is one reference for glossary rendering.
-type lexiconRefLine struct {
-	Citation string
-	URL      string
-}
-
-// lexiconEntry is normalized lexicon data for autolinking and the glossary.
-type lexiconEntry struct {
-	Canonical  string
-	Definition string
-	Synonyms   []string
-	Refs       []lexiconRefLine
-}
 
 func containsLexiconSynonym(synonyms []string, entryCanonical, term string) bool {
 	if strings.EqualFold(entryCanonical, term) {
@@ -54,7 +40,7 @@ func addLexiconLinksForTerm(lexicon []lexiconEntry, text, term string) string {
 		return containsLexiconSynonym(entry.Synonyms, entry.Canonical, term)
 	})
 	if termIdx == -1 {
-		panic(fmt.Sprintf("gemaraconv: addLexiconLinksForTerm called for unknown term %q", term))
+		panic(fmt.Sprintf("markdown: addLexiconLinksForTerm called for unknown term %q", term))
 	}
 	canonical := lexicon[termIdx].Canonical
 

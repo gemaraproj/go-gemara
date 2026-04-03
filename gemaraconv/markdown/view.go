@@ -1,4 +1,4 @@
-package gemaraconv
+package markdown
 
 import (
 	"sort"
@@ -84,9 +84,9 @@ func buildLexiconGlossaryView(entries []lexiconEntry) []markdownLexiconGlossaryE
 	return out
 }
 
-func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts, lexGlossary []markdownLexiconGlossaryEntry) markdownCatalogView {
+func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, cfg Config, lexGlossary []markdownLexiconGlossaryEntry) markdownCatalogView {
 	if catalog == nil {
-		return markdownCatalogView{LineEnding: opts.lineEnding, LexiconGlossary: lexGlossary}
+		return markdownCatalogView{LineEnding: cfg.LineEnding, LexiconGlossary: lexGlossary}
 	}
 
 	known := make(map[string]struct{}, len(catalog.Groups))
@@ -116,14 +116,14 @@ func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts,
 
 	appendGroup := func(gv markdownGroupView) {
 		groups = append(groups, gv)
-		if !opts.toc {
+		if !cfg.TOC {
 			return
 		}
 		toc = append(toc, markdownTOCItem{Label: gv.Title, Anchor: gv.Anchor, Indent: 0, Control: false})
 		for _, ctl := range gv.Controls {
 			toc = append(toc, markdownTOCItem{
 				Label:   ctl.Id + ": " + ctl.Title,
-				Anchor:  markdownAnchor(ctl.Id + ": " + ctl.Title),
+				Anchor:  Anchor(ctl.Id + ": " + ctl.Title),
 				Indent:  1,
 				Control: true,
 			})
@@ -137,9 +137,9 @@ func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts,
 		}
 		sort.Slice(ctrls, func(i, j int) bool { return ctrls[i].Id < ctrls[j].Id })
 		ctrls = copyControlsWithSortedARs(ctrls)
-		anchor := markdownAnchor(g.Id)
+		anchor := Anchor(g.Id)
 		if anchor == "" {
-			anchor = markdownAnchor(g.Title)
+			anchor = Anchor(g.Title)
 		}
 		appendGroup(markdownGroupView{
 			ID:          g.Id,
@@ -155,7 +155,7 @@ func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts,
 		ctrls := append([]gemara.Control(nil), orphans...)
 		sort.Slice(ctrls, func(i, j int) bool { return ctrls[i].Id < ctrls[j].Id })
 		ctrls = copyControlsWithSortedARs(ctrls)
-		uAnchor := markdownAnchor(ungroupedSectionTitle)
+		uAnchor := Anchor(ungroupedSectionTitle)
 		appendGroup(markdownGroupView{
 			ID:          "",
 			Title:       ungroupedSectionTitle,
@@ -166,19 +166,19 @@ func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, opts markdownOpts,
 		})
 	}
 
-	applicabilityCols, applicabilityRows, showMatrix := buildApplicabilityMatrix(catalog, groups, opts.applicabilityMatrix)
+	applicabilityCols, applicabilityRows, showMatrix := buildApplicabilityMatrix(catalog, groups, cfg.ApplicabilityMatrix)
 
 	return markdownCatalogView{
 		Title:                      catalog.Title,
 		Metadata:                   catalog.Metadata,
-		ShowMetadata:               opts.metadata,
+		ShowMetadata:               cfg.Metadata,
 		ShowApplicabilityMatrix:    showMatrix,
 		ApplicabilityMatrixColumns: applicabilityCols,
 		ApplicabilityMatrixRows:    applicabilityRows,
 		Extends:                    catalog.Extends,
 		Imports:                    catalog.Imports,
-		TOC:                        opts.toc,
-		LineEnding:                 opts.lineEnding,
+		TOC:                        cfg.TOC,
+		LineEnding:                 cfg.LineEnding,
 		Groups:                     groups,
 		TOCItems:                   toc,
 		NumControls:                numControlsShown,

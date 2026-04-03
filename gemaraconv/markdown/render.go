@@ -1,4 +1,4 @@
-package gemaraconv
+package markdown
 
 import (
 	"bytes"
@@ -12,21 +12,24 @@ import (
 )
 
 //go:embed templates/*.tmpl
-var markdownTemplates embed.FS
+var templatesFS embed.FS
 
 // CatalogToMarkdown renders a ControlCatalog as Markdown using embedded templates.
 // Only controls whose state is LifecycleActive are included (TOC, body, and summary counts).
-func CatalogToMarkdown(catalog *gemara.ControlCatalog, opts ...MarkdownOption) ([]byte, error) {
+func CatalogToMarkdown(catalog *gemara.ControlCatalog, cfg Config) ([]byte, error) {
 	if catalog == nil {
 		return nil, fmt.Errorf("catalog is nil")
 	}
 
-	o := defaultMarkdownOpts()
-	o.apply(opts...)
+	lineEnding := cfg.LineEnding
+	if lineEnding == "" {
+		lineEnding = "\n"
+	}
+	cfg.LineEnding = lineEnding
 
 	var lexEntries []lexiconEntry
 	switch {
-	case o.lexiconAutolink && catalog.Metadata.Lexicon != nil:
+	case cfg.LexiconAutolink && catalog.Metadata.Lexicon != nil:
 		lexiconURI, err := resolveLexiconURL(catalog.Metadata)
 		if err != nil {
 			return nil, fmt.Errorf("lexicon: resolve URL: %w", err)
@@ -36,8 +39,8 @@ func CatalogToMarkdown(catalog *gemara.ControlCatalog, opts ...MarkdownOption) (
 			return nil, fmt.Errorf("lexicon: %w", err)
 		}
 		lexEntries = loaded
-	case len(o.inlineLexicon) > 0:
-		loaded, err := normalizeInlineLexicon(o.inlineLexicon)
+	case len(cfg.InlineLexicon) > 0:
+		loaded, err := normalizeInlineLexicon(cfg.InlineLexicon)
 		if err != nil {
 			return nil, fmt.Errorf("lexicon: %w", err)
 		}
@@ -45,10 +48,10 @@ func CatalogToMarkdown(catalog *gemara.ControlCatalog, opts ...MarkdownOption) (
 	}
 
 	lexGlossary := buildLexiconGlossaryView(lexEntries)
-	view := buildMarkdownCatalogView(catalog, o, lexGlossary)
+	view := buildMarkdownCatalogView(catalog, cfg, lexGlossary)
 
 	linker := newLexiconLinker(lexEntries)
-	t, err := template.New("").Funcs(markdownFuncMap(linker)).ParseFS(markdownTemplates, "templates/*.tmpl")
+	t, err := template.New("").Funcs(markdownFuncMap(linker)).ParseFS(templatesFS, "templates/*.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("parse markdown templates: %w", err)
 	}
@@ -60,8 +63,8 @@ func CatalogToMarkdown(catalog *gemara.ControlCatalog, opts ...MarkdownOption) (
 
 	text := collapseExtraNewlines(buf.String())
 	out := []byte(text)
-	if o.lineEnding != "\n" {
-		out = []byte(strings.ReplaceAll(string(out), "\n", o.lineEnding))
+	if lineEnding != "\n" {
+		out = []byte(strings.ReplaceAll(string(out), "\n", lineEnding))
 	}
 	return out, nil
 }
@@ -78,7 +81,7 @@ func collapseExtraNewlines(s string) string {
 func markdownFuncMap(lexiconLink func(string) string) template.FuncMap {
 	return template.FuncMap{
 		"lexiconLink":  lexiconLink,
-		"anchor":       markdownAnchor,
+		"anchor":       Anchor,
 		"lifecycle":    func(l gemara.Lifecycle) string { return l.String() },
 		"isRetired":    func(l gemara.Lifecycle) bool { return l == gemara.LifecycleRetired },
 		"artifactType": func(a gemara.ArtifactType) string { return a.String() },
@@ -109,8 +112,8 @@ func markdownFuncMap(lexiconLink func(string) string) template.FuncMap {
 	}
 }
 
-// markdownAnchor returns a GitHub-style fragment id for heading text (lowercase, hyphen-separated).
-func markdownAnchor(s string) string {
+// Anchor returns a GitHub-style fragment id for heading text (lowercase, hyphen-separated).
+func Anchor(s string) string {
 	if s == "" {
 		return "section"
 	}
