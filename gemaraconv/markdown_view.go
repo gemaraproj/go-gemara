@@ -256,9 +256,7 @@ func buildApplicabilityMatrix(catalog *gemara.ControlCatalog, groups []markdownG
 
 	var flat []gemara.Control
 	for _, gv := range groups {
-		for _, c := range gv.Controls {
-			flat = append(flat, c)
-		}
+		flat = append(flat, gv.Controls...)
 	}
 	if len(flat) == 0 {
 		return nil, nil, false
