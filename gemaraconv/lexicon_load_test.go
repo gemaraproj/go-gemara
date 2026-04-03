@@ -9,22 +9,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// lexiconTestdataAbsPath returns an absolute path to go-gemara/test-data/<name> (tests run with cwd gemaraconv/).
+func lexiconTestdataAbsPath(t *testing.T, name string) string {
+	t.Helper()
+	absPath, err := filepath.Abs(filepath.Join("..", "test-data", name))
+	require.NoError(t, err)
+	return absPath
+}
+
 func readLexiconTestdata(t *testing.T, name string) []byte {
 	t.Helper()
-	fileBytes, err := os.ReadFile(filepath.Join("testdata", name))
+	fileBytes, err := os.ReadFile(lexiconTestdataAbsPath(t, name))
 	require.NoError(t, err)
 	return fileBytes
 }
 
 func lexiconFileURL(t *testing.T, name string) string {
 	t.Helper()
-	absPath, err := filepath.Abs(filepath.Join("testdata", name))
-	require.NoError(t, err)
-	return "file://" + filepath.ToSlash(absPath)
+	return "file://" + filepath.ToSlash(lexiconTestdataAbsPath(t, name))
 }
 
 func TestParseLexiconYAML_golden(t *testing.T) {
-	entries, err := parseLexiconYAML(readLexiconTestdata(t, "lexicon_golden.yaml"))
+	entries, err := parseLexiconYAML(readLexiconTestdata(t, "lexicon_good.yaml"))
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
 	require.Equal(t, "Example Term", entries[0].Canonical)
@@ -54,7 +60,7 @@ func TestParseLexiconYAML_rejects(t *testing.T) {
 }
 
 func TestLoadLexiconFromURI_file(t *testing.T) {
-	entries, err := loadLexiconFromURI(lexiconFileURL(t, "lexicon_golden.yaml"))
+	entries, err := loadLexiconFromURI(lexiconFileURL(t, "lexicon_good.yaml"))
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
 }

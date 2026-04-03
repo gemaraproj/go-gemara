@@ -344,7 +344,7 @@ func TestCatalogToMarkdown_lexiconAutolink(t *testing.T) {
 			GemaraVersion: "1.0",
 			Lexicon:       &gemara.ArtifactMapping{ReferenceId: "lex"},
 			MappingReferences: []gemara.MappingReference{
-				{Id: "lex", Title: "Lex", Version: "1", Url: lexiconFileURL(t, "lexicon_golden.yaml")},
+				{Id: "lex", Title: "Lex", Version: "1", Url: lexiconFileURL(t, "lexicon_good.yaml")},
 			},
 		},
 		Title:  "Lex test",
@@ -388,7 +388,7 @@ func TestCatalogToMarkdown_lexiconAutolink_offByDefault(t *testing.T) {
 			Author:      gemara.Actor{Name: "a", Type: gemara.Human},
 			Lexicon:     &gemara.ArtifactMapping{ReferenceId: "lex"},
 			MappingReferences: []gemara.MappingReference{
-				{Id: "lex", Title: "L", Version: "1", Url: lexiconFileURL(t, "lexicon_golden.yaml")},
+				{Id: "lex", Title: "L", Version: "1", Url: lexiconFileURL(t, "lexicon_good.yaml")},
 			},
 		},
 		Title:  "x",
