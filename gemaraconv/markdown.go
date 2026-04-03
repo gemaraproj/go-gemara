@@ -58,11 +58,21 @@ func CatalogToMarkdown(catalog *gemara.ControlCatalog, opts ...MarkdownOption) (
 		return nil, fmt.Errorf("execute markdown template: %w", err)
 	}
 
-	out := buf.Bytes()
+	text := collapseExtraNewlines(buf.String())
+	out := []byte(text)
 	if o.lineEnding != "\n" {
 		out = []byte(strings.ReplaceAll(string(out), "\n", o.lineEnding))
 	}
 	return out, nil
+}
+
+// collapseExtraNewlines replaces every run of three or more consecutive newlines
+// with exactly two newlines, repeating until stable (one blank line between blocks).
+func collapseExtraNewlines(s string) string {
+	for strings.Contains(s, "\n\n\n") {
+		s = strings.ReplaceAll(s, "\n\n\n", "\n\n")
+	}
+	return s
 }
 
 func markdownFuncMap(lexiconLink func(string) string) template.FuncMap {

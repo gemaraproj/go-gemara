@@ -27,6 +27,12 @@ func loadControlCatalogFromTestData(t *testing.T, name string) *gemara.ControlCa
 	return c
 }
 
+func TestCollapseExtraNewlines(t *testing.T) {
+	assert.Equal(t, "a\n\nb", collapseExtraNewlines("a\n\n\nb"))
+	assert.Equal(t, "a\n\nb", collapseExtraNewlines("a\n\n\n\n\n\n\nb"))
+	assert.Equal(t, "a\n\nb", collapseExtraNewlines("a\n\nb"))
+}
+
 func TestCatalogToMarkdown_nil(t *testing.T) {
 	_, err := CatalogToMarkdown(nil)
 	require.Error(t, err)
