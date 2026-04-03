@@ -34,7 +34,7 @@ func TestPolicy_ToMarkdownChecklist(t *testing.T) {
 							Frequency:     "quarterly",
 							EvaluationMethods: []AcceptedMethod{
 								{
-									Type:        MethodAutomated,
+									Type:        MethodIntent,
 									Description: "Run automated security scan",
 								},
 							},
@@ -67,7 +67,7 @@ func TestPolicy_ToMarkdownChecklist(t *testing.T) {
 							RequirementId: "REQ-001",
 							Frequency:     "monthly",
 							EvaluationMethods: []AcceptedMethod{
-								{Type: MethodAutomated, Description: "Automated check"},
+								{Type: MethodIntent, Description: "Automated check"},
 							},
 						},
 						{
@@ -75,7 +75,7 @@ func TestPolicy_ToMarkdownChecklist(t *testing.T) {
 							RequirementId: "REQ-001",
 							Frequency:     "quarterly",
 							EvaluationMethods: []AcceptedMethod{
-								{Type: MethodManual, Description: "Manual review"},
+								{Type: MethodBehavioral, Description: "Manual review"},
 							},
 						},
 						{
@@ -83,7 +83,7 @@ func TestPolicy_ToMarkdownChecklist(t *testing.T) {
 							RequirementId: "REQ-002",
 							Frequency:     "annually",
 							EvaluationMethods: []AcceptedMethod{
-								{Type: MethodAutomated},
+								{Type: MethodIntent},
 							},
 						},
 					},
@@ -110,11 +110,11 @@ func TestPolicy_ToMarkdownChecklist(t *testing.T) {
 							Frequency:     "monthly",
 							EvaluationMethods: []AcceptedMethod{
 								{
-									Type:        MethodAutomated,
+									Type:        MethodIntent,
 									Description: "Primary automated check",
 								},
 								{
-									Type:        MethodManual,
+									Type:        MethodBehavioral,
 									Description: "Secondary manual review",
 								},
 							},

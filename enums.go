@@ -70,15 +70,20 @@ const (
 )
 
 const (
-	ControlCatalogArtifact ArtifactType = iota
+	InvalidArtifact ArtifactType = iota
+	AuditLogArtifact
+	CapabilityCatalogArtifact
+	ControlCatalogArtifact
+	EnforcementLogArtifact
 	EvaluationLogArtifact
 	GuidanceCatalogArtifact
+	LexiconArtifact
 	MappingDocumentArtifact
 	PolicyArtifact
+	PrincipleCatalogArtifact
+	RiskCatalogArtifact
 	ThreatCatalogArtifact
 	VectorCatalogArtifact
-	RiskCatalogArtifact
-	LexiconArtifact
 )
 
 const (
@@ -99,7 +104,11 @@ const (
 	EntryTypeStatement
 	EntryTypeControl
 	EntryTypeAssessmentRequirement
+	EntryTypeCapability
+	EntryTypeThreat
+	EntryTypeRisk
 	EntryTypeVector
+	EntryTypePrinciple
 )
 
 const (
@@ -121,10 +130,9 @@ const (
 )
 
 const (
-	MethodManual MethodType = iota
-	MethodBehavioral
-	MethodAutomated
-	MethodAutoremediation
+	MethodBehavioral MethodType = iota
+	MethodIntent
+	MethodRemediation
 	MethodGate
 )
 
@@ -155,7 +163,7 @@ const (
 )
 
 const (
-	RiskAppetiteZero RiskAppetite = iota
+	RiskAppetiteMinimal RiskAppetite = iota
 	RiskAppetiteLow
 	RiskAppetiteModerate
 	RiskAppetiteHigh
@@ -210,27 +218,36 @@ var (
 	}
 
 	artifactTypeToString = map[ArtifactType]string{
-		ControlCatalogArtifact:  "ControlCatalog",
-		EvaluationLogArtifact:   "EvaluationLog",
-		GuidanceCatalogArtifact: "GuidanceCatalog",
-		MappingDocumentArtifact: "MappingDocument",
-		PolicyArtifact:          "Policy",
-		ThreatCatalogArtifact:   "ThreatCatalog",
-		VectorCatalogArtifact:   "VectorCatalog",
-		RiskCatalogArtifact:     "RiskCatalog",
-		LexiconArtifact:         "Lexicon",
+		InvalidArtifact:           "Invalid",
+		AuditLogArtifact:          "AuditLog",
+		CapabilityCatalogArtifact: "CapabilityCatalog",
+		ControlCatalogArtifact:    "ControlCatalog",
+		EnforcementLogArtifact:    "EnforcementLog",
+		EvaluationLogArtifact:     "EvaluationLog",
+		GuidanceCatalogArtifact:   "GuidanceCatalog",
+		LexiconArtifact:           "Lexicon",
+		MappingDocumentArtifact:   "MappingDocument",
+		PolicyArtifact:            "Policy",
+		PrincipleCatalogArtifact:  "PrincipleCatalog",
+		RiskCatalogArtifact:       "RiskCatalog",
+		ThreatCatalogArtifact:     "ThreatCatalog",
+		VectorCatalogArtifact:     "VectorCatalog",
 	}
 
 	stringToArtifactType = map[string]ArtifactType{
-		"ControlCatalog":  ControlCatalogArtifact,
-		"EvaluationLog":   EvaluationLogArtifact,
-		"GuidanceCatalog": GuidanceCatalogArtifact,
-		"MappingDocument": MappingDocumentArtifact,
-		"Policy":          PolicyArtifact,
-		"ThreatCatalog":   ThreatCatalogArtifact,
-		"VectorCatalog":   VectorCatalogArtifact,
-		"RiskCatalog":     RiskCatalogArtifact,
-		"Lexicon":         LexiconArtifact,
+		"AuditLog":          AuditLogArtifact,
+		"CapabilityCatalog": CapabilityCatalogArtifact,
+		"ControlCatalog":    ControlCatalogArtifact,
+		"EnforcementLog":    EnforcementLogArtifact,
+		"EvaluationLog":     EvaluationLogArtifact,
+		"GuidanceCatalog":   GuidanceCatalogArtifact,
+		"Lexicon":           LexiconArtifact,
+		"MappingDocument":   MappingDocumentArtifact,
+		"Policy":            PolicyArtifact,
+		"PrincipleCatalog":  PrincipleCatalogArtifact,
+		"RiskCatalog":       RiskCatalogArtifact,
+		"ThreatCatalog":     ThreatCatalogArtifact,
+		"VectorCatalog":     VectorCatalogArtifact,
 	}
 
 	entityTypeToString = map[EntityType]string{
@@ -250,7 +267,11 @@ var (
 		EntryTypeStatement:             "Statement",
 		EntryTypeControl:               "Control",
 		EntryTypeAssessmentRequirement: "AssessmentRequirement",
+		EntryTypeCapability:            "Capability",
+		EntryTypeThreat:                "Threat",
+		EntryTypeRisk:                  "Risk",
 		EntryTypeVector:                "Vector",
+		EntryTypePrinciple:             "Principle",
 	}
 
 	stringToEntryType = map[string]EntryType{
@@ -258,7 +279,11 @@ var (
 		"Statement":             EntryTypeStatement,
 		"Control":               EntryTypeControl,
 		"AssessmentRequirement": EntryTypeAssessmentRequirement,
+		"Capability":            EntryTypeCapability,
+		"Threat":                EntryTypeThreat,
+		"Risk":                  EntryTypeRisk,
 		"Vector":                EntryTypeVector,
+		"Principle":             EntryTypePrinciple,
 	}
 
 	confidenceLevelToString = map[ConfidenceLevel]string{
@@ -298,19 +323,17 @@ var (
 	}
 
 	methodTypeToString = map[MethodType]string{
-		MethodManual:          "Manual",
-		MethodBehavioral:      "Behavioral",
-		MethodAutomated:       "Automated",
-		MethodAutoremediation: "Autoremediation",
-		MethodGate:            "Gate",
+		MethodBehavioral:  "Behavioral",
+		MethodIntent:      "Intent",
+		MethodRemediation: "Remediation",
+		MethodGate:        "Gate",
 	}
 
 	stringToMethodType = map[string]MethodType{
-		"Manual":          MethodManual,
-		"Behavioral":      MethodBehavioral,
-		"Automated":       MethodAutomated,
-		"Autoremediation": MethodAutoremediation,
-		"Gate":            MethodGate,
+		"Behavioral":  MethodBehavioral,
+		"Intent":      MethodIntent,
+		"Remediation": MethodRemediation,
+		"Gate":        MethodGate,
 	}
 
 	modeTypeToString = map[ModeType]string{
@@ -366,14 +389,14 @@ var (
 	}
 
 	riskAppetiteToString = map[RiskAppetite]string{
-		RiskAppetiteZero:     "Zero",
+		RiskAppetiteMinimal:  "Minimal",
 		RiskAppetiteLow:      "Low",
 		RiskAppetiteModerate: "Moderate",
 		RiskAppetiteHigh:     "High",
 	}
 
 	stringToRiskAppetite = map[string]RiskAppetite{
-		"Zero":     RiskAppetiteZero,
+		"Minimal":  RiskAppetiteMinimal,
 		"Low":      RiskAppetiteLow,
 		"Moderate": RiskAppetiteModerate,
 		"High":     RiskAppetiteHigh,

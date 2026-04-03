@@ -114,14 +114,20 @@ func TestArtifactTypeString(t *testing.T) {
 		v        ArtifactType
 		expected string
 	}{
+		{InvalidArtifact, "Invalid"},
+		{AuditLogArtifact, "AuditLog"},
+		{CapabilityCatalogArtifact, "CapabilityCatalog"},
 		{ControlCatalogArtifact, "ControlCatalog"},
+		{EnforcementLogArtifact, "EnforcementLog"},
 		{EvaluationLogArtifact, "EvaluationLog"},
 		{GuidanceCatalogArtifact, "GuidanceCatalog"},
+		{LexiconArtifact, "Lexicon"},
 		{MappingDocumentArtifact, "MappingDocument"},
 		{PolicyArtifact, "Policy"},
+		{PrincipleCatalogArtifact, "PrincipleCatalog"},
+		{RiskCatalogArtifact, "RiskCatalog"},
 		{ThreatCatalogArtifact, "ThreatCatalog"},
 		{VectorCatalogArtifact, "VectorCatalog"},
-		{RiskCatalogArtifact, "RiskCatalog"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
@@ -160,7 +166,11 @@ func TestEntryTypeString(t *testing.T) {
 		{EntryTypeStatement, "Statement"},
 		{EntryTypeControl, "Control"},
 		{EntryTypeAssessmentRequirement, "AssessmentRequirement"},
+		{EntryTypeCapability, "Capability"},
+		{EntryTypeThreat, "Threat"},
+		{EntryTypeRisk, "Risk"},
 		{EntryTypeVector, "Vector"},
+		{EntryTypePrinciple, "Principle"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
@@ -218,10 +228,9 @@ func TestMethodTypeString(t *testing.T) {
 		v        MethodType
 		expected string
 	}{
-		{MethodManual, "Manual"},
 		{MethodBehavioral, "Behavioral"},
-		{MethodAutomated, "Automated"},
-		{MethodAutoremediation, "Autoremediation"},
+		{MethodIntent, "Intent"},
+		{MethodRemediation, "Remediation"},
 		{MethodGate, "Gate"},
 	}
 	for _, tt := range tests {
@@ -313,7 +322,7 @@ func TestRiskAppetiteString(t *testing.T) {
 		v        RiskAppetite
 		expected string
 	}{
-		{RiskAppetiteZero, "Zero"},
+		{RiskAppetiteMinimal, "Minimal"},
 		{RiskAppetiteLow, "Low"},
 		{RiskAppetiteModerate, "Moderate"},
 		{RiskAppetiteHigh, "High"},
@@ -496,14 +505,19 @@ func TestEvidenceTypeToArtifactType(t *testing.T) {
 		expected ArtifactType
 		wantErr  bool
 	}{
+		{"AuditLog", EvidenceType("AuditLog"), AuditLogArtifact, false},
+		{"CapabilityCatalog", EvidenceType("CapabilityCatalog"), CapabilityCatalogArtifact, false},
 		{"ControlCatalog", EvidenceType("ControlCatalog"), ControlCatalogArtifact, false},
+		{"EnforcementLog", EvidenceType("EnforcementLog"), EnforcementLogArtifact, false},
 		{"EvaluationLog", EvidenceType("EvaluationLog"), EvaluationLogArtifact, false},
 		{"GuidanceCatalog", EvidenceType("GuidanceCatalog"), GuidanceCatalogArtifact, false},
+		{"Lexicon", EvidenceType("Lexicon"), LexiconArtifact, false},
 		{"MappingDocument", EvidenceType("MappingDocument"), MappingDocumentArtifact, false},
 		{"Policy", EvidenceType("Policy"), PolicyArtifact, false},
+		{"PrincipleCatalog", EvidenceType("PrincipleCatalog"), PrincipleCatalogArtifact, false},
+		{"RiskCatalog", EvidenceType("RiskCatalog"), RiskCatalogArtifact, false},
 		{"ThreatCatalog", EvidenceType("ThreatCatalog"), ThreatCatalogArtifact, false},
 		{"VectorCatalog", EvidenceType("VectorCatalog"), VectorCatalogArtifact, false},
-		{"RiskCatalog", EvidenceType("RiskCatalog"), RiskCatalogArtifact, false},
 		{"invalid value", EvidenceType("not-an-artifact"), 0, true},
 		{"empty string", EvidenceType(""), 0, true},
 	}
