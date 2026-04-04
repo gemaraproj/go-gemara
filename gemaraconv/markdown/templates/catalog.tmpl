@@ -1,4 +1,6 @@
-{{ define "catalog"}}# {{.Title}} - {{.Metadata.Id}} {{.Metadata.Version}}
+{{ define "catalog"}}# {{.Title}}
+
+Version: {{.Metadata.Version}}
 
 {{if .ShowMetadata}}{{ template "metadata" .}}{{end}}
 

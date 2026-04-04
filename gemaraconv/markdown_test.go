@@ -63,7 +63,7 @@ func TestCatalogToMarkdown_goodCCCYAML(t *testing.T) {
 		numARs += len(c.AssessmentRequirements)
 	}
 
-	assert.Contains(t, s, fmt.Sprintf("# %s - %s", catalog.Title, catalog.Metadata.Id))
+	assert.Contains(t, s, fmt.Sprintf("# %s\n\nVersion: %s", catalog.Title, catalog.Metadata.Version))
 	assert.Contains(t, s, "_"+catalog.Title+"_ is a Gemara")
 	assert.Contains(t, s, "## Table of contents")
 	assert.Contains(t, s, fmt.Sprintf("- [%s](#%s)", group0.Title, markdown.Anchor(group0.Id)))
