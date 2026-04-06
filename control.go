@@ -1,11 +1,15 @@
 package gemara
 
-import "sync"
+import (
+	"sync"
 
-// SControl wraps the generated Control with cached
+	"github.com/gemaraproj/go-gemara/internal/codec"
+)
+
+// SControl wraps a Control pointer with cached
 // cross-reference lookups.
 type SControl struct {
-	Control
+	*Control
 
 	referencesOnce  sync.Once
 	referencesCache []string
@@ -13,8 +17,26 @@ type SControl struct {
 
 // Sugar wraps this Control in a SControl for convenient
 // cached helper access.
-func (c Control) Sugar() *SControl {
+func (c *Control) Sugar() *SControl {
 	return &SControl{Control: c}
+}
+
+func (c *SControl) ToBase() Control {
+	return *c.Control
+}
+
+func (c *SControl) FromBase(s *Control) {
+	c.Control = s
+	c.referencesOnce = sync.Once{}
+	c.referencesCache = nil
+}
+
+func (c *SControl) MarshalYAML() ([]byte, error) {
+	return codec.MarshalBaseYAML[Control](c)
+}
+
+func (c *SControl) UnmarshalYAML(data []byte) error {
+	return codec.UnmarshalBaseYAML[Control](data, c)
 }
 
 func (c *SControl) GetMappingReferences() []string {

@@ -1,11 +1,15 @@
 package gemara
 
-import "sync"
+import (
+	"sync"
 
-// SControlCatalog wraps the generated ControlCatalog with
+	"github.com/gemaraproj/go-gemara/internal/codec"
+)
+
+// SControlCatalog wraps a ControlCatalog pointer with
 // pre-built indexes for efficient group, control, and requirement lookups.
 type SControlCatalog struct {
-	ControlCatalog
+	*ControlCatalog
 
 	groupsOnce  sync.Once
 	groupsCache []string
@@ -22,8 +26,32 @@ type SControlCatalog struct {
 
 // Sugar wraps this ControlCatalog in a SControlCatalog for
 // convenient cached helper access.
-func (c ControlCatalog) Sugar() *SControlCatalog {
+func (c *ControlCatalog) Sugar() *SControlCatalog {
 	return &SControlCatalog{ControlCatalog: c}
+}
+
+func (c *SControlCatalog) ToBase() ControlCatalog {
+	return *c.ControlCatalog
+}
+
+func (c *SControlCatalog) FromBase(s *ControlCatalog) {
+	c.ControlCatalog = s
+	c.groupsOnce = sync.Once{}
+	c.groupsCache = nil
+	c.sugarControlsOnce = sync.Once{}
+	c.sugarControlsCache = nil
+	c.controlsByGroupOnce = sync.Once{}
+	c.controlsByGroupCache = nil
+	c.requirementsOnce = sync.Once{}
+	c.requirementsCache = nil
+}
+
+func (c *SControlCatalog) MarshalYAML() ([]byte, error) {
+	return codec.MarshalBaseYAML[ControlCatalog](c)
+}
+
+func (c *SControlCatalog) UnmarshalYAML(data []byte) error {
+	return codec.UnmarshalBaseYAML[ControlCatalog](data, c)
 }
 
 // SControls returns all controls as cached SControl instances.
@@ -31,7 +59,7 @@ func (c *SControlCatalog) SControls() []*SControl {
 	c.sugarControlsOnce.Do(func() {
 		c.sugarControlsCache = make([]*SControl, len(c.Controls))
 		for i := range c.Controls {
-			c.sugarControlsCache[i] = &SControl{Control: c.Controls[i]}
+			c.sugarControlsCache[i] = c.Controls[i].Sugar()
 		}
 	})
 	return c.sugarControlsCache
