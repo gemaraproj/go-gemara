@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gemaraproj/go-gemara/internal/loaders"
+	"github.com/gemaraproj/go-gemara/internal/codec"
 )
 
 // Result represents the result of a control evaluation
@@ -466,7 +466,7 @@ func marshalJSONString(s enumStringer) ([]byte, error) {
 
 func unmarshalYAMLEnum[T any](data []byte, m map[string]T, name string, dest *T) error {
 	var s string
-	if err := loaders.UnmarshalYAML(data, &s); err != nil {
+	if err := codec.UnmarshalYAML(data, &s); err != nil {
 		return err
 	}
 	if val, ok := m[s]; ok {

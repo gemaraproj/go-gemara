@@ -8,22 +8,23 @@ import (
 	"testing"
 
 	"github.com/gemaraproj/go-gemara"
+	"github.com/gemaraproj/go-gemara/fetcher"
 	"github.com/gemaraproj/go-gemara/gemaraconv/markdown"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// testDataFileURL returns a file:// URI to ../test-data/<name> relative to the gemaraconv package directory (go test cwd).
+// testDataFileURL returns a file:// URI to ../test-data/<name> resolved to an absolute path.
 func testDataFileURL(t *testing.T, name string) string {
 	t.Helper()
-	p := filepath.Join("..", "test-data", name)
-	return "file://" + filepath.ToSlash(p)
+	abs, err := filepath.Abs(filepath.Join("..", "test-data", name))
+	require.NoError(t, err)
+	return "file://" + filepath.ToSlash(abs)
 }
 
 func loadControlCatalogFromTestData(t *testing.T, name string) *gemara.ControlCatalog {
 	t.Helper()
-	c := &gemara.ControlCatalog{}
-	err := c.LoadFile(testDataFileURL(t, name))
+	c, err := gemara.Load[gemara.ControlCatalog](&fetcher.File{}, filepath.Join("..", "test-data", name))
 	require.NoError(t, err, "load %s", name)
 	return c
 }
@@ -93,7 +94,7 @@ func TestCatalogToMarkdown_goodOSPSYAML(t *testing.T) {
 
 func TestCatalogToMarkdown_nestedGoodCCCYAML(t *testing.T) {
 	c := &gemara.ControlCatalog{}
-	err := c.LoadNestedCatalog(testDataFileURL(t, "nested-good-ccc.yaml"), "catalog")
+	err := c.LoadNestedCatalog(&fetcher.File{}, filepath.Join("..", "test-data", "nested-good-ccc.yaml"), "catalog")
 	require.NoError(t, err)
 
 	out, err := CatalogToMarkdown(c)

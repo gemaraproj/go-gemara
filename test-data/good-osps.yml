@@ -315,7 +315,7 @@ controls:
     recommendation: |
       Set branch protection on the primary branch in the project's version
       control system to prevent deletion.
-  family: access-control
+  group: access-control
 - id: OSPS-AC-04
   title: |
     The project's permissions in CI/CD pipelines MUST follow the principle
@@ -393,7 +393,7 @@ controls:
       only when necessary for specific tasks. In some version control
       systems, this may be possible at the organizational or repository
       level. If not, set permissions at the top level of the pipeline.
-  family: access-control
+  group: access-control
 - id: OSPS-BR-01
   title: |
     The project's build and release pipelines MUST NOT permit untrusted
@@ -453,7 +453,7 @@ controls:
     - Maturity Level 2
     - Maturity Level 3
     recommendation: null
-  family: build-and-release
+  group: build-and-release
 - id: OSPS-BR-02
   title: |
     All releases and released software assets MUST be assigned a unique
@@ -520,7 +520,7 @@ controls:
       Assign a unique version identifier to each software asset produced by
       the project, following a consistent naming convention or numbering
       scheme. Examples include SemVer, CalVer, or git commit id.
-  family: build-and-release
+  group: build-and-release
 - id: OSPS-BR-03
   title: |
     All official project URIs MUST be delivered using encrypted channels.
@@ -591,7 +591,7 @@ controls:
       Configure the project's release pipeline to only fetch data from
       websites, API responses, and other services which use encrypted
       channels such as SSH or HTTPS for data transmission.
-  family: build-and-release
+  group: build-and-release
 - id: OSPS-BR-04
   title: |
     All releases MUST provide a descriptive log of functional and security
@@ -681,7 +681,7 @@ controls:
       security impact or relevance to different use cases. To ensure
       machine readability, place the content under a markdown header
       such as "## Changelog".
-  family: build-and-release
+  group: build-and-release
 - id: OSPS-BR-05
   title: |
     All build and release pipelines MUST use standardized tooling where
@@ -749,7 +749,7 @@ controls:
       may include using a dependency file, lock file, or manifest to specify
       the required dependencies, which are then pulled in by the build
       system.
-  family: build-and-release
+  group: build-and-release
 - id: OSPS-BR-06
   title: |
     Produce all released software assets with signatures and hashes.
@@ -789,7 +789,7 @@ controls:
       signature or attestations, such as GPG or PGP signature, Sigstore
       signatures, SLSA provenance, or SLSA VSAs. Include the cryptographic
       hashes of each asset in a signed manifest or metadata file.
-  family: build-and-release
+  group: build-and-release
 - id: OSPS-DO-01
   title: |
     The project documentation MUST provide user guides for all basic
@@ -849,7 +849,7 @@ controls:
       project, explaining how to install, configure, and use the project's
       features. If there are any known dangerous or destructive actions
       available, include highly-visible warnings.
-  family: documentation
+  group: documentation
 - id: OSPS-DO-02
   title: |
     The project MUST provide a mechanism for reporting defects.
@@ -919,7 +919,7 @@ controls:
       and contributing guide clearly and visibly explain how to use the
       reporting system. It is recommended that project documentation also
       sets expectations for how defects will be triaged and resolved.
-  family: documentation
+  group: documentation
 - id: OSPS-DO-03
   title: |
     The project documentation MUST contain instructions to verify the
@@ -985,7 +985,7 @@ controls:
       as the build and release pipeline to avoid a single breach
       compromising both the software and the documentation for verifying the
       integrity of the software.
-  family: documentation
+  group: documentation
 - id: OSPS-DO-04
   title: |
     The project documentation MUST include a descriptive statement about
@@ -1019,7 +1019,7 @@ controls:
       In order to communicate the scope and duration of support for the
       project's released software assets, the project should have a
       SUPPORT.md or an OpenEoX file in a well known location.
-  family: documentation
+  group: documentation
 - id: OSPS-DO-05
   title: |
     The project documentation MUST provide a descriptive statement when
@@ -1059,7 +1059,7 @@ controls:
       While a machine-readable OpenEoX file is recommended, this may also be
       communicated in a SUPPORT.md or beneath a Support header in the
       primary README.md.
-  family: documentation
+  group: documentation
 - id: OSPS-DO-06
   title: |
     The project documentation MUST include a description of how the
@@ -1101,7 +1101,7 @@ controls:
       It is recommended to publish this information alongside the project's
       technical & design documentation on a publicly viewable resource such
       as the source code repository, project website, or other channel.
-  family: documentation
+  group: documentation
 - id: OSPS-GV-01
   title: |
     The project documentation MUST include the roles and responsibilities
@@ -1147,7 +1147,7 @@ controls:
       Document project participants and their roles through such artifacts
       as members.md, governance.md, maintainers.md, or similar file within
       the source code repository of the project.
-  family: governance
+  group: governance
 - id: OSPS-GV-02
   title: |
     The project MUST have one or more mechanisms for public discussions
@@ -1192,7 +1192,7 @@ controls:
       Establish one or more mechanisms for public discussions within the
       project, such as mailing lists, instant messaging, or issue trackers,
       to facilitate open communication and feedback.
-  family: governance
+  group: governance
 - id: OSPS-GV-03
   title: |
     The project documentation MUST include an explanation of the
@@ -1254,7 +1254,7 @@ controls:
       contributions, including coding standards, testing requirements, and
       submission guidelines for code contributors. It is recommended that
       this guide is the source of truth for both contributors and approvers.
-  family: governance
+  group: governance
 - id: OSPS-GV-04
   title: |
     The project documentation MUST have a policy that code contributors
@@ -1309,7 +1309,7 @@ controls:
       approval or access to secrets. It is recommended that vetting includes
       establishing a justifiable lineage of identity such as confirming the
       contributor's association with a known trusted organization.
-  family: governance
+  group: governance
 - id: OSPS-LE-01
   title: |
     The version control system MUST require all code contributors to assert
@@ -1356,7 +1356,7 @@ controls:
       the assertion is made.
       Some version control systems, such as GitHub, may include this in the
       platform terms of service.
-  family: legal
+  group: legal
 - id: OSPS-LE-02
   title: |
     All licenses for the project MUST meet the OSI Open Source Definition
@@ -1417,7 +1417,7 @@ controls:
       revised, Apache 2.0, Lesser GNU General Public License (LGPL), and the
       GNU General Public License (GPL). Note that the license for the
       released software assets may be different than the source code.
-  family: legal
+  group: legal
 - id: OSPS-LE-03
   title: "All licenses for the project's source code MUST be maintained in a \nstandard location within the corresponding repository.\n"
   objective: |
@@ -1470,7 +1470,7 @@ controls:
       clarity on the licensing terms. The filename MAY have an extension.
       If the project has multiple repositories, ensure that each repository
       includes the license file.
-  family: legal
+  group: legal
 - id: OSPS-QA-01
   title: |
     The project's source code and change history MUST be publicly readable at
@@ -1561,7 +1561,7 @@ controls:
       Use a common VCS such as GitHub, GitLab, or Bitbucket to maintain a
       publicly readable commit history. Avoid squashing or rewriting commits
       in a way that would obscure the author of any commits.
-  family: quality
+  group: quality
 - id: OSPS-QA-02
   title: |
     The project MUST provide a list of dependencies used in the software.
@@ -1640,7 +1640,7 @@ controls:
       that has been vetted for accuracy. This enables users to ingest this
       data in a standardized approach alongside other projects in their
       environment.
-  family: quality
+  group: quality
 - id: OSPS-QA-03
   title: |
     Any automated status checks for commits MUST pass or require manual
@@ -1695,7 +1695,7 @@ controls:
       commit can be merged into the primary branch. It is recommended that
       any optional status checks are NOT configured as a pass or fail
       requirement that approvers may be tempted to bypass.
-  family: quality
+  group: quality
 - id: OSPS-QA-04
   title: |
     Any additional subproject code repositories produced by the project
@@ -1762,7 +1762,7 @@ controls:
       this may include requiring a security review, ensuring that it is
       free of vulnerabilities, and ensuring that it is free of known
       security issues.
-  family: quality
+  group: quality
 - id: OSPS-QA-05
   title: |
     The version control system MUST NOT contain generated executable
@@ -1798,7 +1798,7 @@ controls:
       executable artifact appears critical to a process such as testing, it
       should be instead be generated at build time or stored separately and
       fetched during a specific well-documented pipeline step.
-  family: quality
+  group: quality
 - id: OSPS-QA-06
   title: |
     The project MUST use at least one automated test suite for the source
@@ -1880,7 +1880,7 @@ controls:
       Add a section to the contributing documentation that explains the
       policy for adding or updating tests. The policy should explain what
       constitutes a major change and what tests should be added or updated.
-  family: quality
+  group: quality
 - id: OSPS-QA-07
   title: |
     The project's version control system MUST require at least one
@@ -1908,7 +1908,7 @@ controls:
       primary branch. This can be achieved by requiring a pull request to be
       reviewed and approved by at least one other contributor before it can
       be merged.
-  family: quality
+  group: quality
 - id: OSPS-SA-01
   title: |
     The project documentation MUST provide design documentation demonstrating
@@ -1970,7 +1970,7 @@ controls:
       and actors. Actors include any subsystem or entity that can influence
       another segment in the system.
       Ensure this is updated for new features or breaking changes.
-  family: security-assessment
+  group: security-assessment
 - id: OSPS-SA-02
   title: |
     The project documentation MUST include descriptions of all external
@@ -2030,7 +2030,7 @@ controls:
       assets, explaining how users can interact with the software and what
       data is expected or produced.
       Ensure this is updated for new features or breaking changes.
-  family: security-assessment
+  group: security-assessment
 - id: OSPS-SA-03
   title: |
     The project MUST assess the security posture of all software assets.
@@ -2109,7 +2109,7 @@ controls:
     applicability:
     - Maturity Level 3
     recommendation: "Threat modeling is an activity where the project looks at the \ncodebase, associated processes and infrastructure, interfaces, key\ncomponents and \"thinks like a hacker\" and brainstorms how the system\nbe be broken or compromised. Each identified threat is listed out so\nthe project can then think about how to proactively avoid or close off\nany gaps/vulnerabilities that could arise.\nEnsure this is updated for new features or breaking changes.\n"
-  family: security-assessment
+  group: security-assessment
 - id: OSPS-VM-01
   title: |
     The project documentation MUST include a policy for coordinated
@@ -2186,7 +2186,7 @@ controls:
       project's policy for coordinated vulnerability reporting. Include a
       method for reporting vulnerabilities. Set expectations for the how the
       project will respond and address reported issues.
-  family: vulnerability-management
+  group: vulnerability-management
 - id: OSPS-VM-02
   title: |
     The project MUST publish contacts and process for reporting
@@ -2245,7 +2245,7 @@ controls:
     recommendation: |
       Create a security.md (or similarly-named) file that contains security
       contacts for the project.
-  family: vulnerability-management
+  group: vulnerability-management
 - id: OSPS-VM-03
   title: |
     The project MUST provide a means for reporting security
@@ -2280,7 +2280,7 @@ controls:
       privately to the project. This may be a dedicated email address, a
       web form, VSC specialized tools, email addresses for security
       contacts, or other methods.
-  family: vulnerability-management
+  group: vulnerability-management
 - id: OSPS-VM-04
   title: |
     The project MUST publicly publish data about discovered vulnerabilities.
@@ -2334,7 +2334,7 @@ controls:
     applicability:
     - Maturity Level 3
     recommendation: "Establish a VEX feed communicating the exploitability status of \nknown vulnerabilities, including assessment details or any\nmitigations in place preventing vulnerable code from being\nexecuted.\n"
-  family: vulnerability-management
+  group: vulnerability-management
 - id: OSPS-VM-05
   title: |
     The project MUST enforce a policy for addressing SCA findings.
@@ -2464,7 +2464,7 @@ controls:
       runs a Software Composition Analysis tool on all changes
       to the codebase. Require that the status check passes before changes
       can be merged.
-  family: vulnerability-management
+  group: vulnerability-management
 - id: OSPS-VM-06
   title: |
     The project documentation MUST enforce a policy that defines a
@@ -2579,4 +2579,4 @@ controls:
       runs a Static Application Security Testing (SAST) tool on all changes
       to the codebase. Require that the status check passes before changes
       can be merged.
-  family: vulnerability-management
+  group: vulnerability-management

@@ -2,12 +2,12 @@
 
 package gemara
 
-import "github.com/goccy/go-yaml"
+import "github.com/gemaraproj/go-gemara/internal/codec"
 
 // UnmarshalYAML allows decoding controls from older/alternate YAML schemas.
 // In particular, it supports using `family` instead of the struct's `group` key.
 func (c *Control) UnmarshalYAML(data []byte) error {
-	type controlYAML struct {
+	type alias struct {
 		Id        string `yaml:"id"`
 		Title     string `yaml:"title"`
 		Objective string `yaml:"objective"`
@@ -23,8 +23,8 @@ func (c *Control) UnmarshalYAML(data []byte) error {
 		ReplacedBy *EntryMapping `yaml:"replaced-by,omitempty"`
 	}
 
-	var tmp controlYAML
-	if err := yaml.Unmarshal(data, &tmp); err != nil {
+	var tmp alias
+	if err := codec.UnmarshalYAML(data, &tmp); err != nil {
 		return err
 	}
 

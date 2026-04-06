@@ -10,6 +10,7 @@ import (
 	oscalTypes "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
 
 	"github.com/gemaraproj/go-gemara"
+	"github.com/gemaraproj/go-gemara/fetcher"
 	"github.com/gemaraproj/go-gemara/gemaraconv"
 )
 
@@ -27,9 +28,8 @@ func Guidance(path string, args []string) error {
 		return err
 	}
 
-	var guidanceDocument gemara.GuidanceCatalog
-	pathWithScheme := fmt.Sprintf("file://%s", path)
-	if err := guidanceDocument.LoadFile(pathWithScheme); err != nil {
+	guidanceDocument, err := gemara.Load[gemara.GuidanceCatalog](&fetcher.File{}, path)
+	if err != nil {
 		return err
 	}
 
@@ -48,7 +48,7 @@ func Guidance(path string, args []string) error {
 	}
 	relativeCatalogPath = filepath.ToSlash(relativeCatalogPath)
 
-	catalog, profile, err := gemaraconv.GuidanceCatalog(&guidanceDocument).ToOSCAL(relativeCatalogPath)
+	catalog, profile, err := gemaraconv.GuidanceCatalog(guidanceDocument).ToOSCAL(relativeCatalogPath)
 	if err != nil {
 		return err
 	}
@@ -73,9 +73,8 @@ func Catalog(path string, args []string) error {
 		return err
 	}
 
-	catalog := &gemara.ControlCatalog{}
-	pathWithScheme := fmt.Sprintf("file://%s", path)
-	if err := catalog.LoadFile(pathWithScheme); err != nil {
+	catalog, err := gemara.Load[gemara.ControlCatalog](&fetcher.File{}, path)
+	if err != nil {
 		return err
 	}
 

@@ -5,7 +5,7 @@ import (
 	"os"
 	"text/template"
 
-	"github.com/goccy/go-yaml"
+	"github.com/gemaraproj/go-gemara/internal/codec"
 )
 
 // Adapted from: https://github.com/finos/ai-governance-framework/blob/main/docs/_mitigations/mi-11_human-feedback-loop-for-ai-systems.md
@@ -87,7 +87,7 @@ func goodAIGFExample() (GuidanceCatalog, error) {
 		return GuidanceCatalog{}, err
 	}
 	var l1Docs GuidanceCatalog
-	if err := yaml.Unmarshal(data, &l1Docs); err != nil {
+	if err := codec.UnmarshalYAML(data, &l1Docs); err != nil {
 		return GuidanceCatalog{}, err
 	}
 	return l1Docs, nil

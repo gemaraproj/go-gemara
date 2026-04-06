@@ -1,19 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package gemara
 
-import "github.com/goccy/go-yaml"
+import "github.com/gemaraproj/go-gemara/internal/codec"
 
 // UnmarshalYAML allows decoding guidance from older/alternate YAML schemas.
 // It supports:
 // - `families` -> `groups`
 // - `document-type` -> `type`
 func (g *GuidanceCatalog) UnmarshalYAML(data []byte) error {
-	type guidanceCatalogYAML struct {
+	type alias struct {
 		Title    string              `yaml:"title"`
 		Metadata Metadata            `yaml:"metadata"`
 		Extends  []ArtifactMapping   `yaml:"extends,omitempty"`
 		Imports  []MultiEntryMapping `yaml:"imports,omitempty"`
 
-		// Current schema uses `type`, older test data uses `document-type`.
 		Type         GuidanceType `yaml:"type,omitempty"`
 		DocumentType GuidanceType `yaml:"document-type,omitempty"`
 
@@ -26,8 +27,8 @@ func (g *GuidanceCatalog) UnmarshalYAML(data []byte) error {
 		Exemptions []Exemption `yaml:"exemptions,omitempty"`
 	}
 
-	var tmp guidanceCatalogYAML
-	if err := yaml.Unmarshal(data, &tmp); err != nil {
+	var tmp alias
+	if err := codec.UnmarshalYAML(data, &tmp); err != nil {
 		return err
 	}
 
@@ -35,11 +36,15 @@ func (g *GuidanceCatalog) UnmarshalYAML(data []byte) error {
 	g.Metadata = tmp.Metadata
 	g.Extends = tmp.Extends
 	g.Imports = tmp.Imports
-	g.GuidanceType = tmp.Type
-	if g.GuidanceType == 0 && tmp.DocumentType != 0 {
+	g.FrontMatter = tmp.FrontMatter
+	g.Guidelines = tmp.Guidelines
+	g.Exemptions = tmp.Exemptions
+
+	if tmp.Type != 0 {
+		g.GuidanceType = tmp.Type
+	} else {
 		g.GuidanceType = tmp.DocumentType
 	}
-	g.FrontMatter = tmp.FrontMatter
 
 	// Prefer `groups` when present, otherwise fall back to `families`.
 	if len(tmp.Groups) > 0 {
@@ -47,8 +52,6 @@ func (g *GuidanceCatalog) UnmarshalYAML(data []byte) error {
 	} else {
 		g.Groups = tmp.Families
 	}
-	g.Guidelines = tmp.Guidelines
-	g.Exemptions = tmp.Exemptions
 
 	return nil
 }

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package gemara
 
 // This file contains table-driven tests for loader functions:
@@ -12,65 +14,57 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gemaraproj/go-gemara/fetcher"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// newTLSTestServer creates an HTTPS test server and configures
-// http.DefaultTransport to trust it. Returns the server and a
-// cleanup function that restores the original transport.
-func newTLSTestServer(handler http.Handler) (*httptest.Server, func()) {
-	srv := httptest.NewTLSServer(handler)
-	original := http.DefaultTransport
-	http.DefaultTransport = srv.Client().Transport
-	return srv, func() {
-		http.DefaultTransport = original
-		srv.Close()
-	}
-}
+var fileFetcher = &fetcher.File{}
 
 // ============================================================================
 // Policy Tests
 // ============================================================================
 
-func TestPolicy_LoadFile(t *testing.T) {
+func TestLoad_Policy(t *testing.T) {
 	tests := []struct {
-		name       string
-		sourcePath string
-		wantErr    bool
+		name    string
+		source  string
+		wantErr bool
 	}{
 		{
-			name:       "Bad path",
-			sourcePath: "file://bad-path.yaml",
-			wantErr:    true,
+			name:    "File not found",
+			source:  "bad-path.yaml",
+			wantErr: true,
 		},
 		{
-			name:       "Bad YAML",
-			sourcePath: "file://test-data/bad.yaml",
-			wantErr:    true,
+			name:    "Bad YAML",
+			source:  "test-data/bad.yaml",
+			wantErr: true,
 		},
 		{
-			name:       "Good YAML — Policy Document",
-			sourcePath: "file://test-data/good-policy.yaml",
-			wantErr:    false,
+			name:    "Unsupported file extension",
+			source:  "test-data/unsupported.txt",
+			wantErr: true,
 		},
 		{
-			name:       "Good YAML — Security Policy",
-			sourcePath: "file://test-data/good-security-policy.yml",
-			wantErr:    false,
+			name:    "Good YAML — Policy Document",
+			source:  "test-data/good-policy.yaml",
+			wantErr: false,
+		},
+		{
+			name:    "Good YAML — Security Policy",
+			source:  "test-data/good-security-policy.yml",
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Policy{}
-			err := p.LoadFile(tt.sourcePath)
-
+			p, err := Load[Policy](fileFetcher, tt.source)
 			if tt.wantErr {
 				assert.Error(t, err, "expected error but got none")
 			} else {
 				require.NoError(t, err, "unexpected error loading file")
-				// Validate that the policy document was loaded successfully
 				assert.NotEmpty(t, p.Metadata.Id, "Policy document ID should not be empty")
 				assert.NotEmpty(t, p.Metadata.Version, "Policy document version should not be empty")
 			}
@@ -78,101 +72,46 @@ func TestPolicy_LoadFile(t *testing.T) {
 	}
 }
 
-func TestPolicyDocument_LoadFile_UnsupportedFileType(t *testing.T) {
-	tests := []struct {
-		name       string
-		sourcePath string
-		wantErr    bool
-	}{
-		{
-			name:       "Unsupported file type",
-			sourcePath: "file://test-data/unsupported.txt",
-			wantErr:    true,
-		},
-	}
+func TestLoad_Policy_HTTP(t *testing.T) {
+	srv := httptest.NewTLSServer(http.NotFoundHandler())
+	defer srv.Close()
+	f := &fetcher.HTTP{Client: srv.Client()}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &Policy{}
-			err := p.LoadFile(tt.sourcePath)
-
-			if tt.wantErr {
-				assert.Error(t, err, "expected error but got none")
-			} else {
-				assert.NoError(t, err, "unexpected error")
-			}
-		})
-	}
-}
-
-func TestPolicyDocument_LoadFile_URI(t *testing.T) {
-	srv, cleanup := newTLSTestServer(http.NotFoundHandler())
-	defer cleanup()
-
-	tests := []struct {
-		name          string
-		sourcePath    string
-		wantErr       bool
-		errorExpected string
-	}{
-		{
-			name:          "URI that returns a 404",
-			sourcePath:    srv.URL + "/nonexistent.yaml",
-			wantErr:       true,
-			errorExpected: "failed to fetch URL; response status: 404 Not Found",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &Policy{}
-			err := p.LoadFile(tt.sourcePath)
-
-			if tt.wantErr {
-				require.Error(t, err, "expected error but got none")
-				if tt.errorExpected != "" {
-					assert.Contains(t, err.Error(), tt.errorExpected,
-						"error message should contain expected text")
-				}
-			} else {
-				assert.NoError(t, err, "unexpected error loading from URI")
-			}
-		})
-	}
+	_, err := Load[Policy](f, srv.URL+"/nonexistent.yaml")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to fetch URL; response status: 404 Not Found")
 }
 
 // ============================================================================
-// GuidanceDocument Tests
+// GuidanceCatalog Tests
 // ============================================================================
 
-func TestGuidanceCatalog_LoadFile(t *testing.T) {
+func TestLoad_GuidanceCatalog(t *testing.T) {
 	tests := []struct {
-		name       string
-		sourcePath string
-		wantErr    bool
+		name    string
+		source  string
+		wantErr bool
 	}{
 		{
-			name:       "Bad path",
-			sourcePath: "file://test-data/bad.yaml",
-			wantErr:    true,
+			name:    "Bad YAML",
+			source:  "test-data/bad.yaml",
+			wantErr: true,
 		},
 		{
-			name:       "Good YAML — AIGF",
-			sourcePath: "file://test-data/good-aigf.yaml",
-			wantErr:    false,
+			name:    "Unsupported file extension",
+			source:  "test-data/unsupported.txt",
+			wantErr: true,
 		},
 		{
-			name:       "Unsupported file extension",
-			sourcePath: "file://test-data/unsupported.txt",
-			wantErr:    true,
+			name:    "Good YAML — AIGF",
+			source:  "test-data/good-aigf.yaml",
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g := &GuidanceCatalog{}
-			err := g.LoadFile(tt.sourcePath)
-
+			g, err := Load[GuidanceCatalog](fileFetcher, tt.source)
 			if tt.wantErr {
 				assert.Error(t, err, "expected error but got none")
 			} else {
@@ -187,19 +126,15 @@ func TestGuidanceCatalog_LoadFile(t *testing.T) {
 }
 
 func TestGuidanceCatalog_LoadFiles_AppendsData(t *testing.T) {
-	// Load a single file to use as baseline
-	singleDoc := &GuidanceCatalog{}
-	require.NoError(t, singleDoc.LoadFile("file://test-data/good-aigf.yaml"))
-	require.Greater(t, len(singleDoc.Groups), 0,
-		"expected at least one family in good-aigf.yaml")
-	require.Greater(t, len(singleDoc.Guidelines), 0,
-		"expected at least one guideline in good-aigf.yaml")
+	singleDoc, err := Load[GuidanceCatalog](fileFetcher, "test-data/good-aigf.yaml")
+	require.NoError(t, err)
+	require.Greater(t, len(singleDoc.Groups), 0, "expected at least one family")
+	require.Greater(t, len(singleDoc.Guidelines), 0, "expected at least one guideline")
 
-	// Load the same file twice to verify appending behavior
 	multiDoc := &GuidanceCatalog{}
-	err := multiDoc.LoadFiles([]string{
-		"file://test-data/good-aigf.yaml",
-		"file://test-data/good-aigf.yaml",
+	err = multiDoc.LoadFiles(fileFetcher, []string{
+		"test-data/good-aigf.yaml",
+		"test-data/good-aigf.yaml",
 	})
 	require.NoError(t, err)
 
@@ -211,285 +146,185 @@ func TestGuidanceCatalog_LoadFiles_AppendsData(t *testing.T) {
 		"guidelines should be appended across multiple files")
 }
 
-func TestGuidanceCatalog_LoadFile_URI(t *testing.T) {
-	srv, cleanup := newTLSTestServer(http.NotFoundHandler())
-	defer cleanup()
+func TestLoad_GuidanceCatalog_HTTP(t *testing.T) {
+	srv := httptest.NewTLSServer(http.NotFoundHandler())
+	defer srv.Close()
+	f := &fetcher.HTTP{Client: srv.Client()}
 
-	tests := []struct {
-		name          string
-		sourcePath    string
-		wantErr       bool
-		errorExpected string
-	}{
-		{
-			name:          "URI that returns a 404",
-			sourcePath:    srv.URL + "/nonexistent.yaml",
-			wantErr:       true,
-			errorExpected: "failed to fetch URL; response status: 404 Not Found",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := &GuidanceCatalog{}
-			err := g.LoadFile(tt.sourcePath)
-
-			if tt.wantErr {
-				require.Error(t, err, "expected error but got none")
-				if tt.errorExpected != "" {
-					assert.Contains(t, err.Error(), tt.errorExpected,
-						"error message should contain expected text")
-				}
-			} else {
-				assert.NoError(t, err, "unexpected error loading from URI")
-			}
-		})
-	}
+	_, err := Load[GuidanceCatalog](f, srv.URL+"/nonexistent.yaml")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to fetch URL; response status: 404 Not Found")
 }
 
 // ============================================================================
-// Catalog Tests
+// ControlCatalog Tests
 // ============================================================================
 
-func TestCatalog_LoadFile(t *testing.T) {
+func TestLoad_ControlCatalog(t *testing.T) {
 	tests := []struct {
-		name       string
-		sourcePath string
-		wantErr    bool
+		name    string
+		source  string
+		wantErr bool
 	}{
 		{
-			name:       "Bad path",
-			sourcePath: "file://bad-path.yaml",
-			wantErr:    true,
+			name:    "File not found",
+			source:  "bad-path.yaml",
+			wantErr: true,
 		},
 		{
-			name:       "Bad YAML",
-			sourcePath: "file://test-data/bad.yaml",
-			wantErr:    true,
+			name:    "Bad YAML",
+			source:  "test-data/bad.yaml",
+			wantErr: true,
 		},
 		{
-			name:       "Good YAML — CCC",
-			sourcePath: "file://test-data/good-ccc.yaml",
-			wantErr:    false,
+			name:    "Unsupported file extension",
+			source:  "test-data/unsupported.txt",
+			wantErr: true,
 		},
 		{
-			name:       "Good YAML — OSPS",
-			sourcePath: "file://test-data/good-osps.yml",
-			wantErr:    false,
+			name:    "Good YAML — CCC",
+			source:  "test-data/good-ccc.yaml",
+			wantErr: false,
 		},
 		{
-			name:       "Unrecognized file extension",
-			sourcePath: "file://test-data/unknown.ext",
-			wantErr:    true,
+			name:    "Good YAML — OSPS",
+			source:  "test-data/good-osps.yml",
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &ControlCatalog{}
-			err := c.LoadFile(tt.sourcePath)
-
+			c, err := Load[ControlCatalog](fileFetcher, tt.source)
 			if tt.wantErr {
 				assert.Error(t, err, "expected error but got none")
 			} else {
 				require.NoError(t, err, "unexpected error loading file")
-				assert.NotEmpty(t, c.Groups,
-					"catalog should have at least one family")
-				assert.NotEmpty(t, c.Controls,
-					"catalog should have at least one control")
+				assert.NotEmpty(t, c.Groups, "catalog should have at least one family")
+				assert.NotEmpty(t, c.Controls, "catalog should have at least one control")
 				if len(c.Groups) > 0 {
-					assert.NotEmpty(t, c.Groups[0].Title,
-						"family title should not be empty")
-					assert.NotEmpty(t, c.Groups[0].Description,
-						"family description should not be empty")
+					assert.NotEmpty(t, c.Groups[0].Title, "family title should not be empty")
+					assert.NotEmpty(t, c.Groups[0].Description, "family description should not be empty")
 				}
 			}
 		})
 	}
 }
 
-func TestCatalog_LoadFile_UnsupportedFileType(t *testing.T) {
-	tests := []struct {
-		name       string
-		sourcePath string
-		wantErr    bool
-	}{
-		{
-			name:       "Unsupported file type",
-			sourcePath: "file://test-data/unsupported.txt",
-			wantErr:    true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &ControlCatalog{}
-			err := c.LoadFile(tt.sourcePath)
-
-			if tt.wantErr {
-				assert.Error(t, err, "expected error but got none")
-			} else {
-				assert.NoError(t, err, "unexpected error")
-			}
-		})
-	}
-}
-
-func TestCatalog_LoadFiles_NilImports(t *testing.T) {
+func TestControlCatalog_LoadFiles_NilImports(t *testing.T) {
 	c := &ControlCatalog{}
-	err := c.LoadFiles([]string{
-		"file://test-data/good-ccc.yaml",
-		"file://test-data/good-osps.yml",
+	err := c.LoadFiles(fileFetcher, []string{
+		"test-data/good-ccc.yaml",
+		"test-data/good-osps.yml",
 	})
 	require.NoError(t, err)
 	assert.Nil(t, c.Imports, "imports should remain nil when no source files contain imports")
 	assert.NotEmpty(t, c.Controls, "controls should be appended from both files")
 }
 
-func TestCatalog_LoadFiles(t *testing.T) {
+func TestControlCatalog_LoadFiles(t *testing.T) {
 	tests := []struct {
-		name       string
-		sourcePath string
-		wantErr    bool
+		name    string
+		source  string
+		wantErr bool
 	}{
 		{
-			name:       "Bad path",
-			sourcePath: "file://bad-path.yaml",
-			wantErr:    true,
+			name:    "File not found",
+			source:  "bad-path.yaml",
+			wantErr: true,
 		},
 		{
-			name:       "Bad YAML",
-			sourcePath: "file://test-data/bad.yaml",
-			wantErr:    true,
+			name:    "Bad YAML",
+			source:  "test-data/bad.yaml",
+			wantErr: true,
 		},
 		{
-			name:       "Good YAML — CCC",
-			sourcePath: "file://test-data/good-ccc.yaml",
-			wantErr:    false,
+			name:    "Good YAML — CCC",
+			source:  "test-data/good-ccc.yaml",
+			wantErr: false,
 		},
 		{
-			name:       "Good YAML — OSPS",
-			sourcePath: "file://test-data/good-osps.yml",
-			wantErr:    false,
+			name:    "Good YAML — OSPS",
+			source:  "test-data/good-osps.yml",
+			wantErr: false,
 		},
 		{
-			name:       "Unrecognized file extension",
-			sourcePath: "file://test-data/unknown.ext",
-			wantErr:    true,
+			name:    "Unsupported file extension",
+			source:  "test-data/unsupported.txt",
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &ControlCatalog{}
-			err := c.LoadFiles([]string{tt.sourcePath})
-
+			err := c.LoadFiles(fileFetcher, []string{tt.source})
 			if tt.wantErr {
 				assert.Error(t, err, "expected error but got none")
 			} else {
 				require.NoError(t, err, "unexpected error loading files")
-				assert.NotEmpty(t, c.Groups,
-					"catalog should have at least one family")
-				assert.NotEmpty(t, c.Controls,
-					"catalog should have at least one control")
+				assert.NotEmpty(t, c.Groups, "catalog should have at least one family")
+				assert.NotEmpty(t, c.Controls, "catalog should have at least one control")
 			}
 		})
 	}
 }
 
-func TestCatalog_LoadNestedCatalog(t *testing.T) {
-	// Test that non-nested catalogs fail
-	nonNestedTests := []struct {
-		name       string
-		sourcePath string
-		wantErr    bool
+func TestControlCatalog_LoadNestedCatalog(t *testing.T) {
+	t.Run("Empty field name", func(t *testing.T) {
+		c := &ControlCatalog{}
+		err := c.LoadNestedCatalog(fileFetcher, "test-data/nested-good-ccc.yaml", "")
+		assert.Error(t, err, "empty fieldName should return error")
+	})
+
+	tests := []struct {
+		name      string
+		source    string
+		fieldName string
+		wantErr   bool
 	}{
 		{
-			name:       "Bad path",
-			sourcePath: "file://bad-path.yaml",
-			wantErr:    true,
+			name:      "File not found",
+			source:    "wonky-file-name.yaml",
+			fieldName: "catalog",
+			wantErr:   true,
 		},
 		{
-			name:       "Bad YAML",
-			sourcePath: "file://test-data/bad.yaml",
-			wantErr:    true,
+			name:      "Bad YAML",
+			source:    "test-data/bad.yaml",
+			fieldName: "catalog",
+			wantErr:   true,
 		},
 		{
-			name:       "Good YAML — Policy Document",
-			sourcePath: "file://test-data/good-policy.yaml",
-			wantErr:    true,
+			name:      "Field not in non-nested file",
+			source:    "test-data/good-policy.yaml",
+			fieldName: "catalog",
+			wantErr:   true,
 		},
 		{
-			name:       "Good YAML — Security Policy",
-			sourcePath: "file://test-data/good-security-policy.yml",
-			wantErr:    true,
+			name:      "Empty nested catalog",
+			source:    "test-data/nested-empty.yaml",
+			fieldName: "catalog",
+			wantErr:   true,
+		},
+		{
+			name:      "Nested field name present",
+			source:    "test-data/nested-good-ccc.yaml",
+			fieldName: "catalog",
+			wantErr:   false,
+		},
+		{
+			name:      "Nested field name not in file",
+			source:    "test-data/nested-good-ccc.yaml",
+			fieldName: "doesnt-exist",
+			wantErr:   true,
 		},
 	}
 
-	for _, tt := range nonNestedTests {
-		t.Run("Non-nested: "+tt.name, func(t *testing.T) {
-			c := &ControlCatalog{}
-			err := c.LoadNestedCatalog(tt.sourcePath, "")
-			assert.Error(t, err, "un-nested catalogs are expected to fail")
-		})
-	}
-
-	// Test nested catalog loading
-	nestedTests := []struct {
-		name            string
-		sourcePath      string
-		nestedFieldName string
-		wantErr         bool
-	}{
-		{
-			name:            "Malformed URI",
-			sourcePath:      "https://",
-			nestedFieldName: "catalog",
-			wantErr:         true,
-		},
-		{
-			name:            "Non-conformant URI response",
-			sourcePath:      "file://test-data/unsupported.txt",
-			nestedFieldName: "catalog",
-			wantErr:         true,
-		},
-		{
-			name:            "Local file does not exist",
-			sourcePath:      "file://wonky-file-name.yaml",
-			nestedFieldName: "catalog",
-			wantErr:         true,
-		},
-		{
-			name:            "Empty nested catalog",
-			sourcePath:      "file://test-data/nested-empty.yaml",
-			nestedFieldName: "catalog",
-			wantErr:         true,
-		},
-		{
-			name:            "Nested field name present",
-			sourcePath:      "file://test-data/nested-good-ccc.yaml",
-			nestedFieldName: "catalog",
-			wantErr:         false,
-		},
-		{
-			name:            "Nested field name not provided",
-			sourcePath:      "file://test-data/nested-good-ccc.yaml",
-			nestedFieldName: "",
-			wantErr:         true,
-		},
-		{
-			name:            "Nested field name not present in target file",
-			sourcePath:      "file://test-data/nested-good-ccc.yaml",
-			nestedFieldName: "doesnt-exist",
-			wantErr:         true,
-		},
-	}
-
-	for _, tt := range nestedTests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &ControlCatalog{}
-			err := c.LoadNestedCatalog(tt.sourcePath, tt.nestedFieldName)
-
+			err := c.LoadNestedCatalog(fileFetcher, tt.source, tt.fieldName)
 			if tt.wantErr {
 				assert.Error(t, err, "expected error but got none")
 			} else {

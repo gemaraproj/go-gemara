@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/gemaraproj/go-gemara"
-	"github.com/goccy/go-yaml"
+	"github.com/gemaraproj/go-gemara/internal/codec"
 )
 
 func goodAIGFExample() (gemara.GuidanceCatalog, error) {
@@ -14,7 +14,7 @@ func goodAIGFExample() (gemara.GuidanceCatalog, error) {
 		return gemara.GuidanceCatalog{}, err
 	}
 	var l1Docs gemara.GuidanceCatalog
-	if err := yaml.Unmarshal(data, &l1Docs); err != nil {
+	if err := codec.UnmarshalYAML(data, &l1Docs); err != nil {
 		return gemara.GuidanceCatalog{}, err
 	}
 	return l1Docs, nil

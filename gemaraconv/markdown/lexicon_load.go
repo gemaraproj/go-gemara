@@ -5,7 +5,8 @@ import (
 	"strings"
 
 	"github.com/gemaraproj/go-gemara"
-	"github.com/gemaraproj/go-gemara/internal/loaders"
+	"github.com/gemaraproj/go-gemara/fetcher"
+	"github.com/gemaraproj/go-gemara/internal/codec"
 )
 
 // resolveLexiconURL returns the https:// or file:// URI for the lexicon artifact.
@@ -35,13 +36,14 @@ func resolveLexiconURL(meta gemara.Metadata) (string, error) {
 	return "", fmt.Errorf("no mapping-references entry with id %q for metadata.lexicon", refID)
 }
 
-// loadLexiconFromURI fetches YAML and returns normalized entries, or an error.
+// loadLexiconFromURI fetches a Lexicon from a file:// or http(s):// URI
+// and returns normalized entries.
 func loadLexiconFromURI(uri string) ([]lexiconEntry, error) {
-	var doc gemara.Lexicon
-	if err := loaders.LoadYAML(uri, &doc); err != nil {
-		return nil, fmt.Errorf("load lexicon YAML: %w", err)
+	doc, err := gemara.Load[gemara.Lexicon](&fetcher.URI{}, uri)
+	if err != nil {
+		return nil, fmt.Errorf("load lexicon: %w", err)
 	}
-	return parseLexiconDocument(&doc)
+	return parseLexiconDocument(doc)
 }
 
 func parseLexiconDocument(doc *gemara.Lexicon) ([]lexiconEntry, error) {
@@ -54,7 +56,7 @@ func parseLexiconDocument(doc *gemara.Lexicon) ([]lexiconEntry, error) {
 // parseLexiconYAML decodes bytes as a single Gemara Lexicon document and returns normalized entries.
 func parseLexiconYAML(data []byte) ([]lexiconEntry, error) {
 	var doc gemara.Lexicon
-	if err := loaders.UnmarshalYAML(data, &doc); err != nil {
+	if err := codec.UnmarshalYAML(data, &doc); err != nil {
 		return nil, fmt.Errorf("decode lexicon YAML: %w", err)
 	}
 	return parseLexiconDocument(&doc)
