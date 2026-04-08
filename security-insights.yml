@@ -70,3 +70,20 @@ repository:
           adhoc: true
           ci: true
           release: false
+      - name: Kusari Inspector
+        type: other
+        rulesets:
+          - default
+        comment: |
+          Kusari Inspector is set up to scan on pull request submissions.
+          It analyzes dependency changes, licenses, vulnerabilities, code security,
+          and workflow risks, posting results as PR comments via the GitHub App.
+        results:
+          ci:
+            name: CI Scan Results
+            predicate-uri: https://docs.kusari.cloud/Inspector/integrations/github
+            location: https://github.com/gemaraproj/go-gemara/pulls
+        integration:
+          adhoc: false
+          ci: true
+          release: false
