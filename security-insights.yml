@@ -41,7 +41,8 @@ repository:
             predicate-uri: https://docs.github.com/en/graphql/reference/objects#repositoryvulnerabilityalert
             location: https://github.com/gemaraproj/go-gemara/security/dependabot
             comment: |
-              The results of the scheduled SCA scan are available in the Dependabot tab of the Security Insights page.
+              Dependabot runs every Monday. 
+              The configuration can be found here: https://github.com/gemaraproj/go-gemara/blob/main/.github/dependabot.yaml
         integration:
           adhoc: true
           ci: false
