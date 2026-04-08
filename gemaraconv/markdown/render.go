@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"fmt"
 	"strings"
@@ -16,7 +17,7 @@ var templatesFS embed.FS
 
 // CatalogToMarkdown renders a ControlCatalog as Markdown using embedded templates.
 // Only controls whose state is LifecycleActive are included (TOC, body, and summary counts).
-func CatalogToMarkdown(catalog *gemara.ControlCatalog, cfg Config) ([]byte, error) {
+func CatalogToMarkdown(ctx context.Context, catalog *gemara.ControlCatalog, cfg Config) ([]byte, error) {
 	if catalog == nil {
 		return nil, fmt.Errorf("catalog is nil")
 	}
@@ -34,7 +35,7 @@ func CatalogToMarkdown(catalog *gemara.ControlCatalog, cfg Config) ([]byte, erro
 		if err != nil {
 			return nil, fmt.Errorf("lexicon: resolve URL: %w", err)
 		}
-		loaded, err := loadLexiconFromURI(lexiconURI)
+		loaded, err := loadLexiconFromURI(ctx, lexiconURI)
 		if err != nil {
 			return nil, fmt.Errorf("lexicon: %w", err)
 		}

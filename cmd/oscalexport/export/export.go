@@ -1,6 +1,7 @@
 package export
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -28,7 +29,7 @@ func Guidance(path string, args []string) error {
 		return err
 	}
 
-	guidanceDocument, err := gemara.Load[gemara.GuidanceCatalog](&fetcher.File{}, path)
+	guidanceDocument, err := gemara.Load[gemara.GuidanceCatalog](context.Background(), &fetcher.File{}, path)
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func Catalog(path string, args []string) error {
 		return err
 	}
 
-	catalog, err := gemara.Load[gemara.ControlCatalog](&fetcher.File{}, path)
+	catalog, err := gemara.Load[gemara.ControlCatalog](context.Background(), &fetcher.File{}, path)
 	if err != nil {
 		return err
 	}

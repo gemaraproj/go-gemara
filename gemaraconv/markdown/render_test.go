@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -14,7 +15,7 @@ func defaultRenderConfig() Config {
 }
 
 func TestCatalogToMarkdown_nilCatalog(t *testing.T) {
-	_, err := CatalogToMarkdown(nil, defaultRenderConfig())
+	_, err := CatalogToMarkdown(context.Background(), nil, defaultRenderConfig())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nil")
 }
@@ -30,7 +31,7 @@ func TestCatalogToMarkdown_emptyLineEndingUsesLF(t *testing.T) {
 	catalog := minimalCatalog(t)
 	cfg := defaultRenderConfig()
 	cfg.LineEnding = ""
-	out, err := CatalogToMarkdown(catalog, cfg)
+	out, err := CatalogToMarkdown(context.Background(), catalog, cfg)
 	require.NoError(t, err)
 	assert.NotContains(t, string(out), "\r\n")
 }
@@ -39,7 +40,7 @@ func TestCatalogToMarkdown_crlf(t *testing.T) {
 	catalog := minimalCatalog(t)
 	cfg := defaultRenderConfig()
 	cfg.LineEnding = "\r\n"
-	out, err := CatalogToMarkdown(catalog, cfg)
+	out, err := CatalogToMarkdown(context.Background(), catalog, cfg)
 	require.NoError(t, err)
 	assert.Contains(t, string(out), "\r\n")
 }
@@ -68,7 +69,7 @@ func TestCatalogToMarkdown_metadataBranches(t *testing.T) {
 			{Id: "C1", Group: "G", Title: "C", Objective: "O", State: gemara.LifecycleActive},
 		},
 	}
-	out, err := CatalogToMarkdown(catalog, Config{TOC: false, LineEnding: "\n", Metadata: true})
+	out, err := CatalogToMarkdown(context.Background(), catalog, Config{TOC: false, LineEnding: "\n", Metadata: true})
 	require.NoError(t, err)
 	s := string(out)
 	assert.Contains(t, s, "published **2024-06-01**")
@@ -105,7 +106,7 @@ func TestCatalogToMarkdown_retiredAssessmentRequirement(t *testing.T) {
 			},
 		},
 	}
-	out, err := CatalogToMarkdown(catalog, Config{TOC: false, Metadata: false})
+	out, err := CatalogToMarkdown(context.Background(), catalog, Config{TOC: false, Metadata: false})
 	require.NoError(t, err)
 	s := string(out)
 	assert.Contains(t, s, "#### C1.R")
@@ -146,7 +147,7 @@ func TestCatalogToMarkdown_guidelinesAndThreatsTables(t *testing.T) {
 			},
 		},
 	}
-	out, err := CatalogToMarkdown(catalog, Config{TOC: false, Metadata: false})
+	out, err := CatalogToMarkdown(context.Background(), catalog, Config{TOC: false, Metadata: false})
 	require.NoError(t, err)
 	s := string(out)
 	assert.Contains(t, s, "#### Guidelines")
@@ -178,7 +179,7 @@ func TestCatalogToMarkdown_applicabilityMatrixImplicitColumns(t *testing.T) {
 			},
 		},
 	}
-	out, err := CatalogToMarkdown(catalog, Config{
+	out, err := CatalogToMarkdown(context.Background(), catalog, Config{
 		TOC: false, LineEnding: "\n", Metadata: false, ApplicabilityMatrix: true,
 	})
 	require.NoError(t, err)
@@ -205,7 +206,7 @@ func TestCatalogToMarkdown_applicabilityMatrix_noNewlineInTableRow(t *testing.T)
 			},
 		},
 	}
-	out, err := CatalogToMarkdown(catalog, Config{TOC: false, Metadata: false, ApplicabilityMatrix: true})
+	out, err := CatalogToMarkdown(context.Background(), catalog, Config{TOC: false, Metadata: false, ApplicabilityMatrix: true})
 	require.NoError(t, err)
 	s := string(out)
 	idx := strings.Index(s, "## Requirements and Applicability")
@@ -233,7 +234,7 @@ func TestCatalogToMarkdown_ungroupedBucket(t *testing.T) {
 			{Id: "OR", Group: "missing", Title: "Orphan", Objective: "o2", State: gemara.LifecycleActive},
 		},
 	}
-	out, err := CatalogToMarkdown(catalog, defaultRenderConfig())
+	out, err := CatalogToMarkdown(context.Background(), catalog, defaultRenderConfig())
 	require.NoError(t, err)
 	s := string(out)
 	assert.Contains(t, s, "## Ungrouped")
@@ -254,7 +255,7 @@ func TestCatalogToMarkdown_inlineLexiconPipeline(t *testing.T) {
 	cfg := Config{TOC: false, LineEnding: "\n", Metadata: false, InlineLexicon: []InlineLexiconTerm{
 		{Term: "widgets", Definition: "Small gadgets."},
 	}}
-	out, err := CatalogToMarkdown(catalog, cfg)
+	out, err := CatalogToMarkdown(context.Background(), catalog, cfg)
 	require.NoError(t, err)
 	s := string(out)
 	assert.Contains(t, s, "## Lexicon")
@@ -277,7 +278,7 @@ func TestCatalogToMarkdown_lexiconAutolinkFromFile(t *testing.T) {
 			{Id: "C", Group: "G", Title: "Example Term in title", Objective: "text", State: gemara.LifecycleActive},
 		},
 	}
-	out, err := CatalogToMarkdown(catalog, Config{TOC: false, LexiconAutolink: true})
+	out, err := CatalogToMarkdown(context.Background(), catalog, Config{TOC: false, LexiconAutolink: true})
 	require.NoError(t, err)
 	assert.Contains(t, string(out), "## Lexicon")
 }
@@ -292,7 +293,7 @@ func TestCatalogToMarkdown_lexiconResolveError(t *testing.T) {
 		Groups:   []gemara.Group{{Id: "G", Title: "G"}},
 		Controls: []gemara.Control{{Id: "C", Group: "G", Title: "T", Objective: "o", State: gemara.LifecycleActive}},
 	}
-	_, err := CatalogToMarkdown(catalog, Config{LexiconAutolink: true})
+	_, err := CatalogToMarkdown(context.Background(), catalog, Config{LexiconAutolink: true})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "lexicon")
 }
@@ -306,7 +307,7 @@ func TestCatalogToMarkdown_inlineLexiconNormalizeError(t *testing.T) {
 		Groups:   []gemara.Group{{Id: "G", Title: "G"}},
 		Controls: []gemara.Control{{Id: "C", Group: "G", Title: "T", Objective: "o", State: gemara.LifecycleActive}},
 	}
-	_, err := CatalogToMarkdown(catalog, Config{InlineLexicon: []InlineLexiconTerm{{Term: "", Definition: "d"}}})
+	_, err := CatalogToMarkdown(context.Background(), catalog, Config{InlineLexicon: []InlineLexiconTerm{{Term: "", Definition: "d"}}})
 	require.Error(t, err)
 }
 

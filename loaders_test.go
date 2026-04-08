@@ -10,6 +10,7 @@ package gemara
 // Test data is pulled from ./test-data/
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -60,7 +61,7 @@ func TestLoad_Policy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := Load[Policy](fileFetcher, tt.source)
+			p, err := Load[Policy](context.Background(), fileFetcher, tt.source)
 			if tt.wantErr {
 				assert.Error(t, err, "expected error but got none")
 			} else {
@@ -77,7 +78,7 @@ func TestLoad_Policy_HTTP(t *testing.T) {
 	defer srv.Close()
 	f := &fetcher.HTTP{Client: srv.Client()}
 
-	_, err := Load[Policy](f, srv.URL+"/nonexistent.yaml")
+	_, err := Load[Policy](context.Background(), f, srv.URL+"/nonexistent.yaml")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to fetch URL; response status: 404 Not Found")
 }
@@ -89,7 +90,7 @@ func TestLoad_URLWithQueryParams(t *testing.T) {
 	defer srv.Close()
 	f := &fetcher.HTTP{Client: srv.Client()}
 
-	p, err := Load[Policy](f, srv.URL+"/policy.yaml?token=abc&ref=main")
+	p, err := Load[Policy](context.Background(), f, srv.URL+"/policy.yaml?token=abc&ref=main")
 	require.NoError(t, err)
 	assert.NotEmpty(t, p.Metadata.Id)
 }
@@ -101,7 +102,7 @@ func TestLoad_URLWithFragment(t *testing.T) {
 	defer srv.Close()
 	f := &fetcher.HTTP{Client: srv.Client()}
 
-	p, err := Load[Policy](f, srv.URL+"/policy.yaml#section")
+	p, err := Load[Policy](context.Background(), f, srv.URL+"/policy.yaml#section")
 	require.NoError(t, err)
 	assert.NotEmpty(t, p.Metadata.Id)
 }
@@ -135,7 +136,7 @@ func TestLoad_GuidanceCatalog(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g, err := Load[GuidanceCatalog](fileFetcher, tt.source)
+			g, err := Load[GuidanceCatalog](context.Background(), fileFetcher, tt.source)
 			if tt.wantErr {
 				assert.Error(t, err, "expected error but got none")
 			} else {
@@ -150,13 +151,13 @@ func TestLoad_GuidanceCatalog(t *testing.T) {
 }
 
 func TestGuidanceCatalog_LoadFiles_AppendsData(t *testing.T) {
-	singleDoc, err := Load[GuidanceCatalog](fileFetcher, "test-data/good-aigf.yaml")
+	singleDoc, err := Load[GuidanceCatalog](context.Background(), fileFetcher, "test-data/good-aigf.yaml")
 	require.NoError(t, err)
 	require.Greater(t, len(singleDoc.Groups), 0, "expected at least one family")
 	require.Greater(t, len(singleDoc.Guidelines), 0, "expected at least one guideline")
 
 	multiDoc := &GuidanceCatalog{}
-	err = multiDoc.LoadFiles(fileFetcher, []string{
+	err = multiDoc.LoadFiles(context.Background(), fileFetcher, []string{
 		"test-data/good-aigf.yaml",
 		"test-data/good-aigf.yaml",
 	})
@@ -175,7 +176,7 @@ func TestLoad_GuidanceCatalog_HTTP(t *testing.T) {
 	defer srv.Close()
 	f := &fetcher.HTTP{Client: srv.Client()}
 
-	_, err := Load[GuidanceCatalog](f, srv.URL+"/nonexistent.yaml")
+	_, err := Load[GuidanceCatalog](context.Background(), f, srv.URL+"/nonexistent.yaml")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to fetch URL; response status: 404 Not Found")
 }
@@ -219,7 +220,7 @@ func TestLoad_ControlCatalog(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := Load[ControlCatalog](fileFetcher, tt.source)
+			c, err := Load[ControlCatalog](context.Background(), fileFetcher, tt.source)
 			if tt.wantErr {
 				assert.Error(t, err, "expected error but got none")
 			} else {
@@ -237,7 +238,7 @@ func TestLoad_ControlCatalog(t *testing.T) {
 
 func TestControlCatalog_LoadFiles_NilImports(t *testing.T) {
 	c := &ControlCatalog{}
-	err := c.LoadFiles(fileFetcher, []string{
+	err := c.LoadFiles(context.Background(), fileFetcher, []string{
 		"test-data/good-ccc.yaml",
 		"test-data/good-osps.yml",
 	})
@@ -282,7 +283,7 @@ func TestControlCatalog_LoadFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &ControlCatalog{}
-			err := c.LoadFiles(fileFetcher, []string{tt.source})
+			err := c.LoadFiles(context.Background(), fileFetcher, []string{tt.source})
 			if tt.wantErr {
 				assert.Error(t, err, "expected error but got none")
 			} else {
@@ -297,7 +298,7 @@ func TestControlCatalog_LoadFiles(t *testing.T) {
 func TestControlCatalog_LoadNestedCatalog(t *testing.T) {
 	t.Run("Empty field name", func(t *testing.T) {
 		c := &ControlCatalog{}
-		err := c.LoadNestedCatalog(fileFetcher, "test-data/nested-good-ccc.yaml", "")
+		err := c.LoadNestedCatalog(context.Background(), fileFetcher, "test-data/nested-good-ccc.yaml", "")
 		assert.Error(t, err, "empty fieldName should return error")
 	})
 
@@ -348,7 +349,7 @@ func TestControlCatalog_LoadNestedCatalog(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &ControlCatalog{}
-			err := c.LoadNestedCatalog(fileFetcher, tt.source, tt.fieldName)
+			err := c.LoadNestedCatalog(context.Background(), fileFetcher, tt.source, tt.fieldName)
 			if tt.wantErr {
 				assert.Error(t, err, "expected error but got none")
 			} else {

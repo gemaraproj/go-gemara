@@ -1,6 +1,8 @@
 package gemaraconv
 
 import (
+	"context"
+
 	oscal "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
 	"github.com/gemaraproj/go-gemara"
 )
@@ -36,8 +38,8 @@ func (c *ControlCatalogConverter) ToOSCAL(opts ...GenerateOption) (oscal.Catalog
 }
 
 // ToMarkdown converts the ControlCatalog to Markdown format.
-func (c *ControlCatalogConverter) ToMarkdown(opts ...MarkdownOption) ([]byte, error) {
-	return CatalogToMarkdown(c.catalog, opts...)
+func (c *ControlCatalogConverter) ToMarkdown(ctx context.Context, opts ...MarkdownOption) ([]byte, error) {
+	return CatalogToMarkdown(ctx, c.catalog, opts...)
 }
 
 // GuidanceCatalogConverter defines a converter for converting GuidanceCatalog.

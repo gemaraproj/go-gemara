@@ -3,6 +3,7 @@
 package gemara
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gemaraproj/go-gemara/internal/codec"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestSControlCatalog_RoundTrip(t *testing.T) {
-	original, err := Load[ControlCatalog](fileFetcher, "test-data/good-ccc.yaml")
+	original, err := Load[ControlCatalog](context.Background(), fileFetcher, "test-data/good-ccc.yaml")
 	require.NoError(t, err)
 
 	sc := original.Sugar()
@@ -34,7 +35,7 @@ func TestSControlCatalog_RoundTrip(t *testing.T) {
 }
 
 func TestSControlCatalog_CacheResetOnUnmarshal(t *testing.T) {
-	original, err := Load[ControlCatalog](fileFetcher, "test-data/good-ccc.yaml")
+	original, err := Load[ControlCatalog](context.Background(), fileFetcher, "test-data/good-ccc.yaml")
 	require.NoError(t, err)
 	sc := original.Sugar()
 

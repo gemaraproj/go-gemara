@@ -3,6 +3,7 @@
 package gemara
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -12,13 +13,17 @@ import (
 )
 
 // Fetcher retrieves content from a source location.
+//
+// Network-capable implementations (e.g. [fetcher.HTTP], [fetcher.URI])
+// will follow any URL without filtering; see their documentation for
+// details.
 type Fetcher interface {
-	Fetch(source string) (io.ReadCloser, error)
+	Fetch(ctx context.Context, source string) (io.ReadCloser, error)
 }
 
 // Load fetches and decodes a single artifact from the given source.
 // Format (YAML or JSON) is detected from the file extension.
-func Load[T any](f Fetcher, source string) (*T, error) {
+func Load[T any](ctx context.Context, f Fetcher, source string) (*T, error) {
 	u, err := url.Parse(source)
 	if err != nil {
 		return nil, fmt.Errorf("invalid source %q: %w", source, err)
@@ -30,7 +35,7 @@ func Load[T any](f Fetcher, source string) (*T, error) {
 		return nil, fmt.Errorf("unsupported file extension: %s", ext)
 	}
 
-	reader, err := f.Fetch(source)
+	reader, err := f.Fetch(ctx, source)
 	if err != nil {
 		return nil, err
 	}
@@ -51,9 +56,9 @@ func Load[T any](f Fetcher, source string) (*T, error) {
 }
 
 // LoadFiles loads and merges data from multiple sources into the GuidanceCatalog.
-func (g *GuidanceCatalog) LoadFiles(f Fetcher, sources []string) error {
+func (g *GuidanceCatalog) LoadFiles(ctx context.Context, f Fetcher, sources []string) error {
 	for _, source := range sources {
-		doc, err := Load[GuidanceCatalog](f, source)
+		doc, err := Load[GuidanceCatalog](ctx, f, source)
 		if err != nil {
 			return err
 		}
@@ -67,9 +72,9 @@ func (g *GuidanceCatalog) LoadFiles(f Fetcher, sources []string) error {
 }
 
 // LoadFiles loads and merges data from multiple sources into the ControlCatalog.
-func (c *ControlCatalog) LoadFiles(f Fetcher, sources []string) error {
+func (c *ControlCatalog) LoadFiles(ctx context.Context, f Fetcher, sources []string) error {
 	for _, source := range sources {
-		catalog, err := Load[ControlCatalog](f, source)
+		catalog, err := Load[ControlCatalog](ctx, f, source)
 		if err != nil {
 			return err
 		}
@@ -91,12 +96,12 @@ func (c *ControlCatalog) LoadFiles(f Fetcher, sources []string) error {
 // LoadNestedCatalog loads a YAML file where the ControlCatalog is nested
 // under a single wrapper key (e.g. "catalog:"). Only supports one layer
 // of nesting.
-func (c *ControlCatalog) LoadNestedCatalog(f Fetcher, source, fieldName string) error {
+func (c *ControlCatalog) LoadNestedCatalog(ctx context.Context, f Fetcher, source, fieldName string) error {
 	if fieldName == "" {
 		return fmt.Errorf("fieldName cannot be empty")
 	}
 
-	data, err := Load[map[string]interface{}](f, source)
+	data, err := Load[map[string]interface{}](ctx, f, source)
 	if err != nil {
 		return fmt.Errorf("error decoding source: %w (%s)", err, source)
 	}

@@ -3,6 +3,7 @@
 package fetcher
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -20,7 +21,7 @@ func TestURI_FileScheme(t *testing.T) {
 	require.NoError(t, os.WriteFile(p, []byte("ok: true\n"), 0600))
 
 	f := &URI{}
-	rc, err := f.Fetch("file://" + p)
+	rc, err := f.Fetch(context.Background(), "file://"+p)
 	require.NoError(t, err)
 	defer rc.Close() //nolint:errcheck
 
@@ -36,7 +37,7 @@ func TestURI_HTTPScheme(t *testing.T) {
 	defer srv.Close()
 
 	f := &URI{Client: srv.Client()}
-	rc, err := f.Fetch(srv.URL + "/remote.yaml")
+	rc, err := f.Fetch(context.Background(), srv.URL+"/remote.yaml")
 	require.NoError(t, err)
 	defer rc.Close() //nolint:errcheck
 
@@ -47,7 +48,7 @@ func TestURI_HTTPScheme(t *testing.T) {
 
 func TestURI_UnsupportedScheme(t *testing.T) {
 	f := &URI{}
-	_, err := f.Fetch("ftp://example.com/file.yaml")
+	_, err := f.Fetch(context.Background(), "ftp://example.com/file.yaml")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported URI scheme")
 }

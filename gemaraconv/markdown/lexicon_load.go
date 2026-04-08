@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -38,8 +39,8 @@ func resolveLexiconURL(meta gemara.Metadata) (string, error) {
 
 // loadLexiconFromURI fetches a Lexicon from a file:// or http(s):// URI
 // and returns normalized entries.
-func loadLexiconFromURI(uri string) ([]lexiconEntry, error) {
-	doc, err := gemara.Load[gemara.Lexicon](&fetcher.URI{}, uri)
+func loadLexiconFromURI(ctx context.Context, uri string) ([]lexiconEntry, error) {
+	doc, err := gemara.Load[gemara.Lexicon](ctx, &fetcher.URI{}, uri)
 	if err != nil {
 		return nil, fmt.Errorf("load lexicon: %w", err)
 	}

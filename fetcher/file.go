@@ -3,6 +3,7 @@
 package fetcher
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -11,7 +12,7 @@ import (
 // File reads from local filesystem paths.
 type File struct{}
 
-func (f *File) Fetch(source string) (io.ReadCloser, error) {
+func (f *File) Fetch(_ context.Context, source string) (io.ReadCloser, error) {
 	file, err := os.Open(source)
 	if err != nil {
 		return nil, fmt.Errorf("error opening file: %w", err)

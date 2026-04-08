@@ -1,6 +1,7 @@
 package gemaraconv
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -24,20 +25,20 @@ func testDataFileURL(t *testing.T, name string) string {
 
 func loadControlCatalogFromTestData(t *testing.T, name string) *gemara.ControlCatalog {
 	t.Helper()
-	c, err := gemara.Load[gemara.ControlCatalog](&fetcher.File{}, filepath.Join("..", "test-data", name))
+	c, err := gemara.Load[gemara.ControlCatalog](context.Background(), &fetcher.File{}, filepath.Join("..", "test-data", name))
 	require.NoError(t, err, "load %s", name)
 	return c
 }
 
 func TestCatalogToMarkdown_nil(t *testing.T) {
-	_, err := CatalogToMarkdown(nil)
+	_, err := CatalogToMarkdown(context.Background(), nil)
 	require.Error(t, err)
 }
 
 func TestCatalogToMarkdown_goodCCCYAML(t *testing.T) {
 	catalog := loadControlCatalogFromTestData(t, "good-ccc.yaml")
 
-	out, err := CatalogToMarkdown(catalog)
+	out, err := CatalogToMarkdown(context.Background(), catalog)
 	require.NoError(t, err)
 	s := string(out)
 
@@ -80,7 +81,7 @@ func TestCatalogToMarkdown_goodCCCYAML(t *testing.T) {
 func TestCatalogToMarkdown_goodOSPSYAML(t *testing.T) {
 	catalog := loadControlCatalogFromTestData(t, "good-osps.yml")
 
-	out, err := CatalogToMarkdown(catalog, WithTOC(false))
+	out, err := CatalogToMarkdown(context.Background(), catalog, WithTOC(false))
 	require.NoError(t, err)
 	s := string(out)
 
@@ -94,10 +95,10 @@ func TestCatalogToMarkdown_goodOSPSYAML(t *testing.T) {
 
 func TestCatalogToMarkdown_nestedGoodCCCYAML(t *testing.T) {
 	c := &gemara.ControlCatalog{}
-	err := c.LoadNestedCatalog(&fetcher.File{}, filepath.Join("..", "test-data", "nested-good-ccc.yaml"), "catalog")
+	err := c.LoadNestedCatalog(context.Background(), &fetcher.File{}, filepath.Join("..", "test-data", "nested-good-ccc.yaml"), "catalog")
 	require.NoError(t, err)
 
-	out, err := CatalogToMarkdown(c)
+	out, err := CatalogToMarkdown(context.Background(), c)
 	require.NoError(t, err)
 	s := string(out)
 
@@ -136,7 +137,7 @@ func TestCatalogToMarkdown_ungrouped(t *testing.T) {
 		},
 	}
 
-	out, err := CatalogToMarkdown(catalog)
+	out, err := CatalogToMarkdown(context.Background(), catalog)
 	require.NoError(t, err)
 	s := string(out)
 
@@ -224,7 +225,7 @@ func TestCatalogToMarkdown_extendsImportsReplacedBy(t *testing.T) {
 		},
 	}
 
-	out, err := CatalogToMarkdown(catalog)
+	out, err := CatalogToMarkdown(context.Background(), catalog)
 	require.NoError(t, err)
 	s := string(out)
 
@@ -248,21 +249,21 @@ func TestCatalogToMarkdown_extendsImportsReplacedBy(t *testing.T) {
 
 func TestControlCatalogConverter_ToMarkdown(t *testing.T) {
 	catalog := loadControlCatalogFromTestData(t, "good-ccc.yaml")
-	out, err := ControlCatalog(catalog).ToMarkdown()
+	out, err := ControlCatalog(catalog).ToMarkdown(context.Background())
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(string(out), "# FINOS Cloud Control Catalog"))
 }
 
 func TestCatalogToMarkdown_lineEnding(t *testing.T) {
 	catalog := loadControlCatalogFromTestData(t, "good-ccc.yaml")
-	out, err := CatalogToMarkdown(catalog, WithLineEnding("\r\n"))
+	out, err := CatalogToMarkdown(context.Background(), catalog, WithLineEnding("\r\n"))
 	require.NoError(t, err)
 	assert.Contains(t, string(out), "\r\n")
 }
 
 func TestCatalogToMarkdown_withoutMetadata(t *testing.T) {
 	catalog := loadControlCatalogFromTestData(t, "good-ccc.yaml")
-	out, err := CatalogToMarkdown(catalog, WithMetadata(false))
+	out, err := CatalogToMarkdown(context.Background(), catalog, WithMetadata(false))
 	require.NoError(t, err)
 	s := string(out)
 
@@ -313,7 +314,7 @@ func TestCatalogToMarkdown_applicabilityMatrix(t *testing.T) {
 		},
 	}
 
-	out, err := CatalogToMarkdown(catalog, WithApplicabilityMatrix(true), WithMetadata(false), WithTOC(false))
+	out, err := CatalogToMarkdown(context.Background(), catalog, WithApplicabilityMatrix(true), WithMetadata(false), WithTOC(false))
 	require.NoError(t, err)
 	s := string(out)
 
@@ -325,7 +326,7 @@ func TestCatalogToMarkdown_applicabilityMatrix(t *testing.T) {
 
 func TestCatalogToMarkdown_applicabilityMatrix_offByDefault(t *testing.T) {
 	catalog := loadControlCatalogFromTestData(t, "good-ccc.yaml")
-	out, err := CatalogToMarkdown(catalog)
+	out, err := CatalogToMarkdown(context.Background(), catalog)
 	require.NoError(t, err)
 	assert.NotContains(t, string(out), "## Requirements and Applicability")
 }
@@ -362,7 +363,7 @@ func TestCatalogToMarkdown_lexiconAutolink(t *testing.T) {
 		},
 	}
 
-	out, err := CatalogToMarkdown(catalog, WithLexiconAutolink(true), WithTOC(false))
+	out, err := CatalogToMarkdown(context.Background(), catalog, WithLexiconAutolink(true), WithTOC(false))
 	require.NoError(t, err)
 	s := string(out)
 
@@ -393,7 +394,7 @@ func TestCatalogToMarkdown_lexiconAutolink_offByDefault(t *testing.T) {
 			{Id: "C", Group: "G", Title: "T", Objective: "Example Term", State: gemara.LifecycleActive},
 		},
 	}
-	out, err := CatalogToMarkdown(catalog, WithTOC(false))
+	out, err := CatalogToMarkdown(context.Background(), catalog, WithTOC(false))
 	require.NoError(t, err)
 	assert.NotContains(t, string(out), "## Lexicon")
 }
@@ -413,7 +414,7 @@ func TestCatalogToMarkdown_inlineLexicon(t *testing.T) {
 			{Id: "C", Group: "G", Title: "Widget talk", Objective: "widgets", State: gemara.LifecycleActive},
 		},
 	}
-	out, err := CatalogToMarkdown(catalog, WithTOC(false), WithInlineLexicon([]InlineLexiconTerm{
+	out, err := CatalogToMarkdown(context.Background(), catalog, WithTOC(false), WithInlineLexicon([]InlineLexiconTerm{
 		{Term: "Widget", Definition: "A widget."},
 	}))
 	require.NoError(t, err)
@@ -436,6 +437,6 @@ func TestCatalogToMarkdown_lexiconAutolink_resolveError(t *testing.T) {
 		Groups:   []gemara.Group{{Id: "G", Title: "G"}},
 		Controls: []gemara.Control{{Id: "C", Group: "G", Title: "T", Objective: "o", State: gemara.LifecycleActive}},
 	}
-	_, err := CatalogToMarkdown(catalog, WithLexiconAutolink(true))
+	_, err := CatalogToMarkdown(context.Background(), catalog, WithLexiconAutolink(true))
 	require.Error(t, err)
 }
