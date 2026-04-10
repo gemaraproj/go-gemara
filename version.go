@@ -1,4 +1,4 @@
 package gemara
 
 // SchemaVersion displays the version of the Gemara schemas that this commit is configured to support
-var SchemaVersion = "v1.0.0-rc.2"
+var SchemaVersion = "v1.0.0"

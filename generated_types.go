@@ -320,7 +320,7 @@ type AssessmentRequirement struct {
 // EntryMapping represents how a specific entry maps to a MappingReference.
 type EntryMapping struct {
 	// reference-id is the id for a MappingReference entry in the artifact's metadata
-	ReferenceId string `json:"reference-id,omitempty" yaml:"reference-id,omitempty"`
+	ReferenceId string `json:"reference-id" yaml:"reference-id"`
 
 	// entry-id is the identifier being mapped to in the referenced artifact
 	EntryId string `json:"entry-id" yaml:"entry-id"`

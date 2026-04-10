@@ -262,8 +262,8 @@ var (
 	entityTypeToString = map[EntityType]string{
 		InvalidEntityType: "Invalid",
 		Human:             "Human",
-		Software:         "Software",
-		SoftwareAssisted: "Software Assisted",
+		Software:          "Software",
+		SoftwareAssisted:  "Software Assisted",
 	}
 
 	stringToEntityType = map[string]EntityType{
@@ -314,13 +314,13 @@ var (
 	relationshipTypeToString = map[RelationshipType]string{
 		InvalidRelationshipType: "invalid",
 		RelImplements:           "implements",
-		RelImplementedBy: "implemented-by",
-		RelSupports:      "supports",
-		RelSupportedBy:   "supported-by",
-		RelEquivalent:    "equivalent",
-		RelSubsumes:      "subsumes",
-		RelNoMatch:       "no-match",
-		RelRelatesTo:     "relates-to",
+		RelImplementedBy:        "implemented-by",
+		RelSupports:             "supports",
+		RelSupportedBy:          "supported-by",
+		RelEquivalent:           "equivalent",
+		RelSubsumes:             "subsumes",
+		RelNoMatch:              "no-match",
+		RelRelatesTo:            "relates-to",
 	}
 
 	stringToRelationshipType = map[string]RelationshipType{
@@ -352,7 +352,7 @@ var (
 	modeTypeToString = map[ModeType]string{
 		InvalidModeType: "Invalid",
 		ModeManual:      "Manual",
-		ModeAutomated: "Automated",
+		ModeAutomated:   "Automated",
 	}
 
 	stringToModeType = map[string]ModeType{
@@ -421,10 +421,10 @@ var (
 	modTypeToString = map[ModType]string{
 		InvalidModType: "Invalid",
 		ModAdd:         "Add",
-		ModModify:   "Modify",
-		ModRemove:   "Remove",
-		ModReplace:  "Replace",
-		ModOverride: "Override",
+		ModModify:      "Modify",
+		ModRemove:      "Remove",
+		ModReplace:     "Replace",
+		ModOverride:    "Override",
 	}
 
 	stringToModType = map[string]ModType{
