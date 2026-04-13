@@ -1,0 +1,58 @@
+metadata:
+  id: pvtr-baseline-scan
+  type: EvaluationLog
+  gemara-version: v1.0.0
+  version: "1.0.0"
+  date: "2025-08-22T16:02:00Z"
+  description: Baseline scan of pvtr GitHub repository
+  author:
+    id: pvtr-github-repo
+    name: pvtr-github-repo
+    type: Software
+    version: "0.1.0"
+result: Failed
+target:
+  id: pvtr
+  name: pvtr
+  type: Software
+evaluations:
+  - name: Access Control - MFA
+    result: Passed
+    message: Two-factor authentication is configured as required by the parent organization
+    control:
+      reference-id: osps
+      entry-id: OSPS-AC-01
+    assessment-logs:
+      - requirement:
+          reference-id: osps
+          entry-id: OSPS-AC-01.01
+        description: Verify MFA is required for sensitive resources
+        result: Passed
+        message: Two-factor authentication is configured as required by the parent organization
+        applicability:
+          - Maturity Level 1
+          - Maturity Level 2
+          - Maturity Level 3
+        steps-executed: 1
+        start: "2025-08-22T16:02:00Z"
+        end: "2025-08-22T16:02:00.000003708Z"
+  - name: Documentation - User Guides
+    result: Failed
+    message: User guide was NOT specified in Security Insights data
+    control:
+      reference-id: osps
+      entry-id: OSPS-DO-01
+    assessment-logs:
+      - requirement:
+          reference-id: osps
+          entry-id: OSPS-DO-01.01
+        description: Verify project documentation includes user guides for basic functionality
+        result: Failed
+        message: User guide was NOT specified in Security Insights data
+        recommendation: Add a user guide to the project documentation and reference it in Security Insights data
+        applicability:
+          - Maturity Level 1
+          - Maturity Level 2
+          - Maturity Level 3
+        steps-executed: 3
+        start: "2025-08-22T16:02:00Z"
