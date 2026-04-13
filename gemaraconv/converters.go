@@ -9,26 +9,26 @@ import (
 
 // EvaluationLogConverter define a converter object for converting EvaluationLog.
 type EvaluationLogConverter struct {
-	log *gemara.EvaluationLog
+	log gemara.EvaluationLog
 }
 
 // EvaluationLog creates a new EvaluationLogConverter struct.
-func EvaluationLog(log *gemara.EvaluationLog) *EvaluationLogConverter {
+func EvaluationLog(log gemara.EvaluationLog) *EvaluationLogConverter {
 	return &EvaluationLogConverter{log: log}
 }
 
 // ToSARIF converts the EvaluationLog to SARIF format.
-func (c *EvaluationLogConverter) ToSARIF(artifactURI string, catalog *gemara.ControlCatalog) ([]byte, error) {
-	return ToSARIF(*c.log, artifactURI, catalog)
+func (c *EvaluationLogConverter) ToSARIF(opts ...EvalOption) ([]byte, error) {
+	return ToSARIF(c.log, opts...)
 }
 
 // ControlCatalogConverter defines a converter for converting ControlCatalog.
 type ControlCatalogConverter struct {
-	catalog *gemara.ControlCatalog
+	catalog gemara.ControlCatalog
 }
 
 // ControlCatalog creates a new ControlCatalogConverter struct.
-func ControlCatalog(catalog *gemara.ControlCatalog) *ControlCatalogConverter {
+func ControlCatalog(catalog gemara.ControlCatalog) *ControlCatalogConverter {
 	return &ControlCatalogConverter{catalog: catalog}
 }
 
@@ -44,11 +44,11 @@ func (c *ControlCatalogConverter) ToMarkdown(ctx context.Context, opts ...Markdo
 
 // GuidanceCatalogConverter defines a converter for converting GuidanceCatalog.
 type GuidanceCatalogConverter struct {
-	guidance *gemara.GuidanceCatalog
+	guidance gemara.GuidanceCatalog
 }
 
 // GuidanceCatalog creates a new GuidanceCatalogConverter struct.
-func GuidanceCatalog(guidance *gemara.GuidanceCatalog) *GuidanceCatalogConverter {
+func GuidanceCatalog(guidance gemara.GuidanceCatalog) *GuidanceCatalogConverter {
 	return &GuidanceCatalogConverter{guidance: guidance}
 }
 

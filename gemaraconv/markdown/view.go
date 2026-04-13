@@ -105,11 +105,7 @@ func buildLexiconGlossaryView(entries []lexiconEntry) []markdownLexiconGlossaryE
 	return out
 }
 
-func buildMarkdownCatalogView(catalog *gemara.ControlCatalog, cfg Config, lexGlossary []markdownLexiconGlossaryEntry) markdownCatalogView {
-	if catalog == nil {
-		return markdownCatalogView{LineEnding: cfg.LineEnding, LexiconGlossary: lexGlossary}
-	}
-
+func buildMarkdownCatalogView(catalog gemara.ControlCatalog, cfg Config, lexGlossary []markdownLexiconGlossaryEntry) markdownCatalogView {
 	known := make(map[string]struct{}, len(catalog.Groups))
 	for _, g := range catalog.Groups {
 		known[g.Id] = struct{}{}
@@ -254,7 +250,7 @@ func arIncludedInApplicabilityMatrix(ar gemara.AssessmentRequirement) bool {
 // applicabilityColumnIDs returns ordered applicability ids for matrix columns:
 // metadata applicability-groups order if present, else sorted union of applicability
 // on non-retired assessment requirements under active controls.
-func applicabilityColumnIDs(catalog *gemara.ControlCatalog) []string {
+func applicabilityColumnIDs(catalog gemara.ControlCatalog) []string {
 	if len(catalog.Metadata.ApplicabilityGroups) > 0 {
 		out := make([]string, 0, len(catalog.Metadata.ApplicabilityGroups))
 		for _, g := range catalog.Metadata.ApplicabilityGroups {
@@ -284,8 +280,8 @@ func applicabilityColumnIDs(catalog *gemara.ControlCatalog) []string {
 	return out
 }
 
-func buildApplicabilityMatrix(catalog *gemara.ControlCatalog, groups []markdownGroupView, enabled bool) (cols []markdownApplicabilityColumn, rows []markdownApplicabilityMatrixRow, show bool) {
-	if !enabled || catalog == nil {
+func buildApplicabilityMatrix(catalog gemara.ControlCatalog, groups []markdownGroupView, enabled bool) (cols []markdownApplicabilityColumn, rows []markdownApplicabilityMatrixRow, show bool) {
+	if !enabled {
 		return nil, nil, false
 	}
 	colIDs := applicabilityColumnIDs(catalog)
