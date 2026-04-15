@@ -4,6 +4,7 @@ package gemaraconv
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	oscal "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
@@ -11,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const testImportApHref = "#6ba7b810-9dad-11d1-80b4-00c04fd430c8"
 
 func TestEvaluationLogToOSCALAssessmentResults(t *testing.T) {
 	log := makeEvaluationLog(gemara.Actor{
@@ -25,11 +28,11 @@ func TestEvaluationLogToOSCALAssessmentResults(t *testing.T) {
 	log.Metadata.Id = "eval-001"
 	log.Target = gemara.Resource{Id: "sys-1", Name: "Test System", Type: gemara.Software}
 
-	ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#ap-1"))
+	ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref(testImportApHref))
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, ar.UUID)
-	assert.Equal(t, "#ap-1", ar.ImportAp.Href)
+	assert.Equal(t, testImportApHref, ar.ImportAp.Href)
 	assert.Contains(t, ar.Metadata.Title, "eval-001")
 	require.Len(t, ar.Results, 1)
 
@@ -62,7 +65,7 @@ func TestEvaluationLogToOSCALAssessmentResults_WithCatalogEnrichment(t *testing.
 	})
 	log.Metadata.Id = "eval-enriched"
 
-	ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#ap-1"), WithCatalog(catalog))
+	ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref(testImportApHref), WithCatalog(catalog))
 	require.NoError(t, err)
 	require.Len(t, ar.Results, 1)
 
@@ -109,7 +112,16 @@ func TestEvaluationLogToOSCALAssessmentResults_DefaultImportApHref(t *testing.T)
 
 	ar, err := EvaluationLogToOSCALAssessmentResults(log)
 	require.NoError(t, err)
-	assert.Equal(t, "#", ar.ImportAp.Href)
+
+	assert.True(t, strings.HasPrefix(ar.ImportAp.Href, "#"), "default href should be a fragment reference")
+	assert.Greater(t, len(ar.ImportAp.Href), 1, "default href should not be bare '#'")
+
+	require.NotNil(t, ar.BackMatter, "back-matter should contain a stub assessment plan resource")
+	require.NotNil(t, ar.BackMatter.Resources)
+	require.Len(t, *ar.BackMatter.Resources, 1)
+
+	resource := (*ar.BackMatter.Resources)[0]
+	assert.Equal(t, "#"+resource.UUID, ar.ImportAp.Href, "import-ap href should reference the back-matter resource")
 }
 
 func TestEvaluationLogToOSCALAssessmentResults_ObservationMethod(t *testing.T) {
@@ -165,7 +177,7 @@ func TestEvaluationLogConverter_ToOSCALAssessmentResults(t *testing.T) {
 	log.Metadata.Id = "eval-converter"
 
 	converter := EvaluationLog(log)
-	ar, err := converter.ToOSCALAssessmentResults(WithImportApHref("#ap"))
+	ar, err := converter.ToOSCALAssessmentResults(WithImportApHref(testImportApHref))
 	require.NoError(t, err)
 	require.Len(t, ar.Results, 1)
 	assert.Contains(t, ar.Results[0].Title, "eval-converter")

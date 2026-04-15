@@ -30,11 +30,29 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 		return oscal.AssessmentResults{}, fmt.Errorf("converting evaluation log %q: %w", log.Metadata.Id, err)
 	}
 
+	importApHref := options.importApHref
+	var backMatter *oscal.BackMatter
+
+	if importApHref == "#" {
+		apResourceUUID := uuid.NewUUID()
+		importApHref = "#" + apResourceUUID
+		backMatter = &oscal.BackMatter{
+			Resources: &[]oscal.Resource{
+				{
+					UUID:        apResourceUUID,
+					Title:       "Assessment Plan (placeholder)",
+					Description: "Auto-generated placeholder for standalone assessment results.",
+				},
+			},
+		}
+	}
+
 	return oscal.AssessmentResults{
-		UUID:     uuid.NewUUID(),
-		Metadata: metadata,
-		ImportAp: oscal.ImportAp{Href: options.importApHref},
-		Results:  []oscal.Result{result},
+		UUID:       uuid.NewUUID(),
+		Metadata:   metadata,
+		ImportAp:   oscal.ImportAp{Href: importApHref},
+		Results:    []oscal.Result{result},
+		BackMatter: backMatter,
 	}, nil
 }
 
@@ -276,11 +294,16 @@ func buildLogEntry(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, p
 }
 
 func buildTargetComponent(target gemara.Resource) oscal.SystemComponent {
+	description := target.Description
+	if description == "" {
+		description = target.Name
+	}
+
 	return oscal.SystemComponent{
 		UUID:        uuid.NewUUID(),
 		Type:        "this-system",
 		Title:       target.Name,
-		Description: target.Description,
+		Description: description,
 		Status: oscal.SystemComponentStatus{
 			State: "operational",
 		},
