@@ -4,6 +4,7 @@ package gemaraconv
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/defenseunicorns/go-oscal/src/pkg/uuid"
@@ -30,29 +31,11 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 		return oscal.AssessmentResults{}, fmt.Errorf("converting evaluation log %q: %w", log.Metadata.Id, err)
 	}
 
-	importApHref := options.importApHref
-	var backMatter *oscal.BackMatter
-
-	if importApHref == "#" {
-		apResourceUUID := uuid.NewUUID()
-		importApHref = "#" + apResourceUUID
-		backMatter = &oscal.BackMatter{
-			Resources: &[]oscal.Resource{
-				{
-					UUID:        apResourceUUID,
-					Title:       "Assessment Plan (placeholder)",
-					Description: "Auto-generated placeholder for standalone assessment results.",
-				},
-			},
-		}
-	}
-
 	return oscal.AssessmentResults{
-		UUID:       uuid.NewUUID(),
-		Metadata:   metadata,
-		ImportAp:   oscal.ImportAp{Href: importApHref},
-		Results:    []oscal.Result{result},
-		BackMatter: backMatter,
+		UUID:     uuid.NewUUID(),
+		Metadata: metadata,
+		ImportAp: oscal.ImportAp{Href: options.importApHref},
+		Results:  []oscal.Result{result},
 	}, nil
 }
 
@@ -153,7 +136,7 @@ func createAssessmentResultsMetadata(log gemara.EvaluationLog) oscal.Metadata {
 		}
 		party := oscal.Party{
 			UUID: uuid.NewUUID(),
-			Type: mapEntityType(log.Metadata.Author.Type),
+			Type: mapPartyType(log.Metadata.Author.Type),
 			Name: log.Metadata.Author.Name,
 		}
 		metadata.Roles = &[]oscal.Role{authorRole}
@@ -171,7 +154,7 @@ func buildOrigin(author gemara.Actor, partyUUID string) oscal.Origin {
 		Actors: []oscal.OriginActor{
 			{
 				ActorUuid: partyUUID,
-				Type:      mapEntityType(author.Type),
+				Type:      mapActorType(author.Type),
 				RoleId:    "assessor",
 			},
 		},
@@ -209,6 +192,7 @@ func buildFinding(eval *gemara.ControlEvaluation, catalog *gemara.ControlCatalog
 	if title == "" {
 		title = controlId
 	}
+	title = sanitizeTitle(title)
 
 	return oscal.Finding{
 		UUID:        uuid.NewUUID(),
@@ -347,11 +331,27 @@ func mapResultToObjectiveStatus(r gemara.Result) oscal.ObjectiveStatus {
 	}
 }
 
-func mapEntityType(t gemara.EntityType) string {
+// sanitizeTitle collapses newlines and surrounding whitespace into a single
+// space so the value satisfies the OSCAL StringDatatype pattern (^[^\n]+$).
+func sanitizeTitle(s string) string {
+	parts := strings.Fields(s)
+	return strings.Join(parts, " ")
+}
+
+func mapActorType(t gemara.EntityType) string {
 	switch t {
 	case gemara.Human:
 		return "person"
 	default:
 		return "tool"
+	}
+}
+
+func mapPartyType(t gemara.EntityType) string {
+	switch t {
+	case gemara.Human:
+		return "person"
+	default:
+		return "organization"
 	}
 }

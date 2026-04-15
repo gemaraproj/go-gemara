@@ -4,7 +4,6 @@ package gemaraconv
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
 	oscal "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
@@ -112,16 +111,7 @@ func TestEvaluationLogToOSCALAssessmentResults_DefaultImportApHref(t *testing.T)
 
 	ar, err := EvaluationLogToOSCALAssessmentResults(log)
 	require.NoError(t, err)
-
-	assert.True(t, strings.HasPrefix(ar.ImportAp.Href, "#"), "default href should be a fragment reference")
-	assert.Greater(t, len(ar.ImportAp.Href), 1, "default href should not be bare '#'")
-
-	require.NotNil(t, ar.BackMatter, "back-matter should contain a stub assessment plan resource")
-	require.NotNil(t, ar.BackMatter.Resources)
-	require.Len(t, *ar.BackMatter.Resources, 1)
-
-	resource := (*ar.BackMatter.Resources)[0]
-	assert.Equal(t, "#"+resource.UUID, ar.ImportAp.Href, "import-ap href should reference the back-matter resource")
+	assert.Equal(t, "#", ar.ImportAp.Href)
 }
 
 func TestEvaluationLogToOSCALAssessmentResults_ObservationMethod(t *testing.T) {
@@ -183,10 +173,16 @@ func TestEvaluationLogConverter_ToOSCALAssessmentResults(t *testing.T) {
 	assert.Contains(t, ar.Results[0].Title, "eval-converter")
 }
 
-func TestMapEntityType(t *testing.T) {
-	assert.Equal(t, "person", mapEntityType(gemara.Human))
-	assert.Equal(t, "tool", mapEntityType(gemara.Software))
-	assert.Equal(t, "tool", mapEntityType(gemara.SoftwareAssisted))
+func TestMapActorType(t *testing.T) {
+	assert.Equal(t, "person", mapActorType(gemara.Human))
+	assert.Equal(t, "tool", mapActorType(gemara.Software))
+	assert.Equal(t, "tool", mapActorType(gemara.SoftwareAssisted))
+}
+
+func TestMapPartyType(t *testing.T) {
+	assert.Equal(t, "person", mapPartyType(gemara.Human))
+	assert.Equal(t, "organization", mapPartyType(gemara.Software))
+	assert.Equal(t, "organization", mapPartyType(gemara.SoftwareAssisted))
 }
 
 // Helpers
