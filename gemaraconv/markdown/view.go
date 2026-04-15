@@ -206,7 +206,7 @@ func buildMarkdownCatalogView(catalog gemara.ControlCatalog, cfg Config, lexGlos
 
 // buildImportViews resolves each Import's ReferenceId against Metadata.MappingReferences
 // to populate the title and URL for the rendered imports section.
-func buildImportViews(catalog *gemara.ControlCatalog) []markdownImportView {
+func buildImportViews(catalog gemara.ControlCatalog) []markdownImportView {
 	if len(catalog.Imports) == 0 {
 		return nil
 	}
