@@ -23,16 +23,11 @@ func testDataFileURL(t *testing.T, name string) string {
 	return "file://" + filepath.ToSlash(abs)
 }
 
-func loadControlCatalogFromTestData(t *testing.T, name string) *gemara.ControlCatalog {
+func loadControlCatalogFromTestData(t *testing.T, name string) gemara.ControlCatalog {
 	t.Helper()
 	c, err := gemara.Load[gemara.ControlCatalog](context.Background(), &fetcher.File{}, filepath.Join("..", "test-data", name))
 	require.NoError(t, err, "load %s", name)
-	return c
-}
-
-func TestCatalogToMarkdown_nil(t *testing.T) {
-	_, err := CatalogToMarkdown(context.Background(), nil)
-	require.Error(t, err)
+	return *c
 }
 
 func TestCatalogToMarkdown_goodCCCYAML(t *testing.T) {
@@ -98,7 +93,7 @@ func TestCatalogToMarkdown_nestedGoodCCCYAML(t *testing.T) {
 	err := c.LoadNestedCatalog(context.Background(), &fetcher.File{}, filepath.Join("..", "test-data", "nested-good-ccc.yaml"), "catalog")
 	require.NoError(t, err)
 
-	out, err := CatalogToMarkdown(context.Background(), c)
+	out, err := CatalogToMarkdown(context.Background(), *c)
 	require.NoError(t, err)
 	s := string(out)
 
@@ -107,7 +102,7 @@ func TestCatalogToMarkdown_nestedGoodCCCYAML(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_ungrouped(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id:            "c",
 			Type:          gemara.ControlCatalogArtifact,
@@ -149,7 +144,7 @@ func TestCatalogToMarkdown_ungrouped(t *testing.T) {
 
 func TestCatalogToMarkdown_extendsImportsReplacedBy(t *testing.T) {
 	// test-data catalogs do not combine extends/imports/replaced-by; keep a focused synthetic case.
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id:            "full",
 			Type:          gemara.ControlCatalogArtifact,
@@ -279,7 +274,7 @@ func TestCatalogToMarkdown_withoutMetadata(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_applicabilityMatrix(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id:          "m",
 			Type:        gemara.ControlCatalogArtifact,
@@ -336,7 +331,7 @@ func TestCatalogToMarkdown_applicabilityMatrix_offByDefault(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_lexiconAutolink(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id:            "m",
 			Type:          gemara.ControlCatalogArtifact,
@@ -381,7 +376,7 @@ func TestCatalogToMarkdown_lexiconAutolink(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_lexiconAutolink_offByDefault(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id:          "m",
 			Type:        gemara.ControlCatalogArtifact,
@@ -404,7 +399,7 @@ func TestCatalogToMarkdown_lexiconAutolink_offByDefault(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_inlineLexicon(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id:            "m",
 			Type:          gemara.ControlCatalogArtifact,
@@ -429,7 +424,7 @@ func TestCatalogToMarkdown_inlineLexicon(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_lexiconAutolink_resolveError(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id:          "m",
 			Type:        gemara.ControlCatalogArtifact,

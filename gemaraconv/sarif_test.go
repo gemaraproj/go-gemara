@@ -13,8 +13,7 @@ func TestFromEvaluationLog(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		artifactURI   string
-		catalog       *gemara.ControlCatalog
+		opts          []EvalOption
 		evaluationLog gemara.EvaluationLog
 		wantRules     int
 		wantResults   int
@@ -26,9 +25,8 @@ func TestFromEvaluationLog(t *testing.T) {
 		checkRule     func(*testing.T, *ReportingDescriptor)
 	}{
 		{
-			name:        "basic conversion with multiple results",
-			artifactURI: "",
-			catalog:     nil,
+			name: "basic conversion with multiple results",
+			opts: nil,
 			evaluationLog: makeEvaluationLog(gemara.Actor{
 				Name:    "gemara",
 				Uri:     "https://github.com/gemaraproj/go-gemara",
@@ -55,9 +53,8 @@ func TestFromEvaluationLog(t *testing.T) {
 			},
 		},
 		{
-			name:        "with artifactURI parameter",
-			artifactURI: "README.md",
-			catalog:     nil,
+			name: "with artifactURI parameter",
+			opts: []EvalOption{WithArtifactURI("README.md")},
 			evaluationLog: makeEvaluationLog(gemara.Actor{
 				Name:    "gemara",
 				Uri:     "https://github.com/test/repo",
@@ -80,9 +77,8 @@ func TestFromEvaluationLog(t *testing.T) {
 			},
 		},
 		{
-			name:        "empty author URI",
-			artifactURI: "",
-			catalog:     nil,
+			name: "empty author URI",
+			opts: nil,
 			evaluationLog: makeEvaluationLog(gemara.Actor{
 				Name:    "gemara",
 				Uri:     "",
@@ -105,9 +101,8 @@ func TestFromEvaluationLog(t *testing.T) {
 			},
 		},
 		{
-			name:        "with catalog enrichment",
-			artifactURI: "README.md",
-			catalog:     testCatalog,
+			name: "with catalog enrichment",
+			opts: []EvalOption{WithArtifactURI("README.md"), WithCatalog(testCatalog)},
 			evaluationLog: makeEvaluationLog(gemara.Actor{
 				Name:    "test-tool",
 				Uri:     "https://github.com/test/tool",
@@ -146,9 +141,8 @@ func TestFromEvaluationLog(t *testing.T) {
 			},
 		},
 		{
-			name:        "without catalog",
-			artifactURI: "README.md",
-			catalog:     nil,
+			name: "without catalog",
+			opts: []EvalOption{WithArtifactURI("README.md")},
 			evaluationLog: makeEvaluationLog(gemara.Actor{
 				Name:    "test-tool",
 				Uri:     "https://github.com/test/tool",
@@ -183,9 +177,8 @@ func TestFromEvaluationLog(t *testing.T) {
 			},
 		},
 		{
-			name:        "catalog recommendation when assessment log has none",
-			artifactURI: "README.md",
-			catalog:     testCatalog,
+			name: "catalog recommendation when assessment log has none",
+			opts: []EvalOption{WithArtifactURI("README.md"), WithCatalog(testCatalog)},
 			evaluationLog: makeEvaluationLog(gemara.Actor{
 				Name:    "test-tool",
 				Uri:     "https://github.com/test/tool",
@@ -219,7 +212,7 @@ func TestFromEvaluationLog(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sarifBytes, err := ToSARIF(tt.evaluationLog, tt.artifactURI, tt.catalog)
+			sarifBytes, err := ToSARIF(tt.evaluationLog, tt.opts...)
 			require.NoError(t, err)
 
 			sarif := toSARIFReport(t, sarifBytes)
@@ -281,7 +274,7 @@ func TestToSARIF_ResultLevels(t *testing.T) {
 				makeAssessmentLog("REQ-1", "test", tt.result, "", nil),
 			})
 
-			sarifBytes, err := ToSARIF(evaluationLog, "", nil)
+			sarifBytes, err := ToSARIF(evaluationLog)
 			require.NoError(t, err)
 
 			sarif := toSARIFReport(t, sarifBytes)

@@ -14,12 +14,6 @@ func defaultRenderConfig() Config {
 	return Config{TOC: true, LineEnding: "\n", Metadata: true}
 }
 
-func TestCatalogToMarkdown_nilCatalog(t *testing.T) {
-	_, err := CatalogToMarkdown(context.Background(), nil, defaultRenderConfig())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "nil")
-}
-
 func TestAnchor(t *testing.T) {
 	assert.Equal(t, "section", Anchor(""))
 	assert.Equal(t, "hello-world", Anchor("Hello World"))
@@ -46,7 +40,7 @@ func TestCatalogToMarkdown_crlf(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_metadataBranches(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id:            "mid",
 			Type:          gemara.ControlCatalogArtifact,
@@ -81,7 +75,7 @@ func TestCatalogToMarkdown_metadataBranches(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_retiredAssessmentRequirement(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id: "x", Type: gemara.ControlCatalogArtifact, Description: "d", Author: gemara.Actor{Name: "a", Type: gemara.Human},
 		},
@@ -116,7 +110,7 @@ func TestCatalogToMarkdown_retiredAssessmentRequirement(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_guidelinesAndThreatsTables(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id: "x", Type: gemara.ControlCatalogArtifact, Description: "d", Author: gemara.Actor{Name: "a", Type: gemara.Human},
 		},
@@ -157,7 +151,7 @@ func TestCatalogToMarkdown_guidelinesAndThreatsTables(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_applicabilityMatrixImplicitColumns(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id:          "m",
 			Type:        gemara.ControlCatalogArtifact,
@@ -190,7 +184,7 @@ func TestCatalogToMarkdown_applicabilityMatrixImplicitColumns(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_applicabilityMatrix_noNewlineInTableRow(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id: "m", Type: gemara.ControlCatalogArtifact, Description: "d", Author: gemara.Actor{Name: "a", Type: gemara.Human},
 			ApplicabilityGroups: []gemara.Group{{Id: "L1", Title: "Level 1"}},
@@ -220,7 +214,7 @@ func TestCatalogToMarkdown_applicabilityMatrix_noNewlineInTableRow(t *testing.T)
 }
 
 func TestCatalogToMarkdown_ungroupedBucket(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id: "c", Type: gemara.ControlCatalogArtifact, GemaraVersion: "1.0", Description: "d",
 			Author: gemara.Actor{Name: "a", Type: gemara.Human},
@@ -242,7 +236,7 @@ func TestCatalogToMarkdown_ungroupedBucket(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_inlineLexiconPipeline(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id: "m", Type: gemara.ControlCatalogArtifact, Description: "d", Author: gemara.Actor{Name: "a", Type: gemara.Human},
 		},
@@ -264,7 +258,7 @@ func TestCatalogToMarkdown_inlineLexiconPipeline(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_lexiconAutolinkFromFile(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id: "m", Type: gemara.ControlCatalogArtifact, Description: "d", Author: gemara.Actor{Name: "a", Type: gemara.Human},
 			Lexicon: &gemara.ArtifactMapping{ReferenceId: "lex"},
@@ -284,7 +278,7 @@ func TestCatalogToMarkdown_lexiconAutolinkFromFile(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_lexiconResolveError(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id: "m", Type: gemara.ControlCatalogArtifact, Description: "d", Author: gemara.Actor{Name: "a", Type: gemara.Human},
 			Lexicon: &gemara.ArtifactMapping{ReferenceId: "nope"},
@@ -299,7 +293,7 @@ func TestCatalogToMarkdown_lexiconResolveError(t *testing.T) {
 }
 
 func TestCatalogToMarkdown_inlineLexiconNormalizeError(t *testing.T) {
-	catalog := &gemara.ControlCatalog{
+	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id: "m", Type: gemara.ControlCatalogArtifact, Description: "d", Author: gemara.Actor{Name: "a", Type: gemara.Human},
 		},
@@ -318,9 +312,9 @@ func TestMarkdownFuncMap_joinArtifactEntriesEmpty(t *testing.T) {
 	assert.Equal(t, "", join([]gemara.ArtifactMapping{}, " · "))
 }
 
-func minimalCatalog(t *testing.T) *gemara.ControlCatalog {
+func minimalCatalog(t *testing.T) gemara.ControlCatalog {
 	t.Helper()
-	return &gemara.ControlCatalog{
+	return gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
 			Id: "id1", Type: gemara.ControlCatalogArtifact, Version: "v1", Description: "One line.",
 			Author: gemara.Actor{Name: "Author", Type: gemara.Human},

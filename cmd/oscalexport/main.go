@@ -14,7 +14,7 @@ func main() {
 
 	if len(args) < 2 {
 		fmt.Println("Usage: oscal_exporter <subcommand> <path> [flags]")
-		fmt.Println("Available subcommands: guidance, catalog")
+		fmt.Println("Available subcommands: guidance, catalog, evaluation")
 		os.Exit(1)
 	}
 
@@ -27,6 +27,8 @@ func main() {
 		err = export.Guidance(path, subcommandArgs)
 	case "catalog":
 		err = export.Catalog(path, subcommandArgs)
+	case "evaluation":
+		err = export.Evaluation(path, subcommandArgs)
 	default:
 		fmt.Printf("Unknown subcommand: %s\n", subcommand)
 		os.Exit(1)
