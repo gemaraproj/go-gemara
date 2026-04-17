@@ -142,7 +142,7 @@ func TestEvaluationLogToOSCALAssessmentResults_AssessmentLogEntries(t *testing.T
 	assert.Contains(t, result.AssessmentLog.Entries[1].Title, "REQ-2")
 }
 
-func TestEvaluationLogToOSCALAssessmentResults_TargetComponent(t *testing.T) {
+func TestEvaluationLogToOSCALAssessmentResults_TargetInventoryItem(t *testing.T) {
 	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
 		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
 	})
@@ -153,12 +153,15 @@ func TestEvaluationLogToOSCALAssessmentResults_TargetComponent(t *testing.T) {
 
 	result := ar.Results[0]
 	require.NotNil(t, result.LocalDefinitions)
-	require.NotNil(t, result.LocalDefinitions.Components)
-	require.Len(t, *result.LocalDefinitions.Components, 1)
+	require.NotNil(t, result.LocalDefinitions.InventoryItems)
+	require.Len(t, *result.LocalDefinitions.InventoryItems, 1)
 
-	comp := (*result.LocalDefinitions.Components)[0]
-	assert.Equal(t, "Production System", comp.Title)
-	assert.Equal(t, "The prod system", comp.Description)
+	item := (*result.LocalDefinitions.InventoryItems)[0]
+	assert.Equal(t, "The prod system", item.Description)
+	require.NotNil(t, item.Props)
+	props := *item.Props
+	assert.Equal(t, "my-sys", props[0].Value)
+	assert.Equal(t, "Production System", props[1].Value)
 }
 
 func TestEvaluationLogConverter_ToOSCALAssessmentResults(t *testing.T) {
@@ -171,6 +174,43 @@ func TestEvaluationLogConverter_ToOSCALAssessmentResults(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, ar.Results, 1)
 	assert.Contains(t, ar.Results[0].Title, "eval-converter")
+}
+
+func TestEvaluationLogToOSCALAssessmentResults_BackMatter(t *testing.T) {
+	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Metadata.MappingReferences = []gemara.MappingReference{
+		{
+			Id:          "CNSC",
+			Title:       "Cloud Native Security Controls",
+			Version:     "1.0.0",
+			Description: "CNCF security controls catalog",
+			Url:         "https://example.com/cnsc",
+		},
+	}
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log)
+	require.NoError(t, err)
+
+	require.NotNil(t, ar.BackMatter)
+	require.NotNil(t, ar.BackMatter.Resources)
+	require.Len(t, *ar.BackMatter.Resources, 1)
+
+	resource := (*ar.BackMatter.Resources)[0]
+	assert.Equal(t, "Cloud Native Security Controls", resource.Title)
+	assert.NotEmpty(t, resource.UUID)
+	assertValidJSON(t, ar)
+}
+
+func TestEvaluationLogToOSCALAssessmentResults_NoBackMatterWhenEmpty(t *testing.T) {
+	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log)
+	require.NoError(t, err)
+	assert.Nil(t, ar.BackMatter)
 }
 
 func TestMapActorType(t *testing.T) {

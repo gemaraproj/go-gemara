@@ -32,10 +32,11 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 	}
 
 	return oscal.AssessmentResults{
-		UUID:     uuid.NewUUID(),
-		Metadata: metadata,
-		ImportAp: oscal.ImportAp{Href: options.importApHref},
-		Results:  []oscal.Result{result},
+		UUID:       uuid.NewUUID(),
+		Metadata:   metadata,
+		ImportAp:   oscal.ImportAp{Href: options.importApHref},
+		Results:    []oscal.Result{result},
+		BackMatter: mappingToBackMatter(log.Metadata.MappingReferences),
 	}, nil
 }
 
@@ -82,9 +83,9 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 
 	title := fmt.Sprintf("Evaluation: %s", log.Metadata.Id)
 
-	targetComponent := buildTargetComponent(log.Target)
+	targetItem := buildTargetInventoryItem(log.Target)
 	localDefs := oscal.LocalDefinitions{
-		Components: &[]oscal.SystemComponent{targetComponent},
+		InventoryItems: &[]oscal.InventoryItem{targetItem},
 	}
 
 	result := oscal.Result{
@@ -98,7 +99,7 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 		LocalDefinitions: &localDefs,
 		Props: &[]oscal.Property{
 			{
-				Name:  "result",
+				Name:  "aggregate-result",
 				Value: log.Result.String(),
 				Ns:    oscalUtils.GemaraNamespace,
 			},
@@ -277,24 +278,24 @@ func buildLogEntry(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, p
 	return entry
 }
 
-func buildTargetComponent(target gemara.Resource) oscal.SystemComponent {
+func buildTargetInventoryItem(target gemara.Resource) oscal.InventoryItem {
 	description := target.Description
 	if description == "" {
 		description = target.Name
 	}
 
-	return oscal.SystemComponent{
+	return oscal.InventoryItem{
 		UUID:        uuid.NewUUID(),
-		Type:        "this-system",
-		Title:       target.Name,
 		Description: description,
-		Status: oscal.SystemComponentStatus{
-			State: "operational",
-		},
 		Props: &[]oscal.Property{
 			{
 				Name:  "gemara-resource-id",
 				Value: target.Id,
+				Ns:    oscalUtils.GemaraNamespace,
+			},
+			{
+				Name:  "name",
+				Value: target.Name,
 				Ns:    oscalUtils.GemaraNamespace,
 			},
 		},
