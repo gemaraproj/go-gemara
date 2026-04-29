@@ -189,7 +189,7 @@ func main() {
         // ... populate evaluation log ...
     }
 
-    sarifBytes, err := gemaraconv.EvaluationLog(evaluationLog).ToSARIF("file:///path/to/artifact.md", catalog)
+    sarifBytes, err := gemaraconv.EvaluationLog(evaluationLog).ToSARIF("path/to/artifact.md", catalog)
     if err != nil {
         panic(err)
     }

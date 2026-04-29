@@ -15,12 +15,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testDataFileURL returns a file:// URI to ../test-data/<name> resolved to an absolute path.
-func testDataFileURL(t *testing.T, name string) string {
+// testDataFilePath returns the absolute path to ../test-data/<name>.
+func testDataFilePath(t *testing.T, name string) string {
 	t.Helper()
 	abs, err := filepath.Abs(filepath.Join("..", "test-data", name))
 	require.NoError(t, err)
-	return "file://" + filepath.ToSlash(abs)
+	return abs
 }
 
 func loadControlCatalogFromTestData(t *testing.T, name string) *gemara.ControlCatalog {
@@ -345,7 +345,7 @@ func TestCatalogToMarkdown_lexiconAutolink(t *testing.T) {
 			GemaraVersion: "1.0",
 			Lexicon:       &gemara.ArtifactMapping{ReferenceId: "lex"},
 			MappingReferences: []gemara.MappingReference{
-				{Id: "lex", Title: "Lex", Version: "1", Url: testDataFileURL(t, "lexicon_good.yaml")},
+				{Id: "lex", Title: "Lex", Version: "1", Url: testDataFilePath(t, "lexicon_good.yaml")},
 			},
 		},
 		Title:  "Lex test",
@@ -389,7 +389,7 @@ func TestCatalogToMarkdown_lexiconAutolink_offByDefault(t *testing.T) {
 			Author:      gemara.Actor{Name: "a", Type: gemara.Human},
 			Lexicon:     &gemara.ArtifactMapping{ReferenceId: "lex"},
 			MappingReferences: []gemara.MappingReference{
-				{Id: "lex", Title: "L", Version: "1", Url: testDataFileURL(t, "lexicon_good.yaml")},
+				{Id: "lex", Title: "L", Version: "1", Url: testDataFilePath(t, "lexicon_good.yaml")},
 			},
 		},
 		Title:  "x",

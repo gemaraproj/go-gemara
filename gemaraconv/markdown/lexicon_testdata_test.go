@@ -22,8 +22,3 @@ func readLexiconTestdata(t *testing.T, name string) []byte {
 	require.NoError(t, err)
 	return fileBytes
 }
-
-func lexiconFileURL(t *testing.T, name string) string {
-	t.Helper()
-	return "file://" + filepath.ToSlash(lexiconTestdataAbsPath(t, name))
-}

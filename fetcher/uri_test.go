@@ -52,3 +52,40 @@ func TestURI_UnsupportedScheme(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported URI scheme")
 }
+
+func TestURI_BarePath_Absolute(t *testing.T) {
+	tmp := t.TempDir()
+	p := filepath.Join(tmp, "data.yaml")
+	require.NoError(t, os.WriteFile(p, []byte("ok: true\n"), 0600))
+
+	f := &URI{}
+	rc, err := f.Fetch(context.Background(), p)
+	require.NoError(t, err)
+	defer rc.Close() //nolint:errcheck
+
+	data, err := io.ReadAll(rc)
+	require.NoError(t, err)
+	assert.Equal(t, "ok: true\n", string(data))
+}
+
+func TestURI_BarePath_Relative(t *testing.T) {
+	tmp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "data.yaml"), []byte("ok: true\n"), 0600))
+	t.Chdir(tmp)
+
+	f := &URI{}
+	rc, err := f.Fetch(context.Background(), "./data.yaml")
+	require.NoError(t, err)
+	defer rc.Close() //nolint:errcheck
+
+	data, err := io.ReadAll(rc)
+	require.NoError(t, err)
+	assert.Equal(t, "ok: true\n", string(data))
+}
+
+func TestURI_TypoScheme(t *testing.T) {
+	f := &URI{}
+	_, err := f.Fetch(context.Background(), "htps://example.com/file.yaml")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported URI scheme")
+}

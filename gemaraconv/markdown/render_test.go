@@ -269,7 +269,7 @@ func TestCatalogToMarkdown_lexiconAutolinkFromFile(t *testing.T) {
 			Id: "m", Type: gemara.ControlCatalogArtifact, Description: "d", Author: gemara.Actor{Name: "a", Type: gemara.Human},
 			Lexicon: &gemara.ArtifactMapping{ReferenceId: "lex"},
 			MappingReferences: []gemara.MappingReference{
-				{Id: "lex", Title: "L", Version: "1", Url: lexiconFileURL(t, "lexicon_good.yaml")},
+				{Id: "lex", Title: "L", Version: "1", Url: lexiconTestdataAbsPath(t, "lexicon_good.yaml")},
 			},
 		},
 		Title:  "Lex",

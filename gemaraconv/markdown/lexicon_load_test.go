@@ -39,7 +39,7 @@ func TestParseLexiconYAML_rejects(t *testing.T) {
 }
 
 func TestLoadLexiconFromURI_file(t *testing.T) {
-	entries, err := loadLexiconFromURI(context.Background(), lexiconFileURL(t, "lexicon_good.yaml"))
+	entries, err := loadLexiconFromURI(context.Background(), lexiconTestdataAbsPath(t, "lexicon_good.yaml"))
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
 }
