@@ -42,6 +42,21 @@ func (c *ControlCatalogConverter) ToMarkdown(ctx context.Context, opts ...Markdo
 	return CatalogToMarkdown(ctx, c.catalog, opts...)
 }
 
+// ThreatCatalogConverter defines a converter for converting ThreatCatalog.
+type ThreatCatalogConverter struct {
+	catalog *gemara.ThreatCatalog
+}
+
+// ThreatCatalog creates a new ThreatCatalogConverter struct.
+func ThreatCatalog(catalog *gemara.ThreatCatalog) *ThreatCatalogConverter {
+	return &ThreatCatalogConverter{catalog: catalog}
+}
+
+// ToMarkdown converts the ThreatCatalog to Markdown format.
+func (c *ThreatCatalogConverter) ToMarkdown(ctx context.Context, opts ...MarkdownOption) ([]byte, error) {
+	return ThreatCatalogToMarkdown(ctx, c.catalog, opts...)
+}
+
 // GuidanceCatalogConverter defines a converter for converting GuidanceCatalog.
 type GuidanceCatalogConverter struct {
 	guidance *gemara.GuidanceCatalog

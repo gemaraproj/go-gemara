@@ -15,13 +15,8 @@ import (
 //go:embed templates/*.tmpl
 var templatesFS embed.FS
 
-// CatalogToMarkdown renders a ControlCatalog as Markdown using embedded templates.
-// Only controls whose state is LifecycleActive are included (TOC, body, and summary counts).
-func CatalogToMarkdown(ctx context.Context, catalog *gemara.ControlCatalog, cfg Config) ([]byte, error) {
-	if catalog == nil {
-		return nil, fmt.Errorf("catalog is nil")
-	}
-
+// renderMarkdown is the shared rendering pipeline: resolve lexicon, build a view, execute a named template.
+func renderMarkdown(ctx context.Context, meta gemara.Metadata, cfg Config, templateName string, buildView func([]markdownLexiconGlossaryEntry) any) ([]byte, error) {
 	lineEnding := cfg.LineEnding
 	if lineEnding == "" {
 		lineEnding = "\n"
@@ -30,8 +25,8 @@ func CatalogToMarkdown(ctx context.Context, catalog *gemara.ControlCatalog, cfg 
 
 	var lexEntries []lexiconEntry
 	switch {
-	case cfg.LexiconAutolink && catalog.Metadata.Lexicon != nil:
-		lexiconURI, err := resolveLexiconURL(catalog.Metadata)
+	case cfg.LexiconAutolink && meta.Lexicon != nil:
+		lexiconURI, err := resolveLexiconURL(meta)
 		if err != nil {
 			return nil, fmt.Errorf("lexicon: resolve URL: %w", err)
 		}
@@ -49,7 +44,7 @@ func CatalogToMarkdown(ctx context.Context, catalog *gemara.ControlCatalog, cfg 
 	}
 
 	lexGlossary := buildLexiconGlossaryView(lexEntries)
-	view := buildMarkdownCatalogView(catalog, cfg, lexGlossary)
+	view := buildView(lexGlossary)
 
 	linker := newLexiconLinker(lexEntries)
 	t, err := template.New("").Funcs(markdownFuncMap(linker)).ParseFS(templatesFS, "templates/*.tmpl")
@@ -58,7 +53,7 @@ func CatalogToMarkdown(ctx context.Context, catalog *gemara.ControlCatalog, cfg 
 	}
 
 	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "catalog", view); err != nil {
+	if err := t.ExecuteTemplate(&buf, templateName, view); err != nil {
 		return nil, fmt.Errorf("execute markdown template: %w", err)
 	}
 
@@ -68,6 +63,27 @@ func CatalogToMarkdown(ctx context.Context, catalog *gemara.ControlCatalog, cfg 
 		out = []byte(strings.ReplaceAll(string(out), "\n", lineEnding))
 	}
 	return out, nil
+}
+
+// CatalogToMarkdown renders a ControlCatalog as Markdown using embedded templates.
+// Only controls whose state is LifecycleActive are included (TOC, body, and summary counts).
+func CatalogToMarkdown(ctx context.Context, catalog *gemara.ControlCatalog, cfg Config) ([]byte, error) {
+	if catalog == nil {
+		return nil, fmt.Errorf("catalog is nil")
+	}
+	return renderMarkdown(ctx, catalog.Metadata, cfg, "catalog", func(lg []markdownLexiconGlossaryEntry) any {
+		return buildMarkdownCatalogView(catalog, cfg, lg)
+	})
+}
+
+// ThreatCatalogToMarkdown renders a ThreatCatalog as Markdown using embedded templates.
+func ThreatCatalogToMarkdown(ctx context.Context, catalog *gemara.ThreatCatalog, cfg Config) ([]byte, error) {
+	if catalog == nil {
+		return nil, fmt.Errorf("catalog is nil")
+	}
+	return renderMarkdown(ctx, catalog.Metadata, cfg, "threat_catalog", func(lg []markdownLexiconGlossaryEntry) any {
+		return buildMarkdownThreatCatalogView(catalog, cfg, lg)
+	})
 }
 
 // collapseExtraNewlines replaces every run of three or more consecutive newlines

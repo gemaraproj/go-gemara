@@ -31,3 +31,22 @@ func CatalogToMarkdown(ctx context.Context, catalog *gemara.ControlCatalog, opts
 	}
 	return markdown.CatalogToMarkdown(ctx, catalog, cfg)
 }
+
+// ThreatCatalogToMarkdown renders a ThreatCatalog as Markdown using embedded templates.
+func ThreatCatalogToMarkdown(ctx context.Context, catalog *gemara.ThreatCatalog, opts ...MarkdownOption) ([]byte, error) {
+	if catalog == nil {
+		return nil, fmt.Errorf("catalog is nil")
+	}
+
+	o := defaultMarkdownOpts()
+	o.apply(opts...)
+
+	cfg := markdown.Config{
+		TOC:             o.toc,
+		LineEnding:      o.lineEnding,
+		Metadata:        o.metadata,
+		LexiconAutolink: o.lexiconAutolink,
+		InlineLexicon:   o.inlineLexicon,
+	}
+	return markdown.ThreatCatalogToMarkdown(ctx, catalog, cfg)
+}
