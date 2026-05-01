@@ -55,7 +55,8 @@ func TestHTTP_CancelledContext(t *testing.T) {
 
 func TestHTTP_DefaultClient(t *testing.T) {
 	f := &HTTP{}
-	assert.Equal(t, http.DefaultClient, f.httpClient())
+	c := f.httpClient()
+	assert.Equal(t, DefaultHTTPTimeout, c.Timeout)
 }
 
 func TestHTTP_CustomClient(t *testing.T) {
