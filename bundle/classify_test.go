@@ -100,7 +100,7 @@ func TestClassify_WithMultipleImports(t *testing.T) {
 	assert.Len(t, cb.Imports.GuidanceCatalogs, 1)
 }
 
-func TestClassify_MultipleLeafFiles(t *testing.T) {
+func TestClassify_MultipleLeafFiles_DifferentTypes(t *testing.T) {
 	b := &Bundle{
 		Files: []File{
 			{Name: "policy.yaml", Type: "Policy", Data: policyYAML},
@@ -112,6 +112,28 @@ func TestClassify_MultipleLeafFiles(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cb.Policy, "policy should be classified as leaf")
 	require.NotNil(t, cb.ControlCatalog, "catalog should be classified as leaf")
+}
+
+func TestClassify_DuplicateLeafType(t *testing.T) {
+	catalogYAML2 := []byte(`metadata:
+  id: cat-2
+  type: ControlCatalog
+  gemara-version: "1.0.0"
+  description: second catalog
+  author: {id: a, type: Human}
+title: C2
+controls: []
+`)
+	b := &Bundle{
+		Files: []File{
+			{Name: "catalog1.yaml", Type: "ControlCatalog", Data: catalogYAML},
+			{Name: "catalog2.yaml", Type: "ControlCatalog", Data: catalogYAML2},
+		},
+	}
+
+	_, err := b.Classify()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expected at most 1")
 }
 
 func TestClassify_EmptyBundle(t *testing.T) {

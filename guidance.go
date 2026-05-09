@@ -84,7 +84,12 @@ var guidanceAccessor = catalogAccessor[GuidanceCatalog, Guideline]{
 // the pool, returning a new SGuidanceCatalog with fresh caches. Delegates
 // to ResolveGuidanceCatalog.
 func (g *SGuidanceCatalog) Resolve(pool []GuidanceCatalog) (*SGuidanceCatalog, error) {
-	resolved, err := ResolveGuidanceCatalog(g.GuidanceCatalog, pool)
+	return g.ResolveWithOpts(pool, ResolveCatalogOpts{})
+}
+
+// ResolveWithOpts flattens extends like Resolve but honors ResolveCatalogOpts.
+func (g *SGuidanceCatalog) ResolveWithOpts(pool []GuidanceCatalog, opts ResolveCatalogOpts) (*SGuidanceCatalog, error) {
+	resolved, err := ResolveGuidanceCatalogWithOpts(g.GuidanceCatalog, pool, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +100,12 @@ func (g *SGuidanceCatalog) Resolve(pool []GuidanceCatalog) (*SGuidanceCatalog, e
 // chain against the pool, returning a new GuidanceCatalog with all inherited
 // guidelines merged.
 func ResolveGuidanceCatalog(primary GuidanceCatalog, pool []GuidanceCatalog) (*GuidanceCatalog, error) {
+	return ResolveGuidanceCatalogWithOpts(primary, pool, ResolveCatalogOpts{})
+}
+
+// ResolveGuidanceCatalogWithOpts flattens extends like ResolveGuidanceCatalog
+// but accepts catalog resolution options (strict extends).
+func ResolveGuidanceCatalogWithOpts(primary GuidanceCatalog, pool []GuidanceCatalog, opts ResolveCatalogOpts) (*GuidanceCatalog, error) {
 	if primary.Metadata.Id == "" {
 		return nil, fmt.Errorf("primary guidance catalog has no metadata.id")
 	}
@@ -104,14 +115,20 @@ func ResolveGuidanceCatalog(primary GuidanceCatalog, pool []GuidanceCatalog) (*G
 		return nil, fmt.Errorf("building guidance pool: %w", err)
 	}
 
+	guidelines, unresolvedExt := flattenEntriesWithUnresolved(primary, poolByID, guidanceAccessor)
+	if opts.StrictExtends && len(unresolvedExt) > 0 {
+		return nil, formatUnresolvedExtends("guidance catalog", primary.Metadata.Id, unresolvedExt)
+	}
+
 	resolved := GuidanceCatalog{
 		Title:        primary.Title,
 		Metadata:     deepCopyMetadata(primary.Metadata),
 		Groups:       deepCopyGroups(primary.Groups),
+		Imports:      copyMultiEntryMappings(primary.Imports),
 		GuidanceType: primary.GuidanceType,
 		FrontMatter:  primary.FrontMatter,
 		Exemptions:   deepCopyExemptions(primary.Exemptions),
-		Guidelines:   flattenEntries(primary, poolByID, guidanceAccessor),
+		Guidelines:   guidelines,
 	}
 	return &resolved, nil
 }

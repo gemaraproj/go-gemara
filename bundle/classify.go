@@ -36,6 +36,16 @@ func (b *Bundle) Classify() (*ClassifiedBundle, error) {
 		return nil, fmt.Errorf("classifying leaf artifacts: %w", err)
 	}
 
+	if len(leafSet.Policies) > 1 {
+		return nil, fmt.Errorf("bundle contains %d policy artifacts, expected at most 1", len(leafSet.Policies))
+	}
+	if len(leafSet.ControlCatalogs) > 1 {
+		return nil, fmt.Errorf("bundle contains %d control catalog artifacts, expected at most 1", len(leafSet.ControlCatalogs))
+	}
+	if len(leafSet.GuidanceCatalogs) > 1 {
+		return nil, fmt.Errorf("bundle contains %d guidance catalog artifacts, expected at most 1", len(leafSet.GuidanceCatalogs))
+	}
+
 	cb := &ClassifiedBundle{}
 	if len(leafSet.Policies) > 0 {
 		cb.Policy = &leafSet.Policies[0]

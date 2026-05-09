@@ -63,6 +63,8 @@ func TestResolveEffectivePolicy_SingleCatalog(t *testing.T) {
 	assert.Equal(t, "cat-1", ep.ControlCatalogs[0].Metadata.Id)
 	assert.Len(t, ep.ControlCatalogs[0].Controls, 1)
 	assert.Empty(t, ep.GuidanceCatalogs)
+	assert.Empty(t, ep.UnresolvedCatalogs)
+	assert.Empty(t, ep.UnresolvedGuidance)
 }
 
 func TestResolveEffectivePolicy_SingleGuidance(t *testing.T) {
@@ -115,6 +117,17 @@ func TestResolveEffectivePolicy_PartialResolution(t *testing.T) {
 	ep, err := ResolveEffectivePolicy(pol, []ControlCatalog{cat}, nil)
 	require.NoError(t, err)
 	assert.Len(t, ep.ControlCatalogs, 1, "should resolve the available catalog and skip the missing one")
+	assert.Equal(t, []string{"missing-cat"}, ep.UnresolvedCatalogs)
+}
+
+func TestResolveEffectivePolicy_UnresolvedGuidance(t *testing.T) {
+	pol := testPolicy("pol-1", nil, []string{"gc-1", "missing-gc"})
+	gc := testGuidanceCatalog("gc-1", testGuideline("g1", "Guideline"))
+
+	ep, err := ResolveEffectivePolicy(pol, nil, []GuidanceCatalog{gc})
+	require.NoError(t, err)
+	assert.Len(t, ep.GuidanceCatalogs, 1)
+	assert.Equal(t, []string{"missing-gc"}, ep.UnresolvedGuidance)
 }
 
 func TestResolveEffectivePolicy_NoImports(t *testing.T) {
@@ -237,6 +250,50 @@ func TestResolveEffectivePolicy_ExtendsAndExclusions(t *testing.T) {
 	assert.Len(t, ep.ControlCatalogs[0].Controls, 2, "c1 + b1 (b2 excluded)")
 	assert.Equal(t, "c1", ep.ControlCatalogs[0].Controls[0].Id)
 	assert.Equal(t, "b1", ep.ControlCatalogs[0].Controls[1].Id)
+}
+
+func TestResolveEffectivePolicy_DuplicateCatalogImportRef(t *testing.T) {
+	pol := Policy{
+		Title: "Dup Import",
+		Metadata: Metadata{
+			Id: "pol-1",
+			MappingReferences: []MappingReference{
+				{Id: "cat-1", Title: "Cat", Version: "1.0"},
+			},
+		},
+		Imports: Imports{
+			Catalogs: []CatalogImport{
+				{ReferenceId: "cat-1"},
+				{ReferenceId: "cat-1", Exclusions: []string{"c1"}},
+			},
+		},
+	}
+
+	_, err := ResolveEffectivePolicy(pol, nil, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate catalog import reference-id")
+}
+
+func TestResolveEffectivePolicy_DuplicateGuidanceImportRef(t *testing.T) {
+	pol := Policy{
+		Title: "Dup Guidance Import",
+		Metadata: Metadata{
+			Id: "pol-1",
+			MappingReferences: []MappingReference{
+				{Id: "gc-1", Title: "GC", Version: "1.0"},
+			},
+		},
+		Imports: Imports{
+			Guidance: []GuidanceImport{
+				{ReferenceId: "gc-1"},
+				{ReferenceId: "gc-1"},
+			},
+		},
+	}
+
+	_, err := ResolveEffectivePolicy(pol, nil, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate guidance import reference-id")
 }
 
 func TestResolveEffectivePolicy_DuplicateCatalogPoolIDs(t *testing.T) {
@@ -403,13 +460,107 @@ func TestBuildRefIndex(t *testing.T) {
 		{Id: "ref-1", Title: "Ref 1", Version: "1.0"},
 		{Id: "ref-2", Title: "Ref 2", Version: "2.0"},
 	}
-	idx := buildRefIndex(refs)
+	idx, err := buildRefIndex(refs)
+	require.NoError(t, err)
 	assert.Len(t, idx, 2)
 	assert.Equal(t, "ref-1", idx["ref-1"])
 	assert.Equal(t, "ref-2", idx["ref-2"])
 }
 
 func TestBuildRefIndex_Empty(t *testing.T) {
-	idx := buildRefIndex(nil)
+	idx, err := buildRefIndex(nil)
+	require.NoError(t, err)
 	assert.Empty(t, idx)
+}
+
+func TestBuildRefIndex_DuplicateID(t *testing.T) {
+	refs := []MappingReference{
+		{Id: "dup", Title: "A", Version: "1.0"},
+		{Id: "dup", Title: "B", Version: "2.0"},
+	}
+	_, err := buildRefIndex(refs)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate mapping-reference")
+}
+
+func TestResolveEffectivePolicy_DuplicateMappingReference(t *testing.T) {
+	pol := Policy{
+		Title: "Dup mapping ref",
+		Metadata: Metadata{
+			Id: "pol-1",
+			MappingReferences: []MappingReference{
+				{Id: "cat-1", Title: "A", Version: "1.0"},
+				{Id: "cat-1", Title: "B", Version: "1.0"},
+			},
+		},
+		Imports: Imports{
+			Catalogs: []CatalogImport{{ReferenceId: "cat-1"}},
+		},
+	}
+	cat := testCatalog("cat-1", testControl("c1", "C"))
+
+	_, err := ResolveEffectivePolicy(pol, []ControlCatalog{cat}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate mapping-reference")
+}
+
+func TestResolveEffectivePolicy_StrictImports_RejectsPartial(t *testing.T) {
+	pol := testPolicy("pol-1", []string{"cat-1", "missing-cat"}, nil)
+	cat := testCatalog("cat-1", testControl("c1", "Control"))
+
+	_, err := ResolveEffectivePolicyWithOpts(pol, []ControlCatalog{cat}, nil,
+		ResolveEffectivePolicyOpts{StrictImports: true})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "strict imports")
+}
+
+func TestResolveEffectivePolicy_StrictImports_AllResolved(t *testing.T) {
+	pol := testPolicy("pol-1", []string{"cat-1"}, nil)
+	cat := testCatalog("cat-1", testControl("c1", "Control"))
+
+	ep, err := ResolveEffectivePolicyWithOpts(pol, []ControlCatalog{cat}, nil,
+		ResolveEffectivePolicyOpts{StrictImports: true})
+	require.NoError(t, err)
+	require.Len(t, ep.ControlCatalogs, 1)
+}
+
+func TestResolveEffectivePolicy_StrictImports_NoImportsDeclared(t *testing.T) {
+	pol := Policy{
+		Title:    "No imports",
+		Metadata: Metadata{Id: "pol-empty"},
+	}
+
+	ep, err := ResolveEffectivePolicyWithOpts(pol, nil, nil, ResolveEffectivePolicyOpts{StrictImports: true})
+	require.NoError(t, err)
+	assert.Empty(t, ep.ControlCatalogs)
+}
+
+func TestResolveEffectivePolicy_StrictExtends_MissingBase(t *testing.T) {
+	child := ControlCatalog{
+		Title:    "Child",
+		Metadata: Metadata{Id: "child"},
+		Controls: []Control{testControl("c1", "Child")},
+		Extends:  []ArtifactMapping{{ReferenceId: "missing-base"}},
+	}
+	pol := testPolicy("pol-1", []string{"child"}, nil)
+
+	ep, err := ResolveEffectivePolicy(pol, []ControlCatalog{child}, nil)
+	require.NoError(t, err)
+	require.Len(t, ep.ControlCatalogs, 1)
+	assert.Len(t, ep.ControlCatalogs[0].Controls, 1)
+
+	_, err = ResolveEffectivePolicyWithOpts(pol, []ControlCatalog{child}, nil,
+		ResolveEffectivePolicyOpts{StrictExtends: true})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unresolved extends")
+}
+
+func TestSPolicy_ResolveWithOpts_StrictImports(t *testing.T) {
+	pol := testPolicy("pol-1", []string{"cat-1"}, nil)
+	cat := testCatalog("cat-1", testControl("c1", "Control"))
+
+	ep, err := pol.Sugar().ResolveWithOpts([]ControlCatalog{cat}, nil,
+		ResolveEffectivePolicyOpts{StrictImports: true})
+	require.NoError(t, err)
+	assert.Len(t, ep.ControlCatalogIDs(), 1)
 }

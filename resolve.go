@@ -2,12 +2,23 @@
 
 package gemara
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // ResolvableCatalog is the type constraint for artifact types that support
 // extends-based resolution.
 type ResolvableCatalog interface {
 	ControlCatalog | GuidanceCatalog
+}
+
+// ResolveCatalogOpts configures extends flattening when resolving a catalog
+// against a pool.
+type ResolveCatalogOpts struct {
+	// StrictExtends causes resolution to fail when any extends reference-id is
+	// missing from the pool. When false, missing targets are skipped (legacy).
+	StrictExtends bool
 }
 
 // catalogAccessor provides field-level access to a catalog's entries so the
@@ -42,22 +53,32 @@ func poolIndex[C ResolvableCatalog](pool []C, id func(C) string, typeName string
 // flattenEntries merges entries from the primary catalog with entries from
 // all catalogs in its transitive extends chain.
 func flattenEntries[C ResolvableCatalog, E any](primary C, pool map[string]C, acc catalogAccessor[C, E]) []E {
+	entries, _ := flattenEntriesWithUnresolved(primary, pool, acc)
+	return entries
+}
+
+// flattenEntriesWithUnresolved merges entries like flattenEntries and returns
+// reference-ids from extends that were not found in the pool (non-empty ids only).
+func flattenEntriesWithUnresolved[C ResolvableCatalog, E any](primary C, pool map[string]C, acc catalogAccessor[C, E]) ([]E, []string) {
 	entries := acc.deepCopy(acc.entries(primary))
 
 	exts := acc.extends(primary)
 	if len(exts) == 0 {
-		return entries
+		return entries, nil
 	}
 
 	seen := map[string]bool{acc.metadataID(primary): true}
-	entries = append(entries, acc.walkExtends(exts, pool, seen)...)
-	return entries
+	more, unresolved := acc.walkExtendsCollect(exts, pool, seen)
+	entries = append(entries, more...)
+	return entries, unresolved
 }
 
-// walkExtends recursively collects entries from extended catalogs in
-// declaration order, skipping already-visited IDs to break cycles.
-func (acc catalogAccessor[C, E]) walkExtends(extends []ArtifactMapping, pool map[string]C, seen map[string]bool) []E {
+// walkExtendsCollect recursively collects entries from extended catalogs in
+// declaration order, skipping already-visited IDs to break cycles. Missing
+// pool entries append ext.ReferenceId to the unresolved slice.
+func (acc catalogAccessor[C, E]) walkExtendsCollect(extends []ArtifactMapping, pool map[string]C, seen map[string]bool) ([]E, []string) {
 	var result []E
+	var unresolved []string
 	for _, ext := range extends {
 		if ext.ReferenceId == "" || seen[ext.ReferenceId] {
 			continue
@@ -66,15 +87,22 @@ func (acc catalogAccessor[C, E]) walkExtends(extends []ArtifactMapping, pool map
 
 		cat, ok := pool[ext.ReferenceId]
 		if !ok {
+			unresolved = append(unresolved, ext.ReferenceId)
 			continue
 		}
 		result = append(result, acc.deepCopy(acc.entries(cat))...)
 
 		if exts := acc.extends(cat); len(exts) > 0 {
-			result = append(result, acc.walkExtends(exts, pool, seen)...)
+			sub, miss := acc.walkExtendsCollect(exts, pool, seen)
+			result = append(result, sub...)
+			unresolved = append(unresolved, miss...)
 		}
 	}
-	return result
+	return result, unresolved
+}
+
+func formatUnresolvedExtends(kind string, catalogID string, missing []string) error {
+	return fmt.Errorf("%s %q: unresolved extends reference-ids: %s", kind, catalogID, strings.Join(missing, ", "))
 }
 
 // applyEntryExclusions removes entries whose IDs appear in the exclusion list.

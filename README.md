@@ -194,6 +194,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if cb.Policy == nil {
+		log.Fatal("bundle does not contain a policy artifact")
+	}
+
 	ep, err := cb.Policy.Sugar().Resolve(cb.Imports.ControlCatalogs, cb.Imports.GuidanceCatalogs)
 	if err != nil {
 		log.Fatal(err)

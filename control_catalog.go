@@ -119,7 +119,13 @@ var controlAccessor = catalogAccessor[ControlCatalog, Control]{
 // pool, returning a new SControlCatalog with fresh caches. Delegates to
 // ResolveControlCatalog.
 func (c *SControlCatalog) Resolve(pool []ControlCatalog) (*SControlCatalog, error) {
-	resolved, err := ResolveControlCatalog(c.ControlCatalog, pool)
+	return c.ResolveWithOpts(pool, ResolveCatalogOpts{})
+}
+
+// ResolveWithOpts flattens extends like Resolve but honors ResolveCatalogOpts
+// (e.g. StrictExtends).
+func (c *SControlCatalog) ResolveWithOpts(pool []ControlCatalog, opts ResolveCatalogOpts) (*SControlCatalog, error) {
+	resolved, err := ResolveControlCatalogWithOpts(c.ControlCatalog, pool, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -131,6 +137,12 @@ func (c *SControlCatalog) Resolve(pool []ControlCatalog) (*SControlCatalog, erro
 // controls merged. The result is a self-contained catalog with no
 // unresolved extends.
 func ResolveControlCatalog(primary ControlCatalog, pool []ControlCatalog) (*ControlCatalog, error) {
+	return ResolveControlCatalogWithOpts(primary, pool, ResolveCatalogOpts{})
+}
+
+// ResolveControlCatalogWithOpts flattens extends like ResolveControlCatalog
+// but accepts catalog resolution options (strict extends).
+func ResolveControlCatalogWithOpts(primary ControlCatalog, pool []ControlCatalog, opts ResolveCatalogOpts) (*ControlCatalog, error) {
 	if primary.Metadata.Id == "" {
 		return nil, fmt.Errorf("primary catalog has no metadata.id")
 	}
@@ -140,11 +152,17 @@ func ResolveControlCatalog(primary ControlCatalog, pool []ControlCatalog) (*Cont
 		return nil, fmt.Errorf("building catalog pool: %w", err)
 	}
 
+	controls, unresolvedExt := flattenEntriesWithUnresolved(primary, poolByID, controlAccessor)
+	if opts.StrictExtends && len(unresolvedExt) > 0 {
+		return nil, formatUnresolvedExtends("control catalog", primary.Metadata.Id, unresolvedExt)
+	}
+
 	resolved := ControlCatalog{
 		Title:    primary.Title,
 		Metadata: deepCopyMetadata(primary.Metadata),
 		Groups:   deepCopyGroups(primary.Groups),
-		Controls: flattenEntries(primary, poolByID, controlAccessor),
+		Imports:  copyMultiEntryMappings(primary.Imports),
+		Controls: controls,
 	}
 	return &resolved, nil
 }
@@ -163,7 +181,6 @@ func ApplyCatalogOverlays(catalog ControlCatalog, imp CatalogImport) *ControlCat
 	result.Groups = deepCopyGroups(catalog.Groups)
 	return &result
 }
-
 
 // applyARModifications applies assessment requirement modifications to
 // controls. Supports Add, Remove, Replace, Override, and Modify operations.

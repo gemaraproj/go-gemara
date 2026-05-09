@@ -177,6 +177,21 @@ func TestResolveControlCatalog_CycleDetection(t *testing.T) {
 	assert.Equal(t, "b1", resolved.Controls[1].Id)
 }
 
+func TestResolveControlCatalog_StrictExtends_MissingTarget(t *testing.T) {
+	child := ControlCatalog{
+		Title:    "Child",
+		Metadata: Metadata{Id: "child"},
+		Controls: []Control{testControl("c1", "Child")},
+		Extends:  []ArtifactMapping{{ReferenceId: "gone"}},
+	}
+	_, err := ResolveControlCatalog(child, []ControlCatalog{child})
+	require.NoError(t, err)
+
+	_, err = ResolveControlCatalogWithOpts(child, []ControlCatalog{child}, ResolveCatalogOpts{StrictExtends: true})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unresolved extends")
+}
+
 func TestResolveControlCatalog_PreservesMetadata(t *testing.T) {
 	cat := ControlCatalog{
 		Title:    "My Catalog",
@@ -202,6 +217,26 @@ func TestResolveControlCatalog_DeepCopy(t *testing.T) {
 	resolved.Controls[0].AssessmentRequirements[0].Text = "mutated"
 	assert.Equal(t, "requirement for c1", original.Controls[0].AssessmentRequirements[0].Text,
 		"mutating resolved catalog must not affect original")
+}
+
+func TestResolveControlCatalog_PreservesImports(t *testing.T) {
+	cat := ControlCatalog{
+		Title:    "With Imports",
+		Metadata: Metadata{Id: "cat-1"},
+		Controls: []Control{testControl("c1", "Control")},
+		Imports: []MultiEntryMapping{
+			{ReferenceId: "threat-1", Entries: []ArtifactMapping{{ReferenceId: "t1"}}},
+		},
+	}
+
+	resolved, err := ResolveControlCatalog(cat, nil)
+	require.NoError(t, err)
+	require.Len(t, resolved.Imports, 1)
+	assert.Equal(t, "threat-1", resolved.Imports[0].ReferenceId)
+
+	resolved.Imports[0].ReferenceId = "mutated"
+	assert.Equal(t, "threat-1", cat.Imports[0].ReferenceId,
+		"mutating resolved imports must not affect original")
 }
 
 // --- Layer 2: ApplyCatalogOverlays ---

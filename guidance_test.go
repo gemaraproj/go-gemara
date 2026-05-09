@@ -265,6 +265,22 @@ func TestResolveGuidanceCatalog_CycleDetection(t *testing.T) {
 	assert.Equal(t, "b1", resolved.Guidelines[1].Id)
 }
 
+func TestResolveGuidanceCatalog_StrictExtends_MissingTarget(t *testing.T) {
+	child := GuidanceCatalog{
+		Title:        "Child",
+		Metadata:     Metadata{Id: "child"},
+		GuidanceType: GuidanceBestPractice,
+		Guidelines:   []Guideline{testGuideline("g1", "Child")},
+		Extends:      []ArtifactMapping{{ReferenceId: "gone"}},
+	}
+	_, err := ResolveGuidanceCatalog(child, []GuidanceCatalog{child})
+	require.NoError(t, err)
+
+	_, err = ResolveGuidanceCatalogWithOpts(child, []GuidanceCatalog{child}, ResolveCatalogOpts{StrictExtends: true})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unresolved extends")
+}
+
 func TestResolveGuidanceCatalog_PreservesMetadata(t *testing.T) {
 	gc := GuidanceCatalog{
 		Title:        "My Guidance",
@@ -297,6 +313,27 @@ func TestResolveGuidanceCatalog_DeepCopy(t *testing.T) {
 	resolved.Guidelines[0].Recommendations[0] = "mutated"
 	assert.Equal(t, "rec1", original.Guidelines[0].Recommendations[0],
 		"mutating resolved catalog must not affect original")
+}
+
+func TestResolveGuidanceCatalog_PreservesImports(t *testing.T) {
+	gc := GuidanceCatalog{
+		Title:        "With Imports",
+		Metadata:     Metadata{Id: "gc-1"},
+		GuidanceType: GuidanceBestPractice,
+		Guidelines:   []Guideline{testGuideline("g1", "Guideline")},
+		Imports: []MultiEntryMapping{
+			{ReferenceId: "ref-1", Entries: []ArtifactMapping{{ReferenceId: "e1"}}},
+		},
+	}
+
+	resolved, err := ResolveGuidanceCatalog(gc, nil)
+	require.NoError(t, err)
+	require.Len(t, resolved.Imports, 1)
+	assert.Equal(t, "ref-1", resolved.Imports[0].ReferenceId)
+
+	resolved.Imports[0].ReferenceId = "mutated"
+	assert.Equal(t, "ref-1", gc.Imports[0].ReferenceId,
+		"mutating resolved imports must not affect original")
 }
 
 // --- Layer 2: ApplyGuidanceOverlays ---
