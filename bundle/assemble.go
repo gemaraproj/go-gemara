@@ -70,32 +70,26 @@ func parseFile(f File) (*parsedFile, error) {
 	return pf, nil
 }
 
-// Assemble parses each source file, fetches every artifact referenced in
-// their extends and imports via mapping-references URLs, then
-// recursively parses fetched artifacts for their own references until the
-// full dependency tree is resolved.
-func (a *Assembler) Assemble(ctx context.Context, m Manifest, sources ...File) (*Bundle, error) {
-	if len(sources) == 0 {
-		return nil, fmt.Errorf("at least one source file is required")
+// Assemble parses the source file, fetches every artifact referenced in
+// its extends and imports via mapping-references URLs, then recursively
+// parses fetched artifacts for their own references until the full
+// dependency tree is resolved.
+func (a *Assembler) Assemble(ctx context.Context, m Manifest, source File) (*Bundle, error) {
+	if source.Name == "" {
+		return nil, fmt.Errorf("source file is required")
 	}
 
 	seen := make(map[string]bool)
 	depMap := make(map[string][]string)
 
-	var sourceParsed []*parsedFile
-	var queue []fetchRef
-
-	for _, f := range sources {
-		pf, err := parseFile(f)
-		if err != nil {
-			return nil, err
-		}
-		sourceParsed = append(sourceParsed, pf)
-		queue = append(queue, enqueueRefs(pf, seen, depMap)...)
+	sourceParsed, err := parseFile(source)
+	if err != nil {
+		return nil, err
 	}
+	queue := enqueueRefs(sourceParsed, seen, depMap)
 
-	if m.BundleVersion == "" && len(sourceParsed) > 0 {
-		m.BundleVersion = sourceParsed[0].version
+	if m.BundleVersion == "" {
+		m.BundleVersion = sourceParsed.version
 	}
 
 	var importParsed []*parsedFile
@@ -127,9 +121,6 @@ func (a *Assembler) Assemble(ctx context.Context, m Manifest, sources ...File) (
 		queue = append(queue, enqueueRefs(pf, seen, depMap)...)
 	}
 
-	files := make([]File, len(sources))
-	copy(files, sources)
-
 	var imports []File
 	for _, pf := range importParsed {
 		imports = append(imports, pf.File)
@@ -139,7 +130,7 @@ func (a *Assembler) Assemble(ctx context.Context, m Manifest, sources ...File) (
 
 	return &Bundle{
 		Manifest: m,
-		Files:    files,
+		Source:   source,
 		Imports:  imports,
 	}, nil
 }
@@ -221,18 +212,16 @@ func policyRefIDs(imports gemara.Imports) []string {
 }
 
 // buildArtifactTree constructs the Manifest.Artifacts slice from the
-// already-parsed files and their dependency relationships.
-func buildArtifactTree(files, imports []*parsedFile, depMap map[string][]string) []Artifact {
-	artifacts := make([]Artifact, 0, len(files)+len(imports))
-	for _, pf := range files {
-		artifacts = append(artifacts, Artifact{
-			Name:         pf.Name,
-			Type:         pf.artType.String(),
-			ID:           pf.id,
-			Role:         roleArtifact,
-			Dependencies: depMap[pf.Name],
-		})
-	}
+// parsed source and its dependency relationships.
+func buildArtifactTree(source *parsedFile, imports []*parsedFile, depMap map[string][]string) []Artifact {
+	artifacts := make([]Artifact, 0, 1+len(imports))
+	artifacts = append(artifacts, Artifact{
+		Name:         source.Name,
+		Type:         source.artType.String(),
+		ID:           source.id,
+		Role:         roleArtifact,
+		Dependencies: depMap[source.Name],
+	})
 	for _, pf := range imports {
 		artifacts = append(artifacts, Artifact{
 			Name:         pf.Name,

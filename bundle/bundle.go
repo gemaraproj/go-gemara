@@ -71,8 +71,8 @@ type File struct {
 type Bundle struct {
 	// Manifest is the OCI config blob describing the bundle contents.
 	Manifest Manifest
-	// Files are the primary artifact files provided as assembly sources.
-	Files []File
+	// Source is the primary artifact file that anchors this bundle.
+	Source File
 	// Imports are the resolved transitive dependency files.
 	Imports []File
 	// Etag is the OCI manifest digest used for cache comparison.
