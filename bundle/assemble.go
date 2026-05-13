@@ -28,6 +28,7 @@ func NewAssembler(f gemara.Fetcher) *Assembler {
 type parsedFile struct {
 	File
 	id      string
+	version string
 	artType gemara.ArtifactType
 	refIDs  []string
 	refURLs map[string]string
@@ -50,6 +51,7 @@ func parseFile(f File) (*parsedFile, error) {
 			return nil, fmt.Errorf("parsing %s: %w", f.Name, err)
 		}
 		pf.id = pol.Metadata.Id
+		pf.version = pol.Metadata.Version
 		pf.artType = pol.Metadata.Type
 		pf.refURLs = mappingRefURLs(pol.Metadata.MappingReferences)
 		pf.refIDs = policyRefIDs(pol.Imports)
@@ -59,6 +61,7 @@ func parseFile(f File) (*parsedFile, error) {
 			return nil, fmt.Errorf("parsing %s: %w", f.Name, err)
 		}
 		pf.id = cat.Metadata.Id
+		pf.version = cat.Metadata.Version
 		pf.artType = cat.Metadata.Type
 		pf.refURLs = mappingRefURLs(cat.Metadata.MappingReferences)
 		pf.refIDs = catalogRefIDs(cat.Extends, cat.Imports)
@@ -89,6 +92,10 @@ func (a *Assembler) Assemble(ctx context.Context, m Manifest, sources ...File) (
 		}
 		sourceParsed = append(sourceParsed, pf)
 		queue = append(queue, enqueueRefs(pf, seen, depMap)...)
+	}
+
+	if m.BundleVersion == "" && len(sourceParsed) > 0 {
+		m.BundleVersion = sourceParsed[0].version
 	}
 
 	var importParsed []*parsedFile

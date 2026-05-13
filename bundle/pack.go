@@ -32,6 +32,10 @@ func Pack(ctx context.Context, target oras.Target, b *Bundle, opts ...PackOption
 		opt(o)
 	}
 
+	if o.version != nil {
+		b.Manifest.BundleVersion = *o.version
+	}
+
 	manifestData, err := json.Marshal(b.Manifest)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("marshaling manifest: %w", err)

@@ -95,16 +95,30 @@ func (b *Bundle) SetSizeLimitBytes(n int64) {
 	b.sizeLimitBytes = n
 }
 
+// Version returns the bundle version from the manifest.
+func (b *Bundle) Version() string {
+	return b.Manifest.BundleVersion
+}
+
 // PackOption configures Pack behaviour.
 type PackOption func(*packOptions)
 
 type packOptions struct {
 	annotations map[string]string
+	version     *string
 }
 
 // WithAnnotations adds custom annotations to the OCI manifest.
 func WithAnnotations(annotations map[string]string) PackOption {
 	return func(o *packOptions) {
 		o.annotations = annotations
+	}
+}
+
+// WithVersion overrides the bundle's Manifest.BundleVersion at pack time.
+// When not set, the version assembled from the main artifact metadata is used.
+func WithVersion(v string) PackOption {
+	return func(o *packOptions) {
+		o.version = &v
 	}
 }

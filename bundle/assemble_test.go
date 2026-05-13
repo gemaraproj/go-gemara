@@ -40,12 +40,17 @@ var testAuthor = gemara.Actor{
 }
 
 func testControlCatalog(id string, refs []gemara.MappingReference, extends []gemara.ArtifactMapping, imports []gemara.MultiEntryMapping) gemara.Catalog {
+	return testControlCatalogWithVersion(id, "", refs, extends, imports)
+}
+
+func testControlCatalogWithVersion(id, version string, refs []gemara.MappingReference, extends []gemara.ArtifactMapping, imports []gemara.MultiEntryMapping) gemara.Catalog {
 	return gemara.Catalog{
 		Title: "Test Catalog",
 		Metadata: gemara.Metadata{
 			Id:                id,
 			Type:              gemara.ControlCatalogArtifact,
 			GemaraVersion:     "1.0.0",
+			Version:           version,
 			Description:       "test catalog",
 			Author:            testAuthor,
 			MappingReferences: refs,
@@ -427,6 +432,48 @@ func TestImportFileName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.refID+"_"+tt.url, func(t *testing.T) {
 			assert.Equal(t, tt.want, importFileName(tt.refID, tt.url))
+		})
+	}
+}
+
+func TestAssembler_Assemble_BundleVersionDefault(t *testing.T) {
+	tests := []struct {
+		name            string
+		manifest        Manifest
+		sourceVersion   string
+		wantBundleVer   string
+	}{
+		{
+			name:          "defaults BundleVersion from first source artifact",
+			manifest:      Manifest{GemaraVersion: "v1.0.0"},
+			sourceVersion: "2.3.0",
+			wantBundleVer: "2.3.0",
+		},
+		{
+			name:          "preserves explicit BundleVersion",
+			manifest:      Manifest{BundleVersion: "explicit-1.0", GemaraVersion: "v1.0.0"},
+			sourceVersion: "2.3.0",
+			wantBundleVer: "explicit-1.0",
+		},
+		{
+			name:          "empty artifact version produces empty BundleVersion",
+			manifest:      Manifest{GemaraVersion: "v1.0.0"},
+			sourceVersion: "",
+			wantBundleVer: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			asm := NewAssembler(mapFetcher{})
+			source := File{
+				Name: "controls.yaml",
+				Data: mustMarshal(t, testControlCatalogWithVersion("cat-1", tt.sourceVersion, nil, nil, nil)),
+			}
+			b, err := asm.Assemble(context.Background(), tt.manifest, source)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantBundleVer, b.Manifest.BundleVersion)
+			assert.Equal(t, tt.wantBundleVer, b.Version())
 		})
 	}
 }

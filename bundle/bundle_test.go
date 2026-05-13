@@ -166,6 +166,57 @@ func TestPack_Errors(t *testing.T) {
 	}
 }
 
+func TestPack_WithVersion(t *testing.T) {
+	tests := []struct {
+		name       string
+		initial    string
+		override   string
+		wantVer    string
+	}{
+		{
+			name:     "overrides existing BundleVersion",
+			initial:  "1.0.0",
+			override: "2.0.0",
+			wantVer:  "2.0.0",
+		},
+		{
+			name:     "sets BundleVersion when empty",
+			initial:  "",
+			override: "3.0.0",
+			wantVer:  "3.0.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			store := memory.New()
+
+			b := &Bundle{
+				Manifest: Manifest{BundleVersion: tt.initial, GemaraVersion: "v1.0.0"},
+				Files:    []File{{Name: "c.yaml", Data: []byte("data")}},
+			}
+			desc, err := Pack(ctx, store, b, WithVersion(tt.override))
+			require.NoError(t, err)
+			require.NotEmpty(t, desc.Digest)
+			require.NoError(t, store.Tag(ctx, desc, "v"))
+
+			got, err := Unpack(ctx, store, "v")
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantVer, got.Manifest.BundleVersion)
+			assert.Equal(t, tt.wantVer, got.Version())
+		})
+	}
+}
+
+func TestBundle_Version(t *testing.T) {
+	b := &Bundle{Manifest: Manifest{BundleVersion: "4.5.6"}}
+	assert.Equal(t, "4.5.6", b.Version())
+
+	b = &Bundle{}
+	assert.Equal(t, "", b.Version())
+}
+
 func TestUnpack_BadRef(t *testing.T) {
 	_, err := Unpack(context.Background(), memory.New(), "does-not-exist")
 	assert.Error(t, err)
