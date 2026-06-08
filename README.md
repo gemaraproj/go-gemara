@@ -164,6 +164,56 @@ func main() {
 }
 ```
 
+#### Resolving Policy
+
+When a Policy is present, resolution proceeds in two layers:
+1. Each imported catalog/guidance is resolved (extends flattened).
+2. Policy-level overlays (exclusions, AR modifications) are applied.
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/gemaraproj/go-gemara/bundle"
+)
+
+func main() {
+	ctx := context.Background()
+
+	b, err := bundle.Unpack(ctx, store, "v1.0.0")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cb, err := b.Classify()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cb.Policy == nil {
+		log.Fatal("bundle does not contain a policy artifact")
+	}
+
+	ep, err := cb.Policy.Sugar().Resolve(cb.Imports.ControlCatalogs, cb.Imports.GuidanceCatalogs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, id := range ep.ControlCatalogIDs() {
+		ec := ep.GetControlCatalog(id)
+		fmt.Printf("ControlCatalog %s: %d effective controls\n", id, len(ec.Controls))
+	}
+	for _, id := range ep.GuidanceCatalogIDs() {
+		eg := ep.GetGuidanceCatalog(id)
+		fmt.Printf("GuidanceCatalog %s: %d effective guidelines\n", id, len(eg.Guidelines))
+	}
+}
+```
+
 #### Converting to SARIF
 
 ```go
