@@ -23,13 +23,17 @@ func Pack(ctx context.Context, target oras.Target, b *Bundle, opts ...PackOption
 	if b == nil {
 		return ocispec.Descriptor{}, fmt.Errorf("bundle must not be nil")
 	}
-	if len(b.Files) == 0 {
-		return ocispec.Descriptor{}, fmt.Errorf("bundle must contain at least one artifact file")
+	if b.Source.Name == "" {
+		return ocispec.Descriptor{}, fmt.Errorf("bundle must contain a source artifact")
 	}
 
 	o := &packOptions{}
 	for _, opt := range opts {
 		opt(o)
+	}
+
+	if o.version != nil {
+		b.Manifest.BundleVersion = *o.version
 	}
 
 	manifestData, err := json.Marshal(b.Manifest)
@@ -41,14 +45,12 @@ func Pack(ctx context.Context, target oras.Target, b *Bundle, opts ...PackOption
 		return ocispec.Descriptor{}, fmt.Errorf("pushing manifest: %w", err)
 	}
 
-	layers := make([]ocispec.Descriptor, 0, len(b.Files)+len(b.Imports))
-	for _, f := range b.Files {
-		desc, err := pushLayer(ctx, target, f, roleArtifact)
-		if err != nil {
-			return ocispec.Descriptor{}, err
-		}
-		layers = append(layers, desc)
+	layers := make([]ocispec.Descriptor, 0, 1+len(b.Imports))
+	sourceDesc, err := pushLayer(ctx, target, b.Source, roleArtifact)
+	if err != nil {
+		return ocispec.Descriptor{}, err
 	}
+	layers = append(layers, sourceDesc)
 	for _, f := range b.Imports {
 		desc, err := pushLayer(ctx, target, f, roleImport)
 		if err != nil {

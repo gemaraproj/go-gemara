@@ -66,7 +66,7 @@ func Unpack(ctx context.Context, target oras.ReadOnlyTarget, ref string) (*Bundl
 		case roleImport:
 			b.Imports = append(b.Imports, f)
 		default:
-			b.Files = append(b.Files, f)
+			b.Source = f
 		}
 	}
 
