@@ -23,8 +23,13 @@ import (
 //
 // For HTTP(S) sources it delegates to [HTTP]; see that type's
 // documentation for security considerations.
+//
+// Set AllowURL to reject URLs before they are fetched. When non-nil,
+// AllowURL is called for every HTTP(S) source; a non-nil error prevents the fetch.
+// This is the recommended way to mitigate SSRF when processing untrusted input.
 type URI struct {
-	Client *http.Client
+	Client   *http.Client
+	AllowURL func(rawURL string) error
 }
 
 // schemePrefix matches a leading "<scheme>://" per RFC 3986 scheme syntax.
@@ -33,6 +38,11 @@ var schemePrefix = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.\-]*://`)
 func (u *URI) Fetch(ctx context.Context, source string) (io.ReadCloser, error) {
 	switch {
 	case strings.HasPrefix(source, "http://"), strings.HasPrefix(source, "https://"):
+		if u.AllowURL != nil {
+			if err := u.AllowURL(source); err != nil {
+				return nil, fmt.Errorf("URL rejected by policy: %w", err)
+			}
+		}
 		return (&HTTP{Client: u.Client}).Fetch(ctx, source)
 	case strings.HasPrefix(source, "file://"):
 		parsed, err := url.Parse(source)

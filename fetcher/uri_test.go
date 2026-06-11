@@ -4,6 +4,7 @@ package fetcher
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -44,6 +45,56 @@ func TestURI_HTTPScheme(t *testing.T) {
 	data, err := io.ReadAll(rc)
 	require.NoError(t, err)
 	assert.Equal(t, "remote: true\n", string(data))
+}
+
+func TestURI_AllowURL_Rejected(t *testing.T) {
+	f := &URI{
+		AllowURL: func(rawURL string) error {
+			return fmt.Errorf("blocked: %s", rawURL)
+		},
+	}
+	_, err := f.Fetch(context.Background(), "https://example.com/data.yaml")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "URL rejected by policy")
+	assert.Contains(t, err.Error(), "blocked")
+}
+
+func TestURI_AllowURL_Allowed(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok: true\n"))
+	}))
+	defer srv.Close()
+
+	f := &URI{
+		Client:   srv.Client(),
+		AllowURL: func(_ string) error { return nil },
+	}
+	rc, err := f.Fetch(context.Background(), srv.URL+"/data.yaml")
+	require.NoError(t, err)
+	defer rc.Close() //nolint:errcheck
+
+	data, err := io.ReadAll(rc)
+	require.NoError(t, err)
+	assert.Equal(t, "ok: true\n", string(data))
+}
+
+func TestURI_AllowURL_NotCalledForFile(t *testing.T) {
+	tmp := t.TempDir()
+	p := filepath.Join(tmp, "data.yaml")
+	require.NoError(t, os.WriteFile(p, []byte("ok: true\n"), 0600))
+
+	f := &URI{
+		AllowURL: func(_ string) error {
+			return fmt.Errorf("should not be called for file:// URIs")
+		},
+	}
+	rc, err := f.Fetch(context.Background(), "file://"+p)
+	require.NoError(t, err)
+	defer rc.Close() //nolint:errcheck
+
+	data, err := io.ReadAll(rc)
+	require.NoError(t, err)
+	assert.Equal(t, "ok: true\n", string(data))
 }
 
 func TestURI_UnsupportedScheme(t *testing.T) {
