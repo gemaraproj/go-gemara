@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
 func TestResultString(t *testing.T) {
@@ -533,6 +535,37 @@ func TestEvidenceTypeToArtifactType(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEnumUnmarshalTextWithYAMLv3(t *testing.T) {
+	t.Run("Lifecycle", func(t *testing.T) {
+		var l Lifecycle
+		if err := yamlv3.Unmarshal([]byte("Draft\n"), &l); err != nil {
+			t.Fatalf("Unmarshal: %v", err)
+		}
+		if l != LifecycleDraft {
+			t.Errorf("got %v, want LifecycleDraft", l)
+		}
+	})
+	t.Run("Severity", func(t *testing.T) {
+		var s Severity
+		if err := yamlv3.Unmarshal([]byte("Critical\n"), &s); err != nil {
+			t.Fatalf("Unmarshal: %v", err)
+		}
+		if s != SeverityCritical {
+			t.Errorf("got %v, want SeverityCritical", s)
+		}
+	})
+	t.Run("invalid value", func(t *testing.T) {
+		var s Severity
+		err := yamlv3.Unmarshal([]byte("Nope\n"), &s)
+		if err == nil {
+			t.Fatal("expected error for invalid Severity")
+		}
+		if !strings.Contains(err.Error(), "valid:") {
+			t.Errorf("error should list valid values: %s", err.Error())
+		}
+	})
 }
 
 func TestEvidenceTypeJSONRoundTrip(t *testing.T) {
