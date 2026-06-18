@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -25,6 +26,18 @@ import (
 // documentation for security considerations.
 type URI struct {
 	Client *http.Client
+}
+
+// FileURI converts an OS-native absolute path to a valid RFC 8089 file:/// URI.
+// On Unix the result is "file:///abs/path"; on Windows, backslashes are
+// normalised and the drive letter is preserved: "file:///C:/Users/...".
+// Relative paths are returned unchanged.
+func FileURI(path string) string {
+	cleaned := strings.ReplaceAll(filepath.Clean(path), "\\", "/")
+	if strings.HasPrefix(cleaned, "/") || (len(cleaned) >= 2 && cleaned[1] == ':') {
+		return "file:///" + strings.TrimPrefix(cleaned, "/")
+	}
+	return cleaned
 }
 
 // schemePrefix matches a leading "<scheme>://" per RFC 3986 scheme syntax.

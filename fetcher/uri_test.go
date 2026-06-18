@@ -21,7 +21,7 @@ func TestURI_FileScheme(t *testing.T) {
 	require.NoError(t, os.WriteFile(p, []byte("ok: true\n"), 0600))
 
 	f := &URI{}
-	rc, err := f.Fetch(context.Background(), "file://"+p)
+	rc, err := f.Fetch(context.Background(), FileURI(p))
 	require.NoError(t, err)
 	defer rc.Close() //nolint:errcheck
 
@@ -88,4 +88,39 @@ func TestURI_TypoScheme(t *testing.T) {
 	_, err := f.Fetch(context.Background(), "htps://example.com/file.yaml")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported URI scheme")
+}
+
+func TestFileURI(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "Unix absolute path",
+			input: "/home/user/data.yaml",
+			want:  "file:///home/user/data.yaml",
+		},
+		{
+			name:  "Windows absolute path",
+			input: `C:\Users\foo\data.yaml`,
+			want:  "file:///C:/Users/foo/data.yaml",
+		},
+		{
+			name:  "Relative path unchanged",
+			input: "data/file.yaml",
+			want:  "data/file.yaml",
+		},
+		{
+			name:  "Dot-relative path unchanged",
+			input: "./data/file.yaml",
+			want:  "data/file.yaml",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FileURI(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
