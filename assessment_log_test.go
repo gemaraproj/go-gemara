@@ -371,3 +371,118 @@ func TestConfidenceLevelFromSteps(t *testing.T) {
 		})
 	}
 }
+
+// evidenceTarget is a sample targetData payload that opts into evidence
+// collection by embedding EvidenceCollector (no methods written by hand).
+type evidenceTarget struct {
+	EvidenceCollector
+}
+
+// evidenceStep returns a step that records one piece of evidence with the given id.
+func evidenceStep(id string) AssessmentStep {
+	return func(payload interface{}) (Result, string, ConfidenceLevel) {
+		if t, ok := payload.(*evidenceTarget); ok {
+			t.AddEvidence(Evidence{Id: id, Description: "recorded by step"})
+		}
+		return Passed, "recorded evidence", High
+	}
+}
+
+// TestRunCollectsEvidence ensures evidence a step records into the payload is
+// harvested into the AssessmentLog and the payload is cleared afterward, so it
+// does not linger as a field on the target data.
+func TestRunCollectsEvidence(t *testing.T) {
+	a, err := NewAssessment("req", "desc", testingApplicability, []AssessmentStep{evidenceStep("ev-1")})
+	require.NoError(t, err)
+
+	target := &evidenceTarget{}
+	result := a.Run(target)
+
+	require.Equal(t, Passed, result)
+	require.Len(t, a.Evidence, 1)
+	assert.Equal(t, "ev-1", a.Evidence[0].Id)
+	// The assessment clears the payload after copying the evidence out.
+	assert.Empty(t, target.GetEvidence())
+}
+
+// TestRunCollectsMultipleEvidencePerStep ensures a single step may record evidence
+// more than once, and every piece is harvested into the AssessmentLog.
+func TestRunCollectsMultipleEvidencePerStep(t *testing.T) {
+	multiStep := func(payload interface{}) (Result, string, ConfidenceLevel) {
+		if t, ok := payload.(*evidenceTarget); ok {
+			t.AddEvidence(Evidence{Id: "ev-1"})
+			t.AddEvidence(Evidence{Id: "ev-2"})
+		}
+		return Passed, "recorded twice", High
+	}
+	a, err := NewAssessment("req", "desc", testingApplicability, []AssessmentStep{multiStep})
+	require.NoError(t, err)
+
+	target := &evidenceTarget{}
+	result := a.Run(target)
+
+	require.Equal(t, Passed, result)
+	require.Len(t, a.Evidence, 2)
+	assert.Equal(t, "ev-1", a.Evidence[0].Id)
+	assert.Equal(t, "ev-2", a.Evidence[1].Id)
+	assert.Empty(t, target.GetEvidence())
+}
+
+// TestRunCollectsEvidencePerStep ensures each recording step contributes exactly
+// one piece of evidence, and a step that records nothing does not cause the prior
+// step's evidence to be re-copied.
+func TestRunCollectsEvidencePerStep(t *testing.T) {
+	steps := []AssessmentStep{
+		evidenceStep("ev-1"),
+		passingAssessmentStep, // records nothing; must not duplicate ev-1
+		evidenceStep("ev-2"),
+	}
+	a, err := NewAssessment("req", "desc", testingApplicability, steps)
+	require.NoError(t, err)
+
+	target := &evidenceTarget{}
+	result := a.Run(target)
+
+	require.Equal(t, Passed, result)
+	require.Len(t, a.Evidence, 2)
+	assert.Equal(t, "ev-1", a.Evidence[0].Id)
+	assert.Equal(t, "ev-2", a.Evidence[1].Id)
+	assert.Empty(t, target.GetEvidence())
+}
+
+// TestRunCollectsEvidenceOnHalt ensures evidence recorded before a failing step
+// is harvested exactly once, since Run halts early on the first non-passing result.
+func TestRunCollectsEvidenceOnHalt(t *testing.T) {
+	steps := []AssessmentStep{evidenceStep("ev-1"), failingAssessmentStep}
+	a, err := NewAssessment("req", "desc", testingApplicability, steps)
+	require.NoError(t, err)
+
+	target := &evidenceTarget{}
+	result := a.Run(target)
+
+	require.Equal(t, Failed, result)
+	require.Len(t, a.Evidence, 1)
+	assert.Equal(t, "ev-1", a.Evidence[0].Id)
+}
+
+// TestRunWithoutEvidence ensures backward compatibility: payloads that predate
+// the evidence channel (nil, or any type that does not implement HasEvidence)
+// run unchanged and leave AssessmentLog.Evidence empty.
+func TestRunWithoutEvidence(t *testing.T) {
+	cases := []struct {
+		name    string
+		payload interface{}
+	}{
+		{"nil payload", nil},
+		{"payload without evidence", struct{ Config string }{Config: "x"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a := passingAssessment()
+			result := a.Run(tc.payload)
+
+			assert.Equal(t, Passed, result)
+			assert.Empty(t, a.Evidence)
+		})
+	}
+}
