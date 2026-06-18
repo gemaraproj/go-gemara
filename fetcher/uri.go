@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -28,18 +27,6 @@ type URI struct {
 	Client *http.Client
 }
 
-// FileURI converts an OS-native absolute path to a valid RFC 8089 file:/// URI.
-// On Unix the result is "file:///abs/path"; on Windows, backslashes are
-// normalised and the drive letter is preserved: "file:///C:/Users/...".
-// Relative paths are returned unchanged.
-func FileURI(path string) string {
-	cleaned := strings.ReplaceAll(filepath.Clean(path), "\\", "/")
-	if strings.HasPrefix(cleaned, "/") || (len(cleaned) >= 2 && cleaned[1] == ':') {
-		return "file:///" + strings.TrimPrefix(cleaned, "/")
-	}
-	return cleaned
-}
-
 // schemePrefix matches a leading "<scheme>://" per RFC 3986 scheme syntax.
 var schemePrefix = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.\-]*://`)
 
@@ -48,11 +35,11 @@ func (u *URI) Fetch(ctx context.Context, source string) (io.ReadCloser, error) {
 	case strings.HasPrefix(source, "http://"), strings.HasPrefix(source, "https://"):
 		return (&HTTP{Client: u.Client}).Fetch(ctx, source)
 	case strings.HasPrefix(source, "file://"):
-		parsed, err := url.Parse(source)
+		path, err := url.PathUnescape(strings.TrimPrefix(source, "file://"))
 		if err != nil {
 			return nil, fmt.Errorf("invalid file URI %q: %w", source, err)
 		}
-		return (&File{}).Fetch(ctx, parsed.Path)
+		return (&File{}).Fetch(ctx, path)
 	case schemePrefix.MatchString(source):
 		return nil, fmt.Errorf("unsupported URI scheme in %q", source)
 	default:
