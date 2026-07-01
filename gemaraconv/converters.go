@@ -6,7 +6,8 @@ import (
 	"context"
 
 	oscal "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
-	"github.com/gemaraproj/go-gemara"
+	gemara "github.com/gemaraproj/go-gemara"
+	"github.com/gemaraproj/go-gemara/gemaraconv/calm"
 )
 
 // EvaluationLogConverter define a converter object for converting EvaluationLog.
@@ -47,6 +48,11 @@ func (c *ControlCatalogConverter) ToOSCAL(opts ...GenerateOption) (oscal.Catalog
 // ToMarkdown converts the ControlCatalog to Markdown format.
 func (c *ControlCatalogConverter) ToMarkdown(ctx context.Context, opts ...MarkdownOption) ([]byte, error) {
 	return CatalogToMarkdown(ctx, c.catalog, opts...)
+}
+
+// ToCALM converts the ControlCatalog to a CALM controls block (release/1.2).
+func (c *ControlCatalogConverter) ToCALM() (calm.Controls, error) {
+	return ControlCatalogToCALM(c.catalog)
 }
 
 // GuidanceCatalogConverter defines a converter for converting GuidanceCatalog.

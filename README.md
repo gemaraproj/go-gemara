@@ -198,6 +198,44 @@ func main() {
 }
 ```
 
+#### Converting to CALM
+
+Convert a `ControlCatalog` into a FINOS CALM (release/1.2) `controls` block — one
+CALM control-name per Gemara control. See
+[`gemaraconv/calm/README.md`](./gemaraconv/calm/README.md) for the conversion's
+scope and provenance model.
+
+```go
+package main
+
+import (
+    "context"
+
+    "github.com/gemaraproj/go-gemara"
+    "github.com/gemaraproj/go-gemara/fetcher"
+    "github.com/gemaraproj/go-gemara/gemaraconv"
+)
+
+func main() {
+    catalog, err := gemara.Load[gemara.ControlCatalog](context.Background(), &fetcher.File{}, "path/to/catalog.yaml")
+    if err != nil {
+        panic(err)
+    }
+
+    // One CALM control-name per Gemara control, its requirements grouped under it.
+    controls, err := gemaraconv.ControlCatalog(*catalog).ToCALM()
+    if err != nil {
+        panic(err)
+    }
+
+    data, err := controls.MarshalDocument() // standalone {"controls": {...}} JSON
+    if err != nil {
+        panic(err)
+    }
+    _ = data
+}
+```
+
 ## Development
 
 ### Building

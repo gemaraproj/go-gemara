@@ -2,7 +2,9 @@
 
 package gemaraconv
 
-import "github.com/gemaraproj/go-gemara"
+import (
+	gemara "github.com/gemaraproj/go-gemara"
+)
 
 type generateOpts struct {
 	version       string
