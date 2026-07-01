@@ -3,9 +3,13 @@
 package bundle
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"testing"
 
+	godigest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"oras.land/oras-go/v2/content/memory"
@@ -189,6 +193,7 @@ func TestPack_WithVersion(t *testing.T) {
 			desc, err := Pack(ctx, store, b, WithVersion(tt.override))
 			require.NoError(t, err)
 			require.NotEmpty(t, desc.Digest)
+			assert.Equal(t, tt.initial, b.Manifest.BundleVersion, "Pack must not mutate the caller's Bundle")
 			require.NoError(t, store.Tag(ctx, desc, "v"))
 
 			got, err := Unpack(ctx, store, "v")
@@ -205,6 +210,43 @@ func TestBundle_Version(t *testing.T) {
 
 	b = &Bundle{}
 	assert.Equal(t, "", b.Version())
+}
+
+func TestUnpack_MultipleSourcesError(t *testing.T) {
+	ctx := context.Background()
+	store := memory.New()
+
+	b := &Bundle{
+		Manifest: Manifest{BundleVersion: "1", GemaraVersion: "v1.0.0"},
+		Source:   File{Name: "a.yaml", Data: []byte("first")},
+		Imports:  []File{{Name: "b.yaml", Data: []byte("import")}},
+	}
+	desc, err := Pack(ctx, store, b)
+	require.NoError(t, err)
+
+	// Push a second artifact-role layer into the same manifest to
+	// simulate a bundle produced by an older multi-source format.
+	extraDesc, err := pushLayer(ctx, store, File{Name: "c.yaml", Data: []byte("second")}, roleArtifact)
+	require.NoError(t, err)
+
+	manifestData, err := fetchAll(ctx, store, desc)
+	require.NoError(t, err)
+	var ociManifest ocispec.Manifest
+	require.NoError(t, json.Unmarshal(manifestData, &ociManifest))
+	ociManifest.Layers = append(ociManifest.Layers, extraDesc)
+
+	modifiedManifest, err := json.Marshal(ociManifest)
+	require.NoError(t, err)
+	modifiedDesc := ocispec.Descriptor{
+		MediaType: ociManifest.MediaType,
+		Digest:    godigest.FromBytes(modifiedManifest),
+		Size:      int64(len(modifiedManifest)),
+	}
+	require.NoError(t, store.Push(ctx, modifiedDesc, bytes.NewReader(modifiedManifest)))
+	require.NoError(t, store.Tag(ctx, modifiedDesc, "multi-source"))
+
+	_, err = Unpack(ctx, store, "multi-source")
+	assert.ErrorContains(t, err, "multiple source artifacts")
 }
 
 func TestUnpack_BadRef(t *testing.T) {
