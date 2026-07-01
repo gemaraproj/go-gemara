@@ -1,0 +1,72 @@
+{
+  "controls": {
+    "CCC-C01": {
+      "description": "Prevent Unencrypted Requests — Ensure that all communications are encrypted in transit to protect data integrity and confidentiality.",
+      "requirements": [
+        {
+          "requirement-url": "https://gemara.openssf.org/schema/calm/v1/gemara-control-requirement.json",
+          "config": {
+            "control-id": "CCC.C01.TR01",
+            "gemara-control-id": "CCC.C01",
+            "name": "Prevent Unencrypted Requests",
+            "description": "When a port is exposed for non-SSH network traffic, all traffic MUST include a TLS handshake AND be encrypted using TLS 1.2 or higher.",
+            "group": "data-protection",
+            "applicability": [
+              "tlp_clear",
+              "tlp_green",
+              "tlp_amber",
+              "tlp_red"
+            ],
+            "recommendation": "Most cloud services enable TLS 1.3 by default.",
+            "state": "Active",
+            "catalog-author": "finos-ccc",
+            "catalog-id": "ccc.marefarc.cn",
+            "catalog-version": "v2026.06-rc1"
+          }
+        },
+        {
+          "requirement-url": "https://gemara.openssf.org/schema/calm/v1/gemara-control-requirement.json",
+          "config": {
+            "control-id": "CCC.C01.TR02",
+            "gemara-control-id": "CCC.C01",
+            "name": "Prevent Unencrypted Requests",
+            "description": "When a port is exposed for SSH traffic, all traffic MUST use SSHv2 or higher.",
+            "group": "data-protection",
+            "applicability": [
+              "tlp_green",
+              "tlp_amber",
+              "tlp_red"
+            ],
+            "state": "Active",
+            "catalog-author": "finos-ccc",
+            "catalog-id": "ccc.marefarc.cn",
+            "catalog-version": "v2026.06-rc1"
+          }
+        }
+      ]
+    },
+    "CCC-C09": {
+      "description": "Prevent Tampering, Deletion, or Unauthorized Access to Access Logs — Ensure access logs are protected against tampering and deletion.",
+      "requirements": [
+        {
+          "requirement-url": "https://gemara.openssf.org/schema/calm/v1/gemara-control-requirement.json",
+          "config": {
+            "control-id": "CCC.C09.TR01",
+            "gemara-control-id": "CCC.C09",
+            "name": "Prevent Tampering, Deletion, or Unauthorized Access to Access Logs",
+            "description": "When access logs are stored, they MUST be protected from unauthorized modification.",
+            "group": "logging-monitoring",
+            "applicability": [
+              "tlp_amber",
+              "tlp_red"
+            ],
+            "state": "Active",
+            "catalog-author": "finos-ccc",
+            "catalog-id": "ccc.marefarc.cn",
+            "catalog-version": "v2026.06-rc1"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gemara.openssf.org/schema/calm/v1/gemara-control-requirement.json",
+  "title": "Gemara — CALM Control Requirement Standard",
+  "description": "Extends the CALM control-requirement schema with the fields a Gemara control catalog carries, so any Gemara catalog (CCC, OSPS, AIGF, ...) can be expressed as CALM controls without losing its source identity or grouping. Framework-agnostic: no per-catalog id formats or applicability enums.",
+  "allOf": [
+    {
+      "$ref": "https://calm.finos.org/release/1.2/meta/control-requirement.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "gemara-control-id": {
+          "type": "string",
+          "description": "Parent Gemara control id, verbatim (e.g. 'CCC.Core.CN01'). Traceability anchor back to the source catalog."
+        },
+        "group": {
+          "type": "string",
+          "description": "Control group from the source catalog (e.g. 'Encryption')."
+        },
+        "applicability": {
+          "type": "array",
+          "description": "Applicability category ids as declared in the source catalog (e.g. CCC TLP levels, OSPS maturity levels).",
+          "items": { "type": "string" }
+        },
+        "recommendation": {
+          "type": "string",
+          "description": "Implementation recommendation for the assessment requirement, if the source provides one."
+        },
+        "state": {
+          "type": "string",
+          "description": "Lifecycle state of the assessment requirement in the source catalog (e.g. 'Active', 'Deprecated', 'Retired'), so consumers can distinguish live obligations from superseded ones."
+        },
+        "catalog-author": {
+          "type": "string",
+          "minLength": 1,
+          "description": "metadata.author.id of the source Gemara catalog (e.g. 'finos-ccc'). Carried independently of catalog-id because a registry may combine them (e.g. grc.store '{author}/{id}') and we cannot assume how."
+        },
+        "catalog-id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "metadata.id of the source Gemara catalog (e.g. 'ccc.marefarc.cn')."
+        },
+        "catalog-version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "metadata.version of the source Gemara catalog release (e.g. 'v2026.06-rc1'). Together with catalog-author and catalog-id this pins the requirement to a specific released version — the traceability anchor a consuming tool resolves back to the source release."
+        }
+      },
+      "required": [
+        "gemara-control-id",
+        "catalog-author",
+        "catalog-id",
+        "catalog-version"
+      ]
+    }
+  ]
+}
