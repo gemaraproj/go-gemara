@@ -40,12 +40,17 @@ var testAuthor = gemara.Actor{
 }
 
 func testControlCatalog(id string, refs []gemara.MappingReference, extends []gemara.ArtifactMapping, imports []gemara.MultiEntryMapping) gemara.Catalog {
+	return testControlCatalogWithVersion(id, "", refs, extends, imports)
+}
+
+func testControlCatalogWithVersion(id, version string, refs []gemara.MappingReference, extends []gemara.ArtifactMapping, imports []gemara.MultiEntryMapping) gemara.Catalog {
 	return gemara.Catalog{
 		Title: "Test Catalog",
 		Metadata: gemara.Metadata{
 			Id:                id,
 			Type:              gemara.ControlCatalogArtifact,
 			GemaraVersion:     "1.0.0",
+			Version:           version,
 			Description:       "test catalog",
 			Author:            testAuthor,
 			MappingReferences: refs,
@@ -74,7 +79,7 @@ func TestAssembler_Assemble(t *testing.T) {
 	tests := []struct {
 		name    string
 		fetcher mapFetcher
-		sources []File
+		source  File
 		wantErr string
 		check   func(t *testing.T, b *Bundle)
 	}{
@@ -83,26 +88,23 @@ func TestAssembler_Assemble(t *testing.T) {
 			fetcher: mapFetcher{
 				"https://example.com/guidance.yaml": mustMarshal(t, guidance),
 			},
-			sources: []File{
-				{
-					Name: "controls.yaml",
-					Data: mustMarshal(t, testControlCatalog("test-cat",
-						[]gemara.MappingReference{
-							{Id: "EXT-GUIDE", Title: "External Guidance", Version: "1.0", Url: "https://example.com/guidance.yaml"},
-							{Id: "LOCAL-REF", Title: "Local Only", Version: "1.0"},
-						},
-						nil,
-						[]gemara.MultiEntryMapping{
-							{ReferenceId: "EXT-GUIDE", Entries: []gemara.ArtifactMapping{{ReferenceId: "G1"}}},
-						},
-					)),
-				},
+			source: File{
+				Name: "controls.yaml",
+				Data: mustMarshal(t, testControlCatalog("test-cat",
+					[]gemara.MappingReference{
+						{Id: "EXT-GUIDE", Title: "External Guidance", Version: "1.0", Url: "https://example.com/guidance.yaml"},
+						{Id: "LOCAL-REF", Title: "Local Only", Version: "1.0"},
+					},
+					nil,
+					[]gemara.MultiEntryMapping{
+						{ReferenceId: "EXT-GUIDE", Entries: []gemara.ArtifactMapping{{ReferenceId: "G1"}}},
+					},
+				)),
 			},
 			check: func(t *testing.T, b *Bundle) {
 				assert.Equal(t, "1", b.Manifest.BundleVersion)
 				assert.Equal(t, "v1.0.0", b.Manifest.GemaraVersion)
-				require.Len(t, b.Files, 1)
-				assert.Equal(t, "controls.yaml", b.Files[0].Name)
+				assert.Equal(t, "controls.yaml", b.Source.Name)
 				require.Len(t, b.Imports, 1)
 				assert.Equal(t, "guidance.yaml", b.Imports[0].Name)
 
@@ -114,40 +116,18 @@ func TestAssembler_Assemble(t *testing.T) {
 		{
 			name:    "skips mapping ref without URL",
 			fetcher: mapFetcher{},
-			sources: []File{
-				{
-					Name: "a.yaml",
-					Data: mustMarshal(t, testControlCatalog("test-cat",
-						[]gemara.MappingReference{{Id: "NO-URL", Title: "No URL", Version: "1.0"}},
-						nil,
-						[]gemara.MultiEntryMapping{
-							{ReferenceId: "NO-URL", Entries: []gemara.ArtifactMapping{{ReferenceId: "x"}}},
-						},
-					)),
-				},
+			source: File{
+				Name: "a.yaml",
+				Data: mustMarshal(t, testControlCatalog("test-cat",
+					[]gemara.MappingReference{{Id: "NO-URL", Title: "No URL", Version: "1.0"}},
+					nil,
+					[]gemara.MultiEntryMapping{
+						{ReferenceId: "NO-URL", Entries: []gemara.ArtifactMapping{{ReferenceId: "x"}}},
+					},
+				)),
 			},
 			check: func(t *testing.T, b *Bundle) {
 				assert.Nil(t, b.Imports)
-			},
-		},
-		{
-			name: "deduplicates shared dependency across sources",
-			fetcher: mapFetcher{
-				"https://example.com/shared.yaml": mustMarshal(t, testControlCatalog("shared", nil, nil, nil)),
-			},
-			sources: func() []File {
-				data := mustMarshal(t, testControlCatalog("test-cat",
-					[]gemara.MappingReference{{Id: "SHARED", Title: "Shared", Version: "1.0", Url: "https://example.com/shared.yaml"}},
-					nil,
-					[]gemara.MultiEntryMapping{
-						{ReferenceId: "SHARED", Entries: []gemara.ArtifactMapping{{ReferenceId: "x"}}},
-					},
-				))
-				return []File{{Name: "a.yaml", Data: data}, {Name: "b.yaml", Data: data}}
-			}(),
-			check: func(t *testing.T, b *Bundle) {
-				require.Len(t, b.Imports, 1, "duplicate import should be fetched once")
-				assert.Equal(t, "shared.yaml", b.Imports[0].Name)
 			},
 		},
 		{
@@ -155,15 +135,13 @@ func TestAssembler_Assemble(t *testing.T) {
 			fetcher: mapFetcher{
 				"https://example.com/base.yaml": mustMarshal(t, testControlCatalog("base", nil, nil, nil)),
 			},
-			sources: []File{
-				{
-					Name: "child.yaml",
-					Data: mustMarshal(t, testControlCatalog("child",
-						[]gemara.MappingReference{{Id: "BASE", Title: "Base Catalog", Version: "1.0", Url: "https://example.com/base.yaml"}},
-						[]gemara.ArtifactMapping{{ReferenceId: "BASE", Remarks: "builds upon base"}},
-						nil,
-					)),
-				},
+			source: File{
+				Name: "child.yaml",
+				Data: mustMarshal(t, testControlCatalog("child",
+					[]gemara.MappingReference{{Id: "BASE", Title: "Base Catalog", Version: "1.0", Url: "https://example.com/base.yaml"}},
+					[]gemara.ArtifactMapping{{ReferenceId: "BASE", Remarks: "builds upon base"}},
+					nil,
+				)),
 			},
 			check: func(t *testing.T, b *Bundle) {
 				require.Len(t, b.Imports, 1)
@@ -176,20 +154,18 @@ func TestAssembler_Assemble(t *testing.T) {
 				"https://example.com/base.yaml":  mustMarshal(t, testControlCatalog("base", nil, nil, nil)),
 				"https://example.com/guide.yaml": mustMarshal(t, testGuidanceCatalog("guide")),
 			},
-			sources: []File{
-				{
-					Name: "c.yaml",
-					Data: mustMarshal(t, testControlCatalog("combined",
-						[]gemara.MappingReference{
-							{Id: "BASE", Title: "Base", Version: "1.0", Url: "https://example.com/base.yaml"},
-							{Id: "GUIDE", Title: "Guide", Version: "1.0", Url: "https://example.com/guide.yaml"},
-						},
-						[]gemara.ArtifactMapping{{ReferenceId: "BASE"}},
-						[]gemara.MultiEntryMapping{
-							{ReferenceId: "GUIDE", Entries: []gemara.ArtifactMapping{{ReferenceId: "G1"}}},
-						},
-					)),
-				},
+			source: File{
+				Name: "c.yaml",
+				Data: mustMarshal(t, testControlCatalog("combined",
+					[]gemara.MappingReference{
+						{Id: "BASE", Title: "Base", Version: "1.0", Url: "https://example.com/base.yaml"},
+						{Id: "GUIDE", Title: "Guide", Version: "1.0", Url: "https://example.com/guide.yaml"},
+					},
+					[]gemara.ArtifactMapping{{ReferenceId: "BASE"}},
+					[]gemara.MultiEntryMapping{
+						{ReferenceId: "GUIDE", Entries: []gemara.ArtifactMapping{{ReferenceId: "G1"}}},
+					},
+				)),
 			},
 			check: func(t *testing.T, b *Bundle) {
 				require.Len(t, b.Imports, 2)
@@ -204,35 +180,33 @@ func TestAssembler_Assemble(t *testing.T) {
 				"https://example.com/controls.yaml": mustMarshal(t, testControlCatalog("ctrl", nil, nil, nil)),
 				"https://example.com/guidance.yaml": mustMarshal(t, testGuidanceCatalog("guide")),
 			},
-			sources: []File{
-				{
-					Name: "policy.yaml",
-					Data: mustMarshal(t, gemara.Policy{
-						Title: "Org Policy",
-						Metadata: gemara.Metadata{
-							Id: "org-policy", Type: gemara.PolicyArtifact, GemaraVersion: "1.0.0",
-							Description: "org-wide policy", Author: testAuthor,
-							MappingReferences: []gemara.MappingReference{
-								{Id: "CTRL", Title: "Control Catalog", Version: "1.0", Url: "https://example.com/controls.yaml"},
-								{Id: "GUIDE", Title: "Guidance Doc", Version: "1.0", Url: "https://example.com/guidance.yaml"},
-							},
+			source: File{
+				Name: "policy.yaml",
+				Data: mustMarshal(t, gemara.Policy{
+					Title: "Org Policy",
+					Metadata: gemara.Metadata{
+						Id: "org-policy", Type: gemara.PolicyArtifact, GemaraVersion: "1.0.0",
+						Description: "org-wide policy", Author: testAuthor,
+						MappingReferences: []gemara.MappingReference{
+							{Id: "CTRL", Title: "Control Catalog", Version: "1.0", Url: "https://example.com/controls.yaml"},
+							{Id: "GUIDE", Title: "Guidance Doc", Version: "1.0", Url: "https://example.com/guidance.yaml"},
 						},
-						Contacts: gemara.RACI{
-							Responsible: []gemara.Contact{{Name: "R"}},
-							Accountable: []gemara.Contact{{Name: "A"}},
+					},
+					Contacts: gemara.RACI{
+						Responsible: []gemara.Contact{{Name: "R"}},
+						Accountable: []gemara.Contact{{Name: "A"}},
+					},
+					Scope: gemara.Scope{In: gemara.Dimensions{Technologies: []string{"cloud"}}},
+					Imports: gemara.Imports{
+						Catalogs: []gemara.CatalogImport{{ReferenceId: "CTRL"}},
+						Guidance: []gemara.GuidanceImport{{ReferenceId: "GUIDE"}},
+					},
+					Adherence: gemara.Adherence{
+						EvaluationMethods: []gemara.AcceptedMethod{
+							{Id: "em1", Type: gemara.MethodGate, Mode: gemara.ModeAutomated, Required: true},
 						},
-						Scope: gemara.Scope{In: gemara.Dimensions{Technologies: []string{"cloud"}}},
-						Imports: gemara.Imports{
-							Catalogs: []gemara.CatalogImport{{ReferenceId: "CTRL"}},
-							Guidance: []gemara.GuidanceImport{{ReferenceId: "GUIDE"}},
-						},
-						Adherence: gemara.Adherence{
-							EvaluationMethods: []gemara.AcceptedMethod{
-								{Id: "em1", Type: gemara.MethodGate, Mode: gemara.ModeAutomated, Required: true},
-							},
-						},
-					}),
-				},
+					},
+				}),
 			},
 			check: func(t *testing.T, b *Bundle) {
 				require.Len(t, b.Imports, 2)
@@ -244,37 +218,33 @@ func TestAssembler_Assemble(t *testing.T) {
 		{
 			name:    "no imports produces single artifact",
 			fetcher: mapFetcher{},
-			sources: []File{
-				{Name: "e.yaml", Data: mustMarshal(t, testControlCatalog("e", nil, nil, nil))},
-			},
+			source:  File{Name: "e.yaml", Data: mustMarshal(t, testControlCatalog("e", nil, nil, nil))},
 			check: func(t *testing.T, b *Bundle) {
 				assert.Nil(t, b.Imports)
-				require.Len(t, b.Files, 1)
+				assert.Equal(t, "e.yaml", b.Source.Name)
 				require.Len(t, b.Manifest.Artifacts, 1)
 				assert.Equal(t, roleArtifact, b.Manifest.Artifacts[0].Role)
 				assert.Nil(t, b.Manifest.Artifacts[0].Dependencies)
 			},
 		},
 		{
-			name:    "no sources returns error",
+			name:    "empty source returns error",
 			fetcher: mapFetcher{},
-			sources: nil,
-			wantErr: "at least one source",
+			source:  File{},
+			wantErr: "source file is required",
 		},
 		{
 			name:    "fetch failure propagates error",
 			fetcher: mapFetcher{},
-			sources: []File{
-				{
-					Name: "c.yaml",
-					Data: mustMarshal(t, testControlCatalog("test-cat",
-						[]gemara.MappingReference{{Id: "EXT-GUIDE", Title: "External Guidance", Version: "1.0", Url: "https://example.com/guidance.yaml"}},
-						nil,
-						[]gemara.MultiEntryMapping{
-							{ReferenceId: "EXT-GUIDE", Entries: []gemara.ArtifactMapping{{ReferenceId: "G1"}}},
-						},
-					)),
-				},
+			source: File{
+				Name: "c.yaml",
+				Data: mustMarshal(t, testControlCatalog("test-cat",
+					[]gemara.MappingReference{{Id: "EXT-GUIDE", Title: "External Guidance", Version: "1.0", Url: "https://example.com/guidance.yaml"}},
+					nil,
+					[]gemara.MultiEntryMapping{
+						{ReferenceId: "EXT-GUIDE", Entries: []gemara.ArtifactMapping{{ReferenceId: "G1"}}},
+					},
+				)),
 			},
 			wantErr: "fetching dependency",
 		},
@@ -285,7 +255,7 @@ func TestAssembler_Assemble(t *testing.T) {
 			asm := NewAssembler(tt.fetcher)
 			m := Manifest{BundleVersion: "1", GemaraVersion: "v1.0.0"}
 
-			b, err := asm.Assemble(context.Background(), m, tt.sources...)
+			b, err := asm.Assemble(context.Background(), m, tt.source)
 			if tt.wantErr != "" {
 				assert.ErrorContains(t, err, tt.wantErr)
 				return
@@ -322,8 +292,7 @@ func TestAssembler_Assemble_TransitiveDeps(t *testing.T) {
 				)),
 			},
 			check: func(t *testing.T, b *Bundle) {
-				require.Len(t, b.Files, 1)
-				assert.Equal(t, "catalog-a.yaml", b.Files[0].Name)
+				assert.Equal(t, "catalog-a.yaml", b.Source.Name)
 				require.Len(t, b.Imports, 2, "both B and C should be assembled transitively")
 				names := importNames(b)
 				assert.True(t, names["catalog-b.yaml"], "direct dependency B")
@@ -427,6 +396,48 @@ func TestImportFileName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.refID+"_"+tt.url, func(t *testing.T) {
 			assert.Equal(t, tt.want, importFileName(tt.refID, tt.url))
+		})
+	}
+}
+
+func TestAssembler_Assemble_BundleVersionDefault(t *testing.T) {
+	tests := []struct {
+		name          string
+		manifest      Manifest
+		sourceVersion string
+		wantBundleVer string
+	}{
+		{
+			name:          "defaults BundleVersion from source artifact",
+			manifest:      Manifest{GemaraVersion: "v1.0.0"},
+			sourceVersion: "2.3.0",
+			wantBundleVer: "2.3.0",
+		},
+		{
+			name:          "preserves explicit BundleVersion",
+			manifest:      Manifest{BundleVersion: "explicit-1.0", GemaraVersion: "v1.0.0"},
+			sourceVersion: "2.3.0",
+			wantBundleVer: "explicit-1.0",
+		},
+		{
+			name:          "empty artifact version produces empty BundleVersion",
+			manifest:      Manifest{GemaraVersion: "v1.0.0"},
+			sourceVersion: "",
+			wantBundleVer: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			asm := NewAssembler(mapFetcher{})
+			source := File{
+				Name: "controls.yaml",
+				Data: mustMarshal(t, testControlCatalogWithVersion("cat-1", tt.sourceVersion, nil, nil, nil)),
+			}
+			b, err := asm.Assemble(context.Background(), tt.manifest, source)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantBundleVer, b.Manifest.BundleVersion)
+			assert.Equal(t, tt.wantBundleVer, b.Version())
 		})
 	}
 }
