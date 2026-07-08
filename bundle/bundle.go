@@ -75,10 +75,21 @@ type Bundle struct {
 	Source File
 	// Imports are the resolved transitive dependency files.
 	Imports []File
+	// Warnings holds non-fatal issues found during assembly,
+	// such as mapping-reference IDs that don't match any artifact.
+	Warnings []MappingWarning
 	// Etag is the OCI manifest digest used for cache comparison.
 	Etag string
 
 	sizeLimitBytes int64
+}
+
+// MappingWarning describes a mapping-reference whose id does not match
+// any artifact metadata.id in the provided set.
+type MappingWarning struct {
+	File        string
+	ArtifactID  string
+	ReferenceID string
 }
 
 // SizeLimitBytes returns the configured size limit.

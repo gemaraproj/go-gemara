@@ -457,3 +457,135 @@ func artifactsByName(b *Bundle) map[string]Artifact {
 	}
 	return m
 }
+
+func TestAssemble_MappingWarnings(t *testing.T) {
+	tests := []struct {
+		name         string
+		fetcher      mapFetcher
+		source       File
+		wantWarnings []MappingWarning
+	}{
+		{
+			name:    "url-less ref matching a known metadata.id produces no warning",
+			fetcher: mapFetcher{},
+			source: File{
+				Name: "cat.yaml",
+				Data: mustMarshal(t, testControlCatalog("self-ref",
+					[]gemara.MappingReference{{Id: "self-ref", Title: "Self", Version: "1.0"}},
+					nil, nil,
+				)),
+			},
+		},
+		{
+			name:    "url-less ref not matching any metadata.id produces a warning",
+			fetcher: mapFetcher{},
+			source: File{
+				Name: "cat.yaml",
+				Data: mustMarshal(t, testControlCatalog("my-cat",
+					[]gemara.MappingReference{{Id: "unknown-ref", Title: "Unknown", Version: "1.0"}},
+					nil, nil,
+				)),
+			},
+			wantWarnings: []MappingWarning{
+				{File: "cat.yaml", ArtifactID: "my-cat", ReferenceID: "unknown-ref"},
+			},
+		},
+		{
+			name:    "ref with URL is not validated against metadata.ids",
+			fetcher: mapFetcher{},
+			source: File{
+				Name: "cat.yaml",
+				Data: mustMarshal(t, testControlCatalog("my-cat",
+					[]gemara.MappingReference{{Id: "remote", Title: "Remote", Version: "1.0", Url: "https://example.com/remote.yaml"}},
+					nil, nil,
+				)),
+			},
+		},
+		{
+			name: "multiple warnings across source and imports",
+			fetcher: mapFetcher{
+				"https://example.com/controls.yaml": mustMarshal(t, testControlCatalog("imported-cat",
+					[]gemara.MappingReference{{Id: "phantom-import", Title: "Phantom Import", Version: "1.0"}},
+					nil, nil,
+				)),
+			},
+			source: File{
+				Name: "policy.yaml",
+				Data: mustMarshal(t, testControlCatalog("my-policy",
+					[]gemara.MappingReference{
+						{Id: "CTRL", Title: "Controls", Version: "1.0", Url: "https://example.com/controls.yaml"},
+						{Id: "phantom-source", Title: "Phantom Source", Version: "1.0"},
+					},
+					nil,
+					[]gemara.MultiEntryMapping{
+						{ReferenceId: "CTRL", Entries: []gemara.ArtifactMapping{{ReferenceId: "C1"}}},
+					},
+				)),
+			},
+			wantWarnings: []MappingWarning{
+				{File: "policy.yaml", ArtifactID: "my-policy", ReferenceID: "phantom-source"},
+				{File: "controls.yaml", ArtifactID: "imported-cat", ReferenceID: "phantom-import"},
+			},
+		},
+		{
+			name:    "mixed URL and non-URL refs warns only for non-URL",
+			fetcher: mapFetcher{},
+			source: File{
+				Name: "catalog.yaml",
+				Data: mustMarshal(t, testControlCatalog("my-cat",
+					[]gemara.MappingReference{
+						{Id: "HAS-URL", Title: "Has URL", Version: "1.0", Url: "https://example.com/x.yaml"},
+						{Id: "NO-URL", Title: "No URL", Version: "1.0"},
+					}, nil, nil,
+				)),
+			},
+			wantWarnings: []MappingWarning{
+				{File: "catalog.yaml", ArtifactID: "my-cat", ReferenceID: "NO-URL"},
+			},
+		},
+		{
+			name: "url-less ref resolved via import metadata.id produces no warning",
+			fetcher: mapFetcher{
+				"https://example.com/guidance.yaml": mustMarshal(t, testGuidanceCatalog("ext-guidance")),
+			},
+			source: File{
+				Name: "cat.yaml",
+				Data: mustMarshal(t, testControlCatalog("my-cat",
+					[]gemara.MappingReference{
+						{Id: "GUIDE", Title: "Guide", Version: "1.0", Url: "https://example.com/guidance.yaml"},
+						{Id: "ext-guidance", Title: "Ext Guidance Local", Version: "1.0"},
+					},
+					nil,
+					[]gemara.MultiEntryMapping{
+						{ReferenceId: "GUIDE", Entries: []gemara.ArtifactMapping{{ReferenceId: "G1"}}},
+					},
+				)),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			asm := NewAssembler(tt.fetcher)
+			b, err := asm.Assemble(context.Background(), Manifest{}, tt.source)
+			require.NoError(t, err)
+			if tt.wantWarnings == nil {
+				assert.Empty(t, b.Warnings)
+			} else {
+				assert.Equal(t, tt.wantWarnings, b.Warnings)
+			}
+		})
+	}
+}
+
+func TestMappingWarning_String(t *testing.T) {
+	w := MappingWarning{
+		File:        "policy.yaml",
+		ArtifactID:  "org-policy",
+		ReferenceID: "missing-ref",
+	}
+	assert.Contains(t, w.String(), "policy.yaml")
+	assert.Contains(t, w.String(), "org-policy")
+	assert.Contains(t, w.String(), "missing-ref")
+}
+

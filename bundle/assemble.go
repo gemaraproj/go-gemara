@@ -27,11 +27,12 @@ func NewAssembler(f gemara.Fetcher) *Assembler {
 // parsedFile pairs a bundle File with its parsed outbound reference data.
 type parsedFile struct {
 	File
-	id      string
-	version string
-	artType gemara.ArtifactType
-	refIDs  []string
-	refURLs map[string]string
+	id          string
+	version     string
+	artType     gemara.ArtifactType
+	refIDs      []string
+	refURLs     map[string]string
+	mappingRefs []gemara.MappingReference
 }
 
 // parseFile decodes a Gemara YAML file into either a gemara.Catalog
@@ -53,6 +54,7 @@ func parseFile(f File) (*parsedFile, error) {
 		pf.id = pol.Metadata.Id
 		pf.version = pol.Metadata.Version
 		pf.artType = pol.Metadata.Type
+		pf.mappingRefs = pol.Metadata.MappingReferences
 		pf.refURLs = mappingRefURLs(pol.Metadata.MappingReferences)
 		pf.refIDs = policyRefIDs(pol.Imports)
 	default:
@@ -63,6 +65,7 @@ func parseFile(f File) (*parsedFile, error) {
 		pf.id = cat.Metadata.Id
 		pf.version = cat.Metadata.Version
 		pf.artType = cat.Metadata.Type
+		pf.mappingRefs = cat.Metadata.MappingReferences
 		pf.refURLs = mappingRefURLs(cat.Metadata.MappingReferences)
 		pf.refIDs = catalogRefIDs(cat.Extends, cat.Imports)
 	}
@@ -126,12 +129,17 @@ func (a *Assembler) Assemble(ctx context.Context, m Manifest, source File) (*Bun
 		imports = append(imports, pf.File)
 	}
 
+	allParsed := make([]*parsedFile, 0, 1+len(importParsed))
+	allParsed = append(allParsed, sourceParsed)
+	allParsed = append(allParsed, importParsed...)
+
 	m.Artifacts = buildArtifactTree(sourceParsed, importParsed, depMap)
 
 	return &Bundle{
 		Manifest: m,
 		Source:   source,
 		Imports:  imports,
+		Warnings: validateMappingRefs(allParsed),
 	}, nil
 }
 
@@ -251,4 +259,40 @@ func importFileName(refID, rawURL string) string {
 		}
 	}
 	return refID + ".yaml"
+}
+
+// String formats the warning as a human-readable diagnostic message.
+func (w MappingWarning) String() string {
+	return fmt.Sprintf(
+		"%s (artifact %q): mapping-reference %q does not match any artifact metadata.id in the set",
+		w.File, w.ArtifactID, w.ReferenceID,
+	)
+}
+
+// validateMappingRefs checks that every URL-less mapping-reference id in
+// each artifact matches at least one metadata.id in the full set.
+func validateMappingRefs(parsed []*parsedFile) []MappingWarning {
+	knownIDs := make(map[string]bool, len(parsed))
+	for _, pf := range parsed {
+		if pf.id != "" {
+			knownIDs[pf.id] = true
+		}
+	}
+
+	var warnings []MappingWarning
+	for _, pf := range parsed {
+		for _, ref := range pf.mappingRefs {
+			if ref.Url != "" {
+				continue
+			}
+			if !knownIDs[ref.Id] {
+				warnings = append(warnings, MappingWarning{
+					File:        pf.Name,
+					ArtifactID:  pf.id,
+					ReferenceID: ref.Id,
+				})
+			}
+		}
+	}
+	return warnings
 }
