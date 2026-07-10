@@ -255,7 +255,7 @@ func TestAssembler_Assemble(t *testing.T) {
 			asm := NewAssembler(tt.fetcher)
 			m := Manifest{BundleVersion: "1", GemaraVersion: "v1.0.0"}
 
-			b, err := asm.Assemble(context.Background(), m, tt.source)
+			b, err := asm.Assemble(context.Background(), m, tt.source, WithContinueOnError())
 			if tt.wantErr != "" {
 				assert.ErrorContains(t, err, tt.wantErr)
 				return
@@ -458,15 +458,15 @@ func artifactsByName(b *Bundle) map[string]Artifact {
 	return m
 }
 
-func TestAssemble_MappingWarnings(t *testing.T) {
+func TestAssemble_MappingRefErrorByDefault(t *testing.T) {
 	tests := []struct {
-		name         string
-		fetcher      mapFetcher
-		source       File
-		wantWarnings []MappingWarning
+		name    string
+		fetcher mapFetcher
+		source  File
+		wantErr string
 	}{
 		{
-			name:    "url-less ref matching a known metadata.id produces no warning",
+			name:    "url-less ref matching a known metadata.id succeeds",
 			fetcher: mapFetcher{},
 			source: File{
 				Name: "cat.yaml",
@@ -477,7 +477,7 @@ func TestAssemble_MappingWarnings(t *testing.T) {
 			},
 		},
 		{
-			name:    "url-less ref not matching any metadata.id produces a warning",
+			name:    "url-less ref not matching any metadata.id returns error",
 			fetcher: mapFetcher{},
 			source: File{
 				Name: "cat.yaml",
@@ -486,9 +486,7 @@ func TestAssemble_MappingWarnings(t *testing.T) {
 					nil, nil,
 				)),
 			},
-			wantWarnings: []MappingWarning{
-				{File: "cat.yaml", ArtifactID: "my-cat", ReferenceID: "unknown-ref"},
-			},
+			wantErr: "unmatched mapping-reference",
 		},
 		{
 			name:    "ref with URL is not validated against metadata.ids",
@@ -499,6 +497,100 @@ func TestAssemble_MappingWarnings(t *testing.T) {
 					[]gemara.MappingReference{{Id: "remote", Title: "Remote", Version: "1.0", Url: "https://example.com/remote.yaml"}},
 					nil, nil,
 				)),
+			},
+		},
+		{
+			name: "multiple mismatches across source and imports returns error",
+			fetcher: mapFetcher{
+				"https://example.com/controls.yaml": mustMarshal(t, testControlCatalog("imported-cat",
+					[]gemara.MappingReference{{Id: "phantom-import", Title: "Phantom Import", Version: "1.0"}},
+					nil, nil,
+				)),
+			},
+			source: File{
+				Name: "policy.yaml",
+				Data: mustMarshal(t, testControlCatalog("my-policy",
+					[]gemara.MappingReference{
+						{Id: "CTRL", Title: "Controls", Version: "1.0", Url: "https://example.com/controls.yaml"},
+						{Id: "phantom-source", Title: "Phantom Source", Version: "1.0"},
+					},
+					nil,
+					[]gemara.MultiEntryMapping{
+						{ReferenceId: "CTRL", Entries: []gemara.ArtifactMapping{{ReferenceId: "C1"}}},
+					},
+				)),
+			},
+			wantErr: "2 unmatched mapping-references",
+		},
+		{
+			name:    "mixed URL and non-URL refs errors only for non-URL",
+			fetcher: mapFetcher{},
+			source: File{
+				Name: "catalog.yaml",
+				Data: mustMarshal(t, testControlCatalog("my-cat",
+					[]gemara.MappingReference{
+						{Id: "HAS-URL", Title: "Has URL", Version: "1.0", Url: "https://example.com/x.yaml"},
+						{Id: "NO-URL", Title: "No URL", Version: "1.0"},
+					}, nil, nil,
+				)),
+			},
+			wantErr: "unmatched mapping-reference",
+		},
+		{
+			name: "url-less ref resolved via import metadata.id succeeds",
+			fetcher: mapFetcher{
+				"https://example.com/guidance.yaml": mustMarshal(t, testGuidanceCatalog("ext-guidance")),
+			},
+			source: File{
+				Name: "cat.yaml",
+				Data: mustMarshal(t, testControlCatalog("my-cat",
+					[]gemara.MappingReference{
+						{Id: "GUIDE", Title: "Guide", Version: "1.0", Url: "https://example.com/guidance.yaml"},
+						{Id: "ext-guidance", Title: "Ext Guidance Local", Version: "1.0"},
+					},
+					nil,
+					[]gemara.MultiEntryMapping{
+						{ReferenceId: "GUIDE", Entries: []gemara.ArtifactMapping{{ReferenceId: "G1"}}},
+					},
+				)),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			asm := NewAssembler(tt.fetcher)
+			b, err := asm.Assemble(context.Background(), Manifest{}, tt.source)
+			if tt.wantErr != "" {
+				assert.ErrorContains(t, err, tt.wantErr)
+				assert.Nil(t, b)
+				return
+			}
+			require.NoError(t, err)
+			assert.Empty(t, b.Warnings)
+		})
+	}
+}
+
+func TestAssemble_MappingWarningsWithContinueOnError(t *testing.T) {
+	tests := []struct {
+		name         string
+		fetcher      mapFetcher
+		source       File
+		wantWarnings []MappingWarning
+	}{
+		{
+			name:    "url-less ref not matching any metadata.id produces warning",
+			fetcher: mapFetcher{},
+			source: File{
+				Name: "cat.yaml",
+				Data: mustMarshal(t, testControlCatalog("my-cat",
+					[]gemara.MappingReference{{Id: "unknown-ref", Title: "Unknown", Version: "1.0"}},
+					nil, nil,
+				)),
+			},
+			wantWarnings: []MappingWarning{
+				{File: "cat.yaml", ArtifactID: "my-cat", ReferenceID: "unknown-ref"},
 			},
 		},
 		{
@@ -528,37 +620,13 @@ func TestAssemble_MappingWarnings(t *testing.T) {
 			},
 		},
 		{
-			name:    "mixed URL and non-URL refs warns only for non-URL",
+			name:    "matching ref produces no warning with continue-on-error",
 			fetcher: mapFetcher{},
 			source: File{
-				Name: "catalog.yaml",
-				Data: mustMarshal(t, testControlCatalog("my-cat",
-					[]gemara.MappingReference{
-						{Id: "HAS-URL", Title: "Has URL", Version: "1.0", Url: "https://example.com/x.yaml"},
-						{Id: "NO-URL", Title: "No URL", Version: "1.0"},
-					}, nil, nil,
-				)),
-			},
-			wantWarnings: []MappingWarning{
-				{File: "catalog.yaml", ArtifactID: "my-cat", ReferenceID: "NO-URL"},
-			},
-		},
-		{
-			name: "url-less ref resolved via import metadata.id produces no warning",
-			fetcher: mapFetcher{
-				"https://example.com/guidance.yaml": mustMarshal(t, testGuidanceCatalog("ext-guidance")),
-			},
-			source: File{
 				Name: "cat.yaml",
-				Data: mustMarshal(t, testControlCatalog("my-cat",
-					[]gemara.MappingReference{
-						{Id: "GUIDE", Title: "Guide", Version: "1.0", Url: "https://example.com/guidance.yaml"},
-						{Id: "ext-guidance", Title: "Ext Guidance Local", Version: "1.0"},
-					},
-					nil,
-					[]gemara.MultiEntryMapping{
-						{ReferenceId: "GUIDE", Entries: []gemara.ArtifactMapping{{ReferenceId: "G1"}}},
-					},
+				Data: mustMarshal(t, testControlCatalog("self-ref",
+					[]gemara.MappingReference{{Id: "self-ref", Title: "Self", Version: "1.0"}},
+					nil, nil,
 				)),
 			},
 		},
@@ -567,7 +635,7 @@ func TestAssemble_MappingWarnings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			asm := NewAssembler(tt.fetcher)
-			b, err := asm.Assemble(context.Background(), Manifest{}, tt.source)
+			b, err := asm.Assemble(context.Background(), Manifest{}, tt.source, WithContinueOnError())
 			require.NoError(t, err)
 			if tt.wantWarnings == nil {
 				assert.Empty(t, b.Warnings)

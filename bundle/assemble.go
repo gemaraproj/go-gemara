@@ -77,7 +77,11 @@ func parseFile(f File) (*parsedFile, error) {
 // its extends and imports via mapping-references URLs, then recursively
 // parses fetched artifacts for their own references until the full
 // dependency tree is resolved.
-func (a *Assembler) Assemble(ctx context.Context, m Manifest, source File) (*Bundle, error) {
+func (a *Assembler) Assemble(ctx context.Context, m Manifest, source File, opts ...AssembleOption) (*Bundle, error) {
+	var aopts assembleOptions
+	for _, o := range opts {
+		o(&aopts)
+	}
 	if source.Name == "" {
 		return nil, fmt.Errorf("source file is required")
 	}
@@ -135,11 +139,16 @@ func (a *Assembler) Assemble(ctx context.Context, m Manifest, source File) (*Bun
 
 	m.Artifacts = buildArtifactTree(sourceParsed, importParsed, depMap)
 
+	warnings := validateMappingRefs(allParsed)
+	if len(warnings) > 0 && !aopts.continueOnError {
+		return nil, mappingRefError(warnings)
+	}
+
 	return &Bundle{
 		Manifest: m,
 		Source:   source,
 		Imports:  imports,
-		Warnings: validateMappingRefs(allParsed),
+		Warnings: warnings,
 	}, nil
 }
 
@@ -259,6 +268,19 @@ func importFileName(refID, rawURL string) string {
 		}
 	}
 	return refID + ".yaml"
+}
+
+// mappingRefError builds a single error summarising all unmatched
+// mapping-reference IDs found during assembly.
+func mappingRefError(warnings []MappingWarning) error {
+	if len(warnings) == 1 {
+		return fmt.Errorf("unmatched mapping-reference: %s", warnings[0])
+	}
+	msg := fmt.Sprintf("%d unmatched mapping-references:", len(warnings))
+	for _, w := range warnings {
+		msg += "\n  - " + w.String()
+	}
+	return fmt.Errorf("%s", msg)
 }
 
 // String formats the warning as a human-readable diagnostic message.
