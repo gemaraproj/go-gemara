@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gemaraproj/go-gemara"
+	"github.com/gemaraproj/go-gemara/fetcher"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -272,7 +273,7 @@ func TestCatalogToMarkdown_lexiconAutolinkFromFile(t *testing.T) {
 			{Id: "C", Group: "G", Title: "Example Term in title", Objective: "text", State: gemara.LifecycleActive},
 		},
 	}
-	out, err := CatalogToMarkdown(context.Background(), catalog, Config{TOC: false, LexiconAutolink: true})
+	out, err := CatalogToMarkdown(context.Background(), catalog, Config{TOC: false, LexiconAutolink: true, Fetcher: &fetcher.URI{}})
 	require.NoError(t, err)
 	assert.Contains(t, string(out), "## Lexicon")
 }
@@ -287,9 +288,27 @@ func TestCatalogToMarkdown_lexiconResolveError(t *testing.T) {
 		Groups:   []gemara.Group{{Id: "G", Title: "G"}},
 		Controls: []gemara.Control{{Id: "C", Group: "G", Title: "T", Objective: "o", State: gemara.LifecycleActive}},
 	}
-	_, err := CatalogToMarkdown(context.Background(), catalog, Config{LexiconAutolink: true})
+	_, err := CatalogToMarkdown(context.Background(), catalog, Config{LexiconAutolink: true, Fetcher: &fetcher.URI{}})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "lexicon")
+}
+
+func TestCatalogToMarkdown_lexiconAutolink_nilFetcher(t *testing.T) {
+	catalog := gemara.ControlCatalog{
+		Metadata: gemara.Metadata{
+			Id: "m", Type: gemara.ControlCatalogArtifact, Description: "d", Author: gemara.Actor{Name: "a", Type: gemara.Human},
+			Lexicon: &gemara.ArtifactMapping{ReferenceId: "lex"},
+			MappingReferences: []gemara.MappingReference{
+				{Id: "lex", Title: "L", Version: "1", Url: lexiconTestdataAbsPath(t, "lexicon_good.yaml")},
+			},
+		},
+		Title:    "x",
+		Groups:   []gemara.Group{{Id: "G", Title: "G"}},
+		Controls: []gemara.Control{{Id: "C", Group: "G", Title: "T", Objective: "o", State: gemara.LifecycleActive}},
+	}
+	_, err := CatalogToMarkdown(context.Background(), catalog, Config{LexiconAutolink: true})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "non-nil Fetcher")
 }
 
 func TestCatalogToMarkdown_inlineLexiconNormalizeError(t *testing.T) {
