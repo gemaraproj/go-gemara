@@ -74,17 +74,18 @@ PRs must meet the following criteria:
 - **All CI checks pass**, including lint, tests, and the coverage threshold
 - **Generated types in sync** -- run `make generate` if you've updated the Gemara spec version
 
-## Reporting Issues
+## Filing Issues
 
-Open an [issue](https://github.com/gemaraproj/go-gemara/issues/new). Include enough detail to reproduce the problem -- a minimal Gemara document and the error output are ideal for parser or conversion bugs.
+Use the [issue chooser](https://github.com/gemaraproj/go-gemara/issues/new/choose) to pick the right template:
 
-## Suggesting Features
+- **Bug report** -- something isn't working. Include the go-gemara version, steps to reproduce, and expected vs. actual behavior. A minimal Gemara document plus the error output is ideal for parser or conversion bugs.
+- **Feature request** -- new conversions, additional Gemara artifact support, CLI improvements, or other enhancements. Describe the use case and the behavior you'd like.
 
-Feature requests are welcome, especially for new conversions, additional Gemara artifact support, or CLI improvements. Open an issue describing the use case and expected behavior.
+For questions, the chooser also links to the OpenSSF Slack `#gemara` channel.
 
-## Security Issues
+### Security Issues
 
-For security vulnerabilities, please follow the [security policy](https://github.com/gemaraproj/.github/blob/main/SECURITY.md).
+**Do not open a public issue for security vulnerabilities.** Instead, follow the [security policy](https://github.com/gemaraproj/.github/blob/main/SECURITY.md) to report privately.
 
 ## Governance
 
