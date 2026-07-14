@@ -520,7 +520,7 @@ func TestAssemble_MappingRefErrorByDefault(t *testing.T) {
 					},
 				)),
 			},
-			wantErr: "2 unmatched mapping-references",
+			wantErr: "unmatched mapping-reference",
 		},
 		{
 			name:    "mixed URL and non-URL refs errors only for non-URL",

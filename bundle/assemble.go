@@ -4,6 +4,7 @@ package bundle
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -270,17 +271,14 @@ func importFileName(refID, rawURL string) string {
 	return refID + ".yaml"
 }
 
-// mappingRefError builds a single error summarising all unmatched
+// mappingRefError builds a joined error from all unmatched
 // mapping-reference IDs found during assembly.
 func mappingRefError(warnings []MappingWarning) error {
-	if len(warnings) == 1 {
-		return fmt.Errorf("unmatched mapping-reference: %s", warnings[0])
+	errs := make([]error, len(warnings))
+	for i, w := range warnings {
+		errs[i] = fmt.Errorf("unmatched mapping-reference: %s", w)
 	}
-	msg := fmt.Sprintf("%d unmatched mapping-references:", len(warnings))
-	for _, w := range warnings {
-		msg += "\n  - " + w.String()
-	}
-	return fmt.Errorf("%s", msg)
+	return errors.Join(errs...)
 }
 
 // String formats the warning as a human-readable diagnostic message.
