@@ -99,6 +99,72 @@ func TestUpdateAggregateResult(t *testing.T) {
 			new:      NeedsReview,
 			expected: NeedsReview,
 		},
+		{
+			name:     "NotApplicable should overwrite NotRun",
+			prev:     NotRun,
+			new:      NotApplicable,
+			expected: NotApplicable,
+		},
+		{
+			name:     "NotApplicable should not overwrite Passed",
+			prev:     Passed,
+			new:      NotApplicable,
+			expected: Passed,
+		},
+		{
+			name:     "NotApplicable should not overwrite Failed",
+			prev:     Failed,
+			new:      NotApplicable,
+			expected: Failed,
+		},
+		{
+			name:     "NotApplicable should not overwrite Unknown",
+			prev:     Unknown,
+			new:      NotApplicable,
+			expected: Unknown,
+		},
+		{
+			name:     "NotApplicable should not overwrite NeedsReview",
+			prev:     NeedsReview,
+			new:      NotApplicable,
+			expected: NeedsReview,
+		},
+		{
+			name:     "NotApplicable with NotApplicable returns NotApplicable",
+			prev:     NotApplicable,
+			new:      NotApplicable,
+			expected: NotApplicable,
+		},
+		{
+			name:     "Passed should overwrite NotApplicable",
+			prev:     NotApplicable,
+			new:      Passed,
+			expected: Passed,
+		},
+		{
+			name:     "Failed should overwrite NotApplicable",
+			prev:     NotApplicable,
+			new:      Failed,
+			expected: Failed,
+		},
+		{
+			name:     "Unknown should overwrite NotApplicable",
+			prev:     NotApplicable,
+			new:      Unknown,
+			expected: Unknown,
+		},
+		{
+			name:     "NeedsReview should overwrite NotApplicable",
+			prev:     NotApplicable,
+			new:      NeedsReview,
+			expected: NeedsReview,
+		},
+		{
+			name:     "NotRun should not overwrite NotApplicable",
+			prev:     NotApplicable,
+			new:      NotRun,
+			expected: NotApplicable,
+		},
 	}
 
 	for _, test := range tests {
