@@ -5,7 +5,7 @@ go 1.25.0
 toolchain go1.25.8
 
 require (
-	github.com/defenseunicorns/go-oscal v0.7.0
+	github.com/defenseunicorns/go-oscal v0.7.1
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/go-cmp v0.7.0
 	github.com/opencontainers/go-digest v1.0.0
