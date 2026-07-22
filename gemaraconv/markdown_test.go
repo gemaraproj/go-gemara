@@ -362,7 +362,7 @@ func TestCatalogToMarkdown_lexiconAutolink(t *testing.T) {
 		},
 	}
 
-	out, err := CatalogToMarkdown(context.Background(), catalog, WithLexiconAutolink(true), WithTOC(false))
+	out, err := CatalogToMarkdown(context.Background(), catalog, WithLexiconAutolink(&fetcher.URI{}), WithTOC(false))
 	require.NoError(t, err)
 	s := string(out)
 
@@ -436,6 +436,10 @@ func TestCatalogToMarkdown_lexiconAutolink_resolveError(t *testing.T) {
 		Groups:   []gemara.Group{{Id: "G", Title: "G"}},
 		Controls: []gemara.Control{{Id: "C", Group: "G", Title: "T", Objective: "o", State: gemara.LifecycleActive}},
 	}
-	_, err := CatalogToMarkdown(context.Background(), catalog, WithLexiconAutolink(true))
+	_, err := CatalogToMarkdown(context.Background(), catalog, WithLexiconAutolink(&fetcher.URI{}))
 	require.Error(t, err)
+}
+
+func TestWithLexiconAutolink_nilPanics(t *testing.T) {
+	assert.Panics(t, func() { WithLexiconAutolink(nil) })
 }

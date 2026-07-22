@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gemaraproj/go-gemara"
+	"github.com/gemaraproj/go-gemara/fetcher"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,7 +40,7 @@ func TestParseLexiconYAML_rejects(t *testing.T) {
 }
 
 func TestLoadLexiconFromURI_file(t *testing.T) {
-	entries, err := loadLexiconFromURI(context.Background(), lexiconTestdataAbsPath(t, "lexicon_good.yaml"))
+	entries, err := loadLexiconFromURI(context.Background(), &fetcher.URI{}, lexiconTestdataAbsPath(t, "lexicon_good.yaml"))
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
 }
@@ -88,7 +89,7 @@ func TestLexiconGistIntegration(t *testing.T) {
 		t.Skip("network")
 	}
 	const gist = "https://gist.githubusercontent.com/eddie-knight/3ffa5e1a5d562ba0f3b0cd3f5b563679/raw/1b39cb516f23430288b7893004eb0b91f14a7487/lexicon.yaml"
-	entries, err := loadLexiconFromURI(context.Background(), gist)
+	entries, err := loadLexiconFromURI(context.Background(), &fetcher.URI{}, gist)
 	require.NoError(t, err)
 	require.NotEmpty(t, entries)
 }
