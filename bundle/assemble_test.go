@@ -656,4 +656,3 @@ func TestMappingWarning_String(t *testing.T) {
 	assert.Contains(t, w.String(), "org-policy")
 	assert.Contains(t, w.String(), "missing-ref")
 }
-

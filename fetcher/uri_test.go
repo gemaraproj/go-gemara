@@ -89,3 +89,116 @@ func TestURI_TypoScheme(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported URI scheme")
 }
+
+func TestURI_BasePath_FileScheme(t *testing.T) {
+	base := t.TempDir()
+	sub := filepath.Join(base, "catalogs")
+	require.NoError(t, os.MkdirAll(sub, 0700))
+	require.NoError(t, os.WriteFile(filepath.Join(sub, "c.yaml"), []byte("found: true\n"), 0600))
+
+	tests := []struct {
+		name     string
+		basePath string
+		source   string
+		want     string
+	}{
+		{
+			name:     "relative file:// resolved against BasePath",
+			basePath: base,
+			source:   "file://catalogs/c.yaml",
+			want:     "found: true\n",
+		},
+		{
+			name:     "dot-slash relative file:// resolved against BasePath",
+			basePath: base,
+			source:   "file://./catalogs/c.yaml",
+			want:     "found: true\n",
+		},
+		{
+			name:     "parent-relative file:// resolved against BasePath",
+			basePath: sub,
+			source:   "file://../catalogs/c.yaml",
+			want:     "found: true\n",
+		},
+		{
+			name:     "absolute file:// ignores BasePath",
+			basePath: "/should/not/matter",
+			source:   "file://" + filepath.Join(sub, "c.yaml"),
+			want:     "found: true\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &URI{BasePath: tt.basePath}
+			rc, err := f.Fetch(context.Background(), tt.source)
+			require.NoError(t, err)
+			defer rc.Close() //nolint:errcheck
+
+			data, err := io.ReadAll(rc)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, string(data))
+		})
+	}
+}
+
+func TestURI_BasePath_BarePath(t *testing.T) {
+	base := t.TempDir()
+	sub := filepath.Join(base, "catalogs")
+	require.NoError(t, os.MkdirAll(sub, 0700))
+	require.NoError(t, os.WriteFile(filepath.Join(sub, "c.yaml"), []byte("bare: true\n"), 0600))
+
+	tests := []struct {
+		name     string
+		basePath string
+		source   string
+		want     string
+	}{
+		{
+			name:     "bare relative path resolved against BasePath",
+			basePath: base,
+			source:   "catalogs/c.yaml",
+			want:     "bare: true\n",
+		},
+		{
+			name:     "dot-slash bare path resolved against BasePath",
+			basePath: base,
+			source:   "./catalogs/c.yaml",
+			want:     "bare: true\n",
+		},
+		{
+			name:     "absolute bare path ignores BasePath",
+			basePath: "/should/not/matter",
+			source:   filepath.Join(sub, "c.yaml"),
+			want:     "bare: true\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &URI{BasePath: tt.basePath}
+			rc, err := f.Fetch(context.Background(), tt.source)
+			require.NoError(t, err)
+			defer rc.Close() //nolint:errcheck
+
+			data, err := io.ReadAll(rc)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, string(data))
+		})
+	}
+}
+
+func TestURI_BasePath_Empty_BackwardCompatible(t *testing.T) {
+	tmp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "data.yaml"), []byte("compat: true\n"), 0600))
+	t.Chdir(tmp)
+
+	f := &URI{}
+	rc, err := f.Fetch(context.Background(), "file://./data.yaml")
+	require.NoError(t, err)
+	defer rc.Close() //nolint:errcheck
+
+	data, err := io.ReadAll(rc)
+	require.NoError(t, err)
+	assert.Equal(t, "compat: true\n", string(data))
+}
