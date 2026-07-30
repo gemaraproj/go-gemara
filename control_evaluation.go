@@ -12,9 +12,11 @@ func (c *ControlEvaluation) AddAssessment(requirementId string, description stri
 }
 
 // Evaluate runs each step in each assessment, updating the relevant fields on the control evaluation.
-// It will halt if a step returns a failed result. The targetData is the data that the assessment will be run against.
-// The userApplicability is a slice of strings that determine when the assessment is applicable. The changesAllowed
-// determines whether the assessment is allowed to execute its changes.
+// Every applicable assessment (sub-requirement) is evaluated independently; a failing sub-requirement
+// must not suppress evaluation of its siblings. The control's aggregate result is accumulated via
+// UpdateAggregateResult, so an earlier Failed still wins the rollup without skipping later assessments.
+// The targetData is the data that the assessment will be run against. The userApplicability is a slice
+// of strings that determine when the assessment is applicable.
 func (c *ControlEvaluation) Evaluate(targetData interface{}, userApplicability []string) {
 	if len(c.AssessmentLogs) == 0 {
 		c.Result = NeedsReview
@@ -34,9 +36,6 @@ func (c *ControlEvaluation) Evaluate(targetData interface{}, userApplicability [
 			result := assessment.Run(targetData)
 			c.Result = UpdateAggregateResult(c.Result, result)
 			c.Message = assessment.Message
-			if c.Result == Failed {
-				break
-			}
 		}
 	}
 }

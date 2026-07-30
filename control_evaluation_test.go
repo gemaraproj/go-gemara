@@ -112,6 +112,30 @@ func TestEvaluate(t *testing.T) {
 	}
 }
 
+// TestEvaluate_EvaluatesAllSubRequirementsAfterFailure is a regression test for a
+// bug where a failing sub-requirement caused Evaluate to break out of the loop,
+// leaving later sub-requirements of the same control unevaluated (reported as
+// NotRun with StepsExecuted=0). Each sub-requirement is independent and must be
+// evaluated regardless of a sibling's result, while the control still aggregates
+// to Failed.
+func TestEvaluate_EvaluatesAllSubRequirementsAfterFailure(t *testing.T) {
+	first := failingAssessmentPtr()
+	second := passingAssessmentPtr()
+	c := &ControlEvaluation{AssessmentLogs: []*AssessmentLog{first, second}}
+
+	c.Evaluate(nil, testingApplicability)
+
+	if second.StepsExecuted == 0 {
+		t.Errorf("expected the sub-requirement after a failing sibling to be evaluated, but it was skipped (StepsExecuted=0)")
+	}
+	if second.Result != Passed {
+		t.Errorf("expected the later sub-requirement to record its own result Passed, got %v", second.Result)
+	}
+	if c.Result != Failed {
+		t.Errorf("expected the control to still aggregate to Failed, got %v", c.Result)
+	}
+}
+
 func TestAddAssesment(t *testing.T) {
 
 	controlEvaluationTestData[0].control.AddAssessment("test", "test", []string{}, []AssessmentStep{})
