@@ -119,20 +119,42 @@ func TestEvaluate(t *testing.T) {
 // evaluated regardless of a sibling's result, while the control still aggregates
 // to Failed.
 func TestEvaluate_EvaluatesAllSubRequirementsAfterFailure(t *testing.T) {
-	first := failingAssessmentPtr()
-	second := passingAssessmentPtr()
-	c := &ControlEvaluation{AssessmentLogs: []*AssessmentLog{first, second}}
-
-	c.Evaluate(nil, testingApplicability)
-
-	if second.StepsExecuted == 0 {
-		t.Errorf("expected the sub-requirement after a failing sibling to be evaluated, but it was skipped (StepsExecuted=0)")
+	tests := []struct {
+		name        string
+		laterResult Result
+	}{
+		{name: "Passed", laterResult: Passed},
+		{name: "NeedsReview", laterResult: NeedsReview},
+		{name: "Unknown", laterResult: Unknown},
 	}
-	if second.Result != Passed {
-		t.Errorf("expected the later sub-requirement to record its own result Passed, got %v", second.Result)
-	}
-	if c.Result != Failed {
-		t.Errorf("expected the control to still aggregate to Failed, got %v", c.Result)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			first := failingAssessmentPtr()
+			first.Steps = []AssessmentStep{func(interface{}) (Result, string, ConfidenceLevel) {
+				return Failed, "failure context", Low
+			}}
+			second := passingAssessmentPtr()
+			second.Steps = []AssessmentStep{func(interface{}) (Result, string, ConfidenceLevel) {
+				return test.laterResult, "later context", High
+			}}
+			c := &ControlEvaluation{AssessmentLogs: []*AssessmentLog{first, second}}
+
+			c.Evaluate(nil, testingApplicability)
+
+			if second.StepsExecuted == 0 {
+				t.Errorf("expected the sub-requirement after a failing sibling to be evaluated, but it was skipped (StepsExecuted=0)")
+			}
+			if second.Result != test.laterResult {
+				t.Errorf("expected the later sub-requirement to record its own result %v, got %v", test.laterResult, second.Result)
+			}
+			if c.Result != Failed {
+				t.Errorf("expected the control to still aggregate to Failed, got %v", c.Result)
+			}
+			if c.Message != "failure context" {
+				t.Errorf("expected the control to retain the failing sub-requirement's message, got %q", c.Message)
+			}
+		})
 	}
 }
 
