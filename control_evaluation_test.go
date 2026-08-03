@@ -158,6 +158,52 @@ func TestEvaluate_EvaluatesAllSubRequirementsAfterFailure(t *testing.T) {
 	}
 }
 
+// TestEvaluate_RetainsFirstMessageForTiedAggregateResult documents that when two
+// sibling assessments share the winning precedence, the control-level message is
+// a stable summary that keeps the first tied assessment's message. Each assessment
+// still retains its own message in AssessmentLogs so consumers can report every
+// condition. The rule holds for every precedence level that can tie, not just Failed.
+func TestEvaluate_RetainsFirstMessageForTiedAggregateResult(t *testing.T) {
+	tests := []struct {
+		name            string
+		tiedResult      Result
+		expectAggregate Result
+	}{
+		{name: "Failed", tiedResult: Failed, expectAggregate: Failed},
+		{name: "NeedsReview", tiedResult: NeedsReview, expectAggregate: NeedsReview},
+		{name: "Unknown", tiedResult: Unknown, expectAggregate: Unknown},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			first := failingAssessmentPtr()
+			first.Steps = []AssessmentStep{func(interface{}) (Result, string, ConfidenceLevel) {
+				return test.tiedResult, "first context", Low
+			}}
+			second := failingAssessmentPtr()
+			second.Steps = []AssessmentStep{func(interface{}) (Result, string, ConfidenceLevel) {
+				return test.tiedResult, "second context", High
+			}}
+			c := &ControlEvaluation{AssessmentLogs: []*AssessmentLog{first, second}}
+
+			c.Evaluate(nil, testingApplicability)
+
+			if c.Result != test.expectAggregate {
+				t.Errorf("expected the control to aggregate to %v, got %v", test.expectAggregate, c.Result)
+			}
+			if c.Message != "first context" {
+				t.Errorf("expected the control to retain the first tied message, got %q", c.Message)
+			}
+			if first.Message != "first context" {
+				t.Errorf("expected the first assessment to retain its message, got %q", first.Message)
+			}
+			if second.Message != "second context" {
+				t.Errorf("expected the second assessment to retain its message, got %q", second.Message)
+			}
+		})
+	}
+}
+
 func TestAddAssesment(t *testing.T) {
 
 	controlEvaluationTestData[0].control.AddAssessment("test", "test", []string{}, []AssessmentStep{})
