@@ -96,6 +96,52 @@ var controlEvaluationTestData = []struct {
 			},
 		},
 	},
+	{
+		// Every applicable assessment was inapplicable, so the control is too.
+		testName:          "ControlEvaluation with only a NotApplicable AssessmentLog",
+		expectedResult:    NotApplicable,
+		expectedCorrupted: false,
+		control: &ControlEvaluation{
+			AssessmentLogs: []*AssessmentLog{notApplicableAssessmentPtr()},
+		},
+	},
+	{
+		// Roll-up absorption: one inapplicable assessment does not make the whole
+		// control inapplicable when a sibling produced a real result.
+		testName:          "ControlEvaluation with first NotApplicable and then Passing AssessmentLog",
+		expectedResult:    Passed,
+		expectedCorrupted: false,
+		control: &ControlEvaluation{
+			AssessmentLogs: []*AssessmentLog{
+				notApplicableAssessmentPtr(),
+				passingAssessmentPtr(),
+			},
+		},
+	},
+	{
+		testName:          "ControlEvaluation with first Passing and then NotApplicable AssessmentLog",
+		expectedResult:    Passed,
+		expectedCorrupted: false,
+		control: &ControlEvaluation{
+			AssessmentLogs: []*AssessmentLog{
+				passingAssessmentPtr(),
+				notApplicableAssessmentPtr(),
+			},
+		},
+	},
+	{
+		// A NotApplicable assessment must not halt the roll-up, so the failing
+		// sibling after it still runs and still decides the control.
+		testName:          "ControlEvaluation with first NotApplicable and then Failing AssessmentLog",
+		expectedResult:    Failed,
+		expectedCorrupted: false,
+		control: &ControlEvaluation{
+			AssessmentLogs: []*AssessmentLog{
+				notApplicableAssessmentPtr(),
+				failingAssessmentPtr(),
+			},
+		},
+	},
 }
 
 // TestEvaluate runs a series of tests on the ControlEvaluation.Evaluate method

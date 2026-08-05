@@ -22,8 +22,11 @@ func getAssessmentsTestData() []struct {
 		expectedResult     Result
 	}{
 		{
-			testName:   "AssessmentLog with no steps",
-			assessment: AssessmentLog{},
+			// An empty assessment fails precheck, which reports Unknown without
+			// running any steps.
+			testName:       "AssessmentLog with no steps",
+			assessment:     AssessmentLog{},
+			expectedResult: Unknown,
 		},
 		{
 			testName:           "AssessmentLog with one step",
@@ -52,6 +55,13 @@ func getAssessmentsTestData() []struct {
 			numberOfSteps:      4,
 			numberOfStepsToRun: 4,
 			expectedResult:     Passed,
+		},
+		{
+			testName:           "AssessmentLog halting on a NotApplicable guard",
+			assessment:         notApplicableAssessment(),
+			numberOfSteps:      2,
+			numberOfStepsToRun: 1,
+			expectedResult:     NotApplicable,
 		},
 	}
 }
@@ -103,6 +113,12 @@ func TestRunStep(t *testing.T) {
 			result:          Unknown,
 			confidenceLevel: Undetermined,
 		},
+		{
+			testName:        "Not applicable step",
+			step:            notApplicableAssessmentStep,
+			result:          NotApplicable,
+			confidenceLevel: High,
+		},
 	}
 	for _, test := range stepsTestData {
 		t.Run(test.testName, func(t *testing.T) {
@@ -129,6 +145,9 @@ func TestRun(t *testing.T) {
 			result := a.Run(nil)
 			if result != a.Result {
 				t.Errorf("expected match between Run return value (%s) and assessment Result value (%s)", result, data.expectedResult)
+			}
+			if result != data.expectedResult {
+				t.Errorf("expected result %s, got %s", data.expectedResult, result)
 			}
 			if a.StepsExecuted != int64(data.numberOfStepsToRun) {
 				t.Errorf("expected to run %d tests, got %d", data.numberOfStepsToRun, a.StepsExecuted)
@@ -368,6 +387,126 @@ func TestConfidenceLevelFromSteps(t *testing.T) {
 
 			assert.Equal(t, tt.expectedResult, result)
 			assert.Equal(t, tt.expectedConfidence, assessment.ConfidenceLevel)
+		})
+	}
+}
+
+// TestRunNotApplicableGuard covers the scope-guard contract end to end: a step
+// that reports NotApplicable must decide the assessment outright and stop the
+// chain. Aggregating it through UpdateAggregateResult is not sufficient, because
+// NotApplicable is intentionally the weakest non-NotRun value there and would be
+// absorbed by any real result on either side of it.
+func TestRunNotApplicableGuard(t *testing.T) {
+	tests := []struct {
+		name          string
+		steps         []AssessmentStep
+		expected      Result
+		expectedSteps int64
+	}{
+		{
+			// The regression that motivated this behavior: an inapplicable target was
+			// reported as having passed the requirement.
+			name:          "NotApplicable guard is not overwritten by a later Passed",
+			steps:         []AssessmentStep{notApplicableAssessmentStep, passingAssessmentStep},
+			expected:      NotApplicable,
+			expectedSteps: 1,
+		},
+		{
+			name:          "NotApplicable guard halts before a later Failed",
+			steps:         []AssessmentStep{notApplicableAssessmentStep, failingAssessmentStep},
+			expected:      NotApplicable,
+			expectedSteps: 1,
+		},
+		{
+			name:          "NotApplicable guard halts before a later NeedsReview",
+			steps:         []AssessmentStep{notApplicableAssessmentStep, needsReviewAssessmentStep},
+			expected:      NotApplicable,
+			expectedSteps: 1,
+		},
+		{
+			name:          "NotApplicable guard halts before a later Unknown",
+			steps:         []AssessmentStep{notApplicableAssessmentStep, unknownAssessmentStep},
+			expected:      NotApplicable,
+			expectedSteps: 1,
+		},
+		{
+			// Scope determination outranks findings gathered before the requirement
+			// was known not to apply, so a passing prerequisite does not absorb it.
+			name:          "NotApplicable after a passing prerequisite still wins",
+			steps:         []AssessmentStep{passingAssessmentStep, notApplicableAssessmentStep, passingAssessmentStep},
+			expected:      NotApplicable,
+			expectedSteps: 2,
+		},
+		{
+			name:          "NotApplicable after NeedsReview still wins",
+			steps:         []AssessmentStep{needsReviewAssessmentStep, notApplicableAssessmentStep, passingAssessmentStep},
+			expected:      NotApplicable,
+			expectedSteps: 2,
+		},
+		{
+			// Failed halts first, so a guard placed after it is never reached.
+			name:          "Failed halts before reaching a later NotApplicable",
+			steps:         []AssessmentStep{failingAssessmentStep, notApplicableAssessmentStep},
+			expected:      Failed,
+			expectedSteps: 1,
+		},
+		{
+			name:          "consecutive NotApplicable steps halt on the first",
+			steps:         []AssessmentStep{notApplicableAssessmentStep, notApplicableAssessmentStep},
+			expected:      NotApplicable,
+			expectedSteps: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, err := NewAssessment("test-id", "test description", testingApplicability, tt.steps)
+			require.NoError(t, err)
+
+			result := a.Run(nil)
+
+			assert.Equal(t, tt.expected, result, "Run return value")
+			assert.Equal(t, tt.expected, a.Result, "AssessmentLog.Result")
+			assert.Equal(t, tt.expectedSteps, a.StepsExecuted, "steps executed")
+		})
+	}
+}
+
+// TestRunNotApplicableGuardRetainsMessage ensures the guard's own message reaches
+// the log rather than being overwritten by a step that runs after it, since
+// runStep assigns a.Message unconditionally.
+func TestRunNotApplicableGuardRetainsMessage(t *testing.T) {
+	later := func(interface{}) (Result, string, ConfidenceLevel) {
+		return Passed, "this step should never have run", High
+	}
+	a, err := NewAssessment("test-id", "test description", testingApplicability,
+		[]AssessmentStep{notApplicableAssessmentStep, later})
+	require.NoError(t, err)
+
+	require.Equal(t, NotApplicable, a.Run(nil))
+	assert.Equal(t, "out of scope for this target", a.Message)
+}
+
+// TestRunStampsEndOnHalt ensures an assessment that executed at least one step
+// records an end time on every exit path, including the early returns.
+func TestRunStampsEndOnHalt(t *testing.T) {
+	cases := []struct {
+		name  string
+		steps []AssessmentStep
+	}{
+		{"halt on Failed", []AssessmentStep{failingAssessmentStep}},
+		{"halt on NotApplicable", []AssessmentStep{notApplicableAssessmentStep}},
+		{"ran to completion", []AssessmentStep{passingAssessmentStep}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a, err := NewAssessment("test-id", "test description", testingApplicability, tc.steps)
+			require.NoError(t, err)
+
+			a.Run(nil)
+
+			assert.NotEmpty(t, a.Start, "Start should be stamped")
+			assert.NotEmpty(t, a.End, "End should be stamped")
 		})
 	}
 }

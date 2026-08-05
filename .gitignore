@@ -39,3 +39,6 @@ schema.cue
 
 # ignore local git worktrees
 .worktrees/
+
+# do not commit AI assistant artifacts
+.claude
