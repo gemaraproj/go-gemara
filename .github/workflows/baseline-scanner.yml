@@ -6,25 +6,40 @@ on:
     - cron: "0 9 * * 1"
   workflow_dispatch: # Allow manual triggering
 
+permissions: {}
+
 jobs:
   osps-assessment:
     runs-on: ubuntu-latest
     name: Baseline Scan
 
     permissions:
-      contents: read
+      contents: read # Clone the repository
+      id-token: write # Federate with Octo STS for a short-lived GitHub App token
       security-events: write # Required for SARIF upload
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Exchanges this workflow's OIDC identity for a short-lived GitHub App
+      # token, per the trust policy in .github/chainguard/baseline-scanner.sts.yaml.
+      # Replaces the expiring GH_AUTH_TOKEN PAT.
+      - name: Federate with Octo STS
+        id: octo-sts
+        uses: octo-sts/action@f603d3be9d8dd9871a265776e625a27b00effe05 # v1.1.1
+        with:
+          scope: ${{ github.repository }}
+          identity: baseline-scanner
 
       - name: Run Baseline Action
         uses: revanite-io/osps-baseline-action@b7d860b68755627c30ab692473511c90daee3ae8 # v1.3.4
         with:
           owner: ${{ github.repository_owner }}
           repo: ${{ github.event.repository.name }}
-          token: ${{ secrets.GH_AUTH_TOKEN }}
+          token: ${{ steps.octo-sts.outputs.token }}
           catalog: "osps-baseline-2026-02"
           upload-sarif: "true"
 
