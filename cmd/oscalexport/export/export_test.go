@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	oscal "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
+	oscal12 "github.com/defenseunicorns/go-oscal/src/types/oscal-1-2-2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -210,5 +211,75 @@ evaluations:
 		err := Evaluation(inputFilePath, args)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, os.ErrNotExist)
+	})
+}
+
+func TestMapping(t *testing.T) {
+	tempDir := t.TempDir()
+
+	mockYAML := `
+title: Test Mapping
+metadata:
+  id: test-mapping
+  type: MappingDocument
+  gemara-version: "1.2.0"
+  version: "1.0.0"
+  date: "2026-01-01T00:00:00Z"
+  author:
+    id: author
+    name: Test Author
+    type: Human
+  mapping-references:
+    - id: source-ref
+      title: Source Catalog
+      version: "1.0.0"
+      url: https://example.com/source
+    - id: target-ref
+      title: Target Catalog
+      version: "1.0.0"
+      url: https://example.com/target
+source-reference:
+  entry-type: Control
+  reference-id: source-ref
+target-reference:
+  entry-type: Control
+  reference-id: target-ref
+mappings:
+  - id: map-1
+    source: AC-01
+    relationship: equivalent
+    targets:
+      - entry-id: CC-01
+        rationale: Same objective
+`
+	inputFilePath := filepath.Join(tempDir, "mapping.yaml")
+	require.NoError(t, os.WriteFile(inputFilePath, []byte(mockYAML), 0600))
+
+	t.Run("Success/Defaults", func(t *testing.T) {
+		outputFilePath := filepath.Join(t.TempDir(), "mapping-collection.json")
+		args := []string{"--output", outputFilePath}
+		err := Mapping(inputFilePath, args)
+		require.NoError(t, err)
+
+		var model oscal12.OscalModels
+		data, err := os.ReadFile(outputFilePath)
+		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(data, &model))
+		require.NotNil(t, model.MappingCollection)
+		require.Len(t, model.MappingCollection.Mappings.Maps, 1)
+		assert.Equal(t, "equivalent-to", model.MappingCollection.Mappings.Maps[0].Relationship)
+	})
+
+	t.Run("Failure/NotExists", func(t *testing.T) {
+		err := Mapping("non-existent-file.yaml", []string{})
+		require.Error(t, err)
+		assert.ErrorIs(t, err, os.ErrNotExist)
+	})
+
+	t.Run("Failure/InvalidInput", func(t *testing.T) {
+		failYAMLPath := filepath.Join(t.TempDir(), "fail.yaml")
+		require.NoError(t, os.WriteFile(failYAMLPath, []byte("fail"), 0600))
+		err := Mapping(failYAMLPath, []string{})
+		require.ErrorContains(t, err, "string was used where mapping is expected")
 	})
 }

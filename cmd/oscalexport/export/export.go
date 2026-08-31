@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	oscalTypes "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
+	oscalTypes12 "github.com/defenseunicorns/go-oscal/src/types/oscal-1-2-2"
 
 	"github.com/gemaraproj/go-gemara"
 	"github.com/gemaraproj/go-gemara/fetcher"
@@ -128,7 +129,45 @@ func Evaluation(path string, args []string) error {
 	return WriteOSCALFile(oscalModel, *outputFile)
 }
 
+func Mapping(path string, args []string) error {
+	cmd := flag.NewFlagSet("mapping", flag.ExitOnError)
+	outputFile := cmd.String("output", "mapping-collection.json", "Path to output file")
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+
+	doc, err := gemara.Load[gemara.MappingDocument](context.Background(), &fetcher.File{}, path)
+	if err != nil {
+		return err
+	}
+
+	collection, err := gemaraconv.MappingDocument(*doc).ToOSCAL()
+	if err != nil {
+		return err
+	}
+
+	oscalModel := oscalTypes12.OscalModels{
+		MappingCollection: &collection,
+	}
+
+	return WriteOSCAL12File(oscalModel, *outputFile)
+}
+
 func WriteOSCALFile(model oscalTypes.OscalModels, outputFile string) error {
+	oscalJSON, err := json.MarshalIndent(model, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(outputFile, oscalJSON, 0600); err != nil {
+		return err
+	}
+
+	fmt.Printf("Successfully wrote OSCAL content to %s\n", outputFile)
+	return nil
+}
+
+func WriteOSCAL12File(model oscalTypes12.OscalModels, outputFile string) error {
 	oscalJSON, err := json.MarshalIndent(model, "", "  ")
 	if err != nil {
 		return err

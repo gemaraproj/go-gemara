@@ -1,0 +1,61 @@
+title: "OSPS Baseline to Example Framework Mapping"
+metadata:
+  id: osps-to-example-mapping
+  type: MappingDocument
+  gemara-version: "1.2.0"
+  version: "1.0.0"
+  date: "2026-06-15T00:00:00Z"
+  description: >-
+    Maps OSPS Baseline controls to an example target framework to exercise
+    OSCAL mapping-collection export and validation.
+  author:
+    id: security
+    name: Security Group
+    type: Human
+  mapping-references:
+    - id: osps-baseline
+      title: OSPS Baseline
+      version: "1.0.0"
+      url: https://baseline.openssf.org/versions/2026-02
+    - id: example-framework
+      title: Example Target Framework
+      version: "1.0.0"
+      url: https://example.com/framework/v1
+source-reference:
+  entry-type: Control
+  reference-id: osps-baseline
+target-reference:
+  entry-type: Control
+  reference-id: example-framework
+mappings:
+  - id: map-01
+    source: OSPS-01
+    relationship: equivalent
+    targets:
+      - entry-id: EX-01
+        strength: 10
+        rationale: Same control objective and scope.
+    remarks: Direct one-to-one correspondence.
+  - id: map-02
+    source: OSPS-02
+    relationship: subsumes
+    targets:
+      - entry-id: EX-02
+        strength: 8
+        rationale: Source covers all of EX-02 plus additional scope.
+      - entry-id: EX-03
+        strength: 7
+        rationale: Source also covers identity requirements.
+    remarks: Broad source control.
+  - id: map-03
+    source: OSPS-03
+    relationship: relates-to
+    targets:
+      - entry-id: EX-04
+        strength: 5
+        rationale: Partial overlap in logging requirements.
+  - id: map-04
+    source: OSPS-99
+    relationship: no-match
+    remarks: No corresponding control in the target framework.
+remarks: Example mapping for OSCAL export validation.

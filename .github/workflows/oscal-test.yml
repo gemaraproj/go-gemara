@@ -11,7 +11,7 @@ on:
       - "cmd/oscalexport/**"
 
 jobs:
-  OSCAL-Test:
+  oscal-test:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -49,3 +49,13 @@ jobs:
         uses: oscal-club/oscal-cli-action@6a8b6368885714e46fa1d4a65a6ce665902e08b7 # v2.1.0
         with:
           args: validate --disable-constraint-validation ./artifacts/assessment-results.json
+      - name: Validate OSCAL mapping collection
+        uses: oscal-club/oscal-cli-action@6a8b6368885714e46fa1d4a65a6ce665902e08b7 # v2.1.0
+        with:
+          # oscal-cli-enhanced 2.6.0 (the action default) crashes on the
+          # mapping-collection model's `relationship` field: its
+          # has-oscal-namespace() metapath function assumes an assembly
+          # context node and throws MPTY0004 on a field node. Fixed upstream
+          # in 3.2.0.
+          oscalCliPackageUrl: https://repo1.maven.org/maven2/dev/metaschema/oscal/oscal-cli-enhanced/3.2.0/oscal-cli-enhanced-3.2.0-oscal-cli.tar.bz2
+          args: validate ./artifacts/mapping-collection.json

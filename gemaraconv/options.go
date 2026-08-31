@@ -187,3 +187,51 @@ func WithArtifactURI(uri string) EvalOption {
 		o.artifactURI = uri
 	}
 }
+
+type mappingOpts struct {
+	// methodOverride pins the provenance method field. Empty means infer it
+	// from the MappingDocument's author type.
+	methodOverride string
+	reverseDoc     *gemara.MappingDocument
+}
+
+func defaultMappingOpts() mappingOpts {
+	return mappingOpts{}
+}
+
+// MappingOption configures MappingDocument to OSCAL MappingCollection conversion.
+type MappingOption func(*mappingOpts)
+
+// WithHumanMethod pins the provenance method field to "human", overriding
+// inference from the MappingDocument's author type.
+func WithHumanMethod() MappingOption {
+	return func(o *mappingOpts) {
+		o.methodOverride = mappingMethodHuman
+	}
+}
+
+// WithAutomatedMethod pins the provenance method field to "automated",
+// overriding inference from the MappingDocument's author type.
+func WithAutomatedMethod() MappingOption {
+	return func(o *mappingOpts) {
+		o.methodOverride = mappingMethodAutomated
+	}
+}
+
+// WithMachineAssistedMethod pins the provenance method field to
+// "machine-assisted", overriding inference from the MappingDocument's
+// author type.
+func WithMachineAssistedMethod() MappingOption {
+	return func(o *mappingOpts) {
+		o.methodOverride = mappingMethodMachineAssisted
+	}
+}
+
+// WithReverseMappingDocument supplies the reverse-direction MappingDocument
+// to compute target-gap-summary. The reverse mapping's source must match the
+// forward mapping's target and vice versa.
+func WithReverseMappingDocument(doc gemara.MappingDocument) MappingOption {
+	return func(o *mappingOpts) {
+		o.reverseDoc = &doc
+	}
+}

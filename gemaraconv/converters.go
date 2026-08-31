@@ -6,6 +6,7 @@ import (
 	"context"
 
 	oscal "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
+	oscal12 "github.com/defenseunicorns/go-oscal/src/types/oscal-1-2-2"
 	"github.com/gemaraproj/go-gemara"
 )
 
@@ -62,4 +63,19 @@ func GuidanceCatalog(guidance gemara.GuidanceCatalog) *GuidanceCatalogConverter 
 // ToOSCAL converts the GuidanceCatalog to an OSCAL Catalog and Profile.
 func (c *GuidanceCatalogConverter) ToOSCAL(guidanceDocHref string, opts ...GenerateOption) (oscal.Catalog, oscal.Profile, error) {
 	return GuidanceToOSCAL(c.guidance, guidanceDocHref, opts...)
+}
+
+// MappingDocumentConverter defines a converter for converting MappingDocument.
+type MappingDocumentConverter struct {
+	mapping gemara.MappingDocument
+}
+
+// MappingDocument creates a new MappingDocumentConverter struct.
+func MappingDocument(doc gemara.MappingDocument) *MappingDocumentConverter {
+	return &MappingDocumentConverter{mapping: doc}
+}
+
+// ToOSCAL converts the MappingDocument to an OSCAL MappingCollection.
+func (c *MappingDocumentConverter) ToOSCAL(opts ...MappingOption) (oscal12.MappingCollection, error) {
+	return MappingDocumentToOSCAL(c.mapping, opts...)
 }
