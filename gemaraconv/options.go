@@ -149,9 +149,10 @@ func WithInlineLexicon(terms []InlineLexiconTerm) MarkdownOption {
 }
 
 type evalOpts struct {
-	catalog      *gemara.ControlCatalog
-	importApHref string
-	artifactURI  string
+	catalog          *gemara.ControlCatalog
+	importApHref     string
+	artifactURI      string
+	excludedStatuses []gemara.Result
 }
 
 func defaultEvalOpts() evalOpts {
@@ -185,5 +186,14 @@ func WithCatalog(catalog *gemara.ControlCatalog) EvalOption {
 func WithArtifactURI(uri string) EvalOption {
 	return func(o *evalOpts) {
 		o.artifactURI = uri
+	}
+}
+
+// WithExcludedStatuses skips assessment logs whose result matches any of the
+// provided statuses. NotRun and NotApplicable results are always skipped.
+// Used by SARIF conversion.
+func WithExcludedStatuses(statuses ...gemara.Result) EvalOption {
+	return func(o *evalOpts) {
+		o.excludedStatuses = append(o.excludedStatuses, statuses...)
 	}
 }

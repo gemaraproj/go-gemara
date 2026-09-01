@@ -18,6 +18,7 @@ func TestFromEvaluationLog(t *testing.T) {
 		wantRules     int
 		wantResults   int
 		wantLevels    map[string]string
+		wantKinds     map[string]string
 		wantToolName  string
 		wantToolURI   string
 		wantToolVer   string
@@ -40,8 +41,13 @@ func TestFromEvaluationLog(t *testing.T) {
 			wantResults: 3,
 			wantLevels: map[string]string{
 				"REQ-1": "error",
-				"REQ-2": "warning",
-				"REQ-3": "note",
+				"REQ-2": "",
+				"REQ-3": "",
+			},
+			wantKinds: map[string]string{
+				"REQ-1": "fail",
+				"REQ-2": "review",
+				"REQ-3": "pass",
 			},
 			wantToolName: "gemara",
 			wantToolURI:  "https://github.com/gemaraproj/go-gemara",
@@ -228,8 +234,10 @@ func TestFromEvaluationLog(t *testing.T) {
 			require.Equal(t, tt.wantToolVer, run.Tool.Driver.Version)
 
 			levels := make(map[string]string)
+			kinds := make(map[string]string)
 			for _, r := range run.Results {
 				levels[r.RuleID] = r.Level
+				kinds[r.RuleID] = r.Kind
 				if tt.checkLocation != nil {
 					require.NotEmpty(t, r.Locations)
 					tt.checkLocation(t, &r.Locations[0])
@@ -238,6 +246,9 @@ func TestFromEvaluationLog(t *testing.T) {
 
 			for ruleID, wantLevel := range tt.wantLevels {
 				require.Equal(t, wantLevel, levels[ruleID], "rule %s should have level %s", ruleID, wantLevel)
+			}
+			for ruleID, wantKind := range tt.wantKinds {
+				require.Equal(t, wantKind, kinds[ruleID], "rule %s should have kind %s", ruleID, wantKind)
 			}
 
 			if tt.checkRule != nil && len(run.Tool.Driver.Rules) > 0 {
@@ -250,18 +261,19 @@ func TestFromEvaluationLog(t *testing.T) {
 	}
 }
 
-func TestToSARIF_ResultLevels(t *testing.T) {
+func TestToSARIF_ResultMapping(t *testing.T) {
 	tests := []struct {
 		result    gemara.Result
+		wantKind  string
 		wantLevel string
 		wantCount int
 	}{
-		{gemara.Failed, "error", 1},
-		{gemara.NeedsReview, "warning", 1},
-		{gemara.Unknown, "warning", 1},
-		{gemara.Passed, "note", 1},
-		{gemara.NotApplicable, "", 0},
-		{gemara.NotRun, "", 0},
+		{gemara.Failed, "fail", "error", 1},
+		{gemara.NeedsReview, "review", "", 1},
+		{gemara.Unknown, "open", "", 1},
+		{gemara.Passed, "pass", "", 1},
+		{gemara.NotApplicable, "", "", 0},
+		{gemara.NotRun, "", "", 0},
 	}
 
 	for _, tt := range tests {
@@ -281,8 +293,68 @@ func TestToSARIF_ResultLevels(t *testing.T) {
 			require.Len(t, sarif.Runs[0].Results, tt.wantCount)
 
 			if tt.wantCount > 0 {
-				require.Equal(t, tt.wantLevel, sarif.Runs[0].Results[0].Level)
+				result := sarif.Runs[0].Results[0]
+				require.Equal(t, tt.wantKind, result.Kind)
+				require.Equal(t, tt.wantLevel, result.Level)
+				require.Equal(t, tt.result.String(), result.Properties["gemara/result"])
+				require.Equal(t, "REQ-1", result.PartialFingerprints["gemara/requirementId/v1"])
 			}
+		})
+	}
+}
+
+func TestToSARIF_ExcludedStatuses(t *testing.T) {
+	logs := []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "should do a thing", gemara.Failed, "thing was not done", nil),
+		makeAssessmentLog("REQ-2", "should maybe do a thing", gemara.NeedsReview, "", nil),
+		makeAssessmentLog("REQ-3", "should do another thing", gemara.Passed, "", nil),
+	}
+
+	tests := []struct {
+		name        string
+		opts        []EvalOption
+		wantRuleIDs []string
+	}{
+		{
+			name:        "no exclusions keeps all results",
+			opts:        nil,
+			wantRuleIDs: []string{"REQ-1", "REQ-2", "REQ-3"},
+		},
+		{
+			name:        "exclude needs review",
+			opts:        []EvalOption{WithExcludedStatuses(gemara.NeedsReview)},
+			wantRuleIDs: []string{"REQ-1", "REQ-3"},
+		},
+		{
+			name:        "exclude all but failed",
+			opts:        []EvalOption{WithExcludedStatuses(gemara.NeedsReview, gemara.Passed)},
+			wantRuleIDs: []string{"REQ-1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evaluationLog := makeEvaluationLog(gemara.Actor{
+				Name:    "test",
+				Uri:     "https://test",
+				Version: "1.0.0",
+			}, logs)
+
+			sarifBytes, err := ToSARIF(evaluationLog, tt.opts...)
+			require.NoError(t, err)
+
+			sarif := toSARIFReport(t, sarifBytes)
+			gotRuleIDs := make([]string, 0, len(sarif.Runs[0].Results))
+			for _, r := range sarif.Runs[0].Results {
+				gotRuleIDs = append(gotRuleIDs, r.RuleID)
+			}
+			require.Equal(t, tt.wantRuleIDs, gotRuleIDs)
+
+			gotRules := make([]string, 0, len(sarif.Runs[0].Tool.Driver.Rules))
+			for _, rule := range sarif.Runs[0].Tool.Driver.Rules {
+				gotRules = append(gotRules, rule.ID)
+			}
+			require.Equal(t, tt.wantRuleIDs, gotRules, "rules should only be emitted for included results")
 		})
 	}
 }

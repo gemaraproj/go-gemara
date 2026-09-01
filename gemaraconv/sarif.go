@@ -3,6 +3,7 @@ package gemaraconv
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/gemaraproj/go-gemara"
 )
@@ -15,6 +16,13 @@ var emptyArtifactURIMessage = "no file associated with this alert"
 //
 // Use WithArtifactURI to set PhysicalLocation (defaults to a placeholder).
 // Use WithCatalog to enrich rules with requirement text and recommendations.
+// Use WithExcludedStatuses to omit results by Gemara status.
+//
+// Each result carries a kind reflecting its Gemara status (fail, review, open,
+// or pass); per SARIF v2.1.0 the level is only set (to "error") when the kind
+// is "fail". The originating status string is recorded in the result property
+// bag under "gemara/result", and a partial fingerprint keyed on the requirement
+// id keeps alert identity stable across runs for viewers that track results.
 //
 // PhysicalLocation identifies the artifact (file/repository) where the result was found.
 // LogicalLocation identifies the logical component (assessment step) that produced the result.
@@ -49,6 +57,10 @@ func ToSARIF(evaluationLog gemara.EvaluationLog, opts ...EvalOption) ([]byte, er
 
 			// Skip NotRun and NotApplicable results - only include Passed, Failed, NeedsReview, Unknown
 			if log.Result == gemara.NotRun || log.Result == gemara.NotApplicable {
+				continue
+			}
+
+			if slices.Contains(options.excludedStatuses, log.Result) {
 				continue
 			}
 
@@ -99,7 +111,7 @@ func ToSARIF(evaluationLog gemara.EvaluationLog, opts ...EvalOption) ([]byte, er
 				ruleIdSeen[ruleID] = true
 			}
 
-			level := mapResultToSarifLevel(log.Result)
+			kind, level := mapResultToKindLevel(log.Result)
 
 			// Message: prefer specific message, fallback to description
 			msg := log.Message
@@ -135,10 +147,17 @@ func ToSARIF(evaluationLog gemara.EvaluationLog, opts ...EvalOption) ([]byte, er
 
 			result := ResultEntry{
 				RuleID:  ruleID,
+				Kind:    kind,
 				Level:   level,
 				Message: Message{Text: msg},
 				Locations: []Location{
 					location,
+				},
+				PartialFingerprints: map[string]string{
+					"gemara/requirementId/v1": ruleID,
+				},
+				Properties: map[string]any{
+					"gemara/result": log.Result.String(),
 				},
 			}
 			run.Results = append(run.Results, result)
@@ -154,16 +173,21 @@ func ToSARIF(evaluationLog gemara.EvaluationLog, opts ...EvalOption) ([]byte, er
 	return json.Marshal(report)
 }
 
-func mapResultToSarifLevel(r gemara.Result) string {
+// mapResultToKindLevel maps a Gemara result to a SARIF result kind and level.
+// Per SARIF v2.1.0 (§3.27.10), level applies only when kind is "fail"; for any
+// other kind the level is omitted (equivalent to "none").
+func mapResultToKindLevel(r gemara.Result) (kind, level string) {
 	switch r {
 	case gemara.Failed:
-		return "error"
-	case gemara.NeedsReview, gemara.Unknown:
-		return "warning"
+		return "fail", "error"
+	case gemara.NeedsReview:
+		return "review", ""
+	case gemara.Unknown:
+		return "open", ""
 	case gemara.Passed, gemara.NotApplicable, gemara.NotRun:
 		fallthrough
 	default:
-		return "note"
+		return "pass", ""
 	}
 }
 
@@ -202,10 +226,13 @@ type ReportingDescriptor struct {
 }
 
 type ResultEntry struct {
-	RuleID    string     `json:"ruleId"`
-	Level     string     `json:"level,omitempty"`
-	Message   Message    `json:"message"`
-	Locations []Location `json:"locations,omitempty"`
+	RuleID              string            `json:"ruleId"`
+	Kind                string            `json:"kind,omitempty"`
+	Level               string            `json:"level,omitempty"`
+	Message             Message           `json:"message"`
+	Locations           []Location        `json:"locations,omitempty"`
+	PartialFingerprints map[string]string `json:"partialFingerprints,omitempty"`
+	Properties          map[string]any    `json:"properties,omitempty"`
 }
 
 type Message struct {
