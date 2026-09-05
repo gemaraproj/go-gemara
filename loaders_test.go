@@ -370,3 +370,99 @@ func TestControlCatalog_LoadNestedCatalog(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Decode Tests
+// ============================================================================
+
+func TestDecode_YAML(t *testing.T) {
+	data := []byte(`
+metadata:
+  type: ControlCatalog
+  id: test-catalog
+controls:
+  - id: TEST-01
+    title: Test Control
+`)
+
+	catalog, err := Decode[ControlCatalog](data)
+	require.NoError(t, err)
+	assert.Equal(t, ControlCatalogArtifact, catalog.Metadata.Type)
+	assert.Equal(t, "test-catalog", catalog.Metadata.Id)
+	require.Len(t, catalog.Controls, 1)
+	assert.Equal(t, "TEST-01", catalog.Controls[0].Id)
+}
+
+func TestDecode_JSON(t *testing.T) {
+	data := []byte(`{"metadata":{"type":"ControlCatalog","id":"test-catalog"},` +
+		`"controls":[{"id":"TEST-01","title":"Test Control"}]}`)
+
+	catalog, err := Decode[ControlCatalog](data)
+	require.NoError(t, err)
+	assert.Equal(t, ControlCatalogArtifact, catalog.Metadata.Type)
+	assert.Equal(t, "test-catalog", catalog.Metadata.Id)
+	require.Len(t, catalog.Controls, 1)
+	assert.Equal(t, "TEST-01", catalog.Controls[0].Id)
+}
+
+// Artifacts produced against a newer schema carry keys this version does not
+// know about. Decoding must drop them rather than fail.
+func TestDecode_IgnoresUnknownKeys(t *testing.T) {
+	data := []byte(`
+future-top-level-key: dropped
+metadata:
+  type: ControlCatalog
+  id: test-catalog
+  future-metadata-key: dropped
+controls:
+  - id: TEST-01
+    title: Test Control
+    future-control-key: dropped
+`)
+
+	catalog, err := Decode[ControlCatalog](data)
+	require.NoError(t, err)
+	assert.Equal(t, "test-catalog", catalog.Metadata.Id)
+	require.Len(t, catalog.Controls, 1)
+	assert.Equal(t, "TEST-01", catalog.Controls[0].Id)
+}
+
+// Decode goes through the same codec as Load, so the older-schema key
+// aliases (families -> groups) apply to in-memory bytes too.
+func TestDecode_AppliesSchemaAliases(t *testing.T) {
+	data := []byte(`
+metadata:
+  type: ControlCatalog
+  id: test-catalog
+families:
+  - id: FAM-01
+    title: Legacy Family
+`)
+
+	catalog, err := Decode[ControlCatalog](data)
+	require.NoError(t, err)
+	require.Len(t, catalog.Groups, 1)
+	assert.Equal(t, "FAM-01", catalog.Groups[0].Id)
+}
+
+func TestDecode_GuidanceCatalog(t *testing.T) {
+	data := []byte(`
+metadata:
+  type: GuidanceCatalog
+  id: test-guidance
+guidelines:
+  - id: GL-01
+    title: Test Guideline
+`)
+
+	guidance, err := Decode[GuidanceCatalog](data)
+	require.NoError(t, err)
+	assert.Equal(t, "test-guidance", guidance.Metadata.Id)
+	require.Len(t, guidance.Guidelines, 1)
+	assert.Equal(t, "GL-01", guidance.Guidelines[0].Id)
+}
+
+func TestDecode_InvalidYAML(t *testing.T) {
+	_, err := Decode[ControlCatalog]([]byte(":\n  bad yaml {{{\n"))
+	assert.Error(t, err)
+}

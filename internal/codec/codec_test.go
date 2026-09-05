@@ -41,11 +41,27 @@ func TestDecodeJSON(t *testing.T) {
 	}
 }
 
-func TestDecodeJSON_UnknownField(t *testing.T) {
-	reader := strings.NewReader(`{"field": "value", "unknown": "extra"}`)
+// Unknown fields must be ignored so that artifacts written against a newer
+// schema still decode into the types this version of the library ships.
+func TestDecodeJSON_UnknownFieldIgnored(t *testing.T) {
+	reader := strings.NewReader(`{"field": "value", "future-key": "extra"}`)
 	var target dummyStruct
-	if err := DecodeJSON(reader, &target); err == nil {
-		t.Error("DecodeJSON() expected error for unknown field")
+	if err := DecodeJSON(reader, &target); err != nil {
+		t.Fatalf("DecodeJSON() error = %v, want nil for unknown field", err)
+	}
+	if target.Field != "value" {
+		t.Errorf("DecodeJSON() got = %v, want %v", target.Field, "value")
+	}
+}
+
+func TestDecodeYAML_UnknownFieldIgnored(t *testing.T) {
+	reader := strings.NewReader("field: value\nfuture-key: extra\n")
+	var target dummyStruct
+	if err := DecodeYAML(reader, &target); err != nil {
+		t.Fatalf("DecodeYAML() error = %v, want nil for unknown field", err)
+	}
+	if target.Field != "value" {
+		t.Errorf("DecodeYAML() got = %v, want %v", target.Field, "value")
 	}
 }
 
