@@ -6,12 +6,80 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"slices"
 	"time"
+
+	"github.com/gemaraproj/go-gemara/internal/codec"
 )
 
 // AssessmentStep is a function type that inspects the provided targetData and returns a Result with a message and confidence level.
 // The message may be an error string or other descriptive text.
 type AssessmentStep func(payload interface{}) (Result, string, ConfidenceLevel)
+
+// stepNameProbe is the sentinel payload that asks a decoded step for its name.
+type stepNameProbe struct{}
+
+// decodedStep is the step a recorded name decodes into. AssessmentStep is a
+// function type, so the name has nowhere to live but inside the closure, which
+// returns it when probed. A function is not recoverable from its name, so any
+// other payload gets Unknown rather than a pretend assessment.
+//
+// noinline keeps the closure literal compiled once, in this package. Inlined
+// into a consumer's go or defer literal, the compiler emits a second copy at a
+// different code pointer, and isDecoded misses it.
+//
+//go:noinline
+func decodedStep(name string) AssessmentStep {
+	return func(payload interface{}) (Result, string, ConfidenceLevel) {
+		if _, ok := payload.(stepNameProbe); ok {
+			return Unknown, name, Undetermined
+		}
+		return Unknown, decodedStepMessage, Undetermined
+	}
+}
+
+const decodedStepMessage = "assessment step was decoded from a log, which records step names only, and cannot be re-run"
+
+// NamedStep returns a step that runs fn and reports name from String. Use it
+// when a step has been wrapped in a closure, which erases the symbol String
+// would otherwise resolve, so the log records the wrapped function rather than
+// the wrapper. A nil fn yields a name-only step, the same as one decoded from a
+// log.
+//
+// noinline for the same reason as decodedStep.
+//
+//go:noinline
+func NamedStep(name string, fn AssessmentStep) AssessmentStep {
+	if fn == nil {
+		return decodedStep(name)
+	}
+	return func(payload interface{}) (Result, string, ConfidenceLevel) {
+		if _, ok := payload.(stepNameProbe); ok {
+			return Unknown, name, Undetermined
+		}
+		return fn(payload)
+	}
+}
+
+// decodedStepPC and namedStepPC are the code pointers shared by every closure
+// decodedStep and NamedStep return; isDecoded and isNamed compare against them.
+// reflect does not promise this identity, and inlining would break it, so
+// TestAssessmentStepRoundTrip, TestNamedStep, and the cross-package
+// TestStepIdentitySurvivesInlining guard it.
+var (
+	decodedStepPC = reflect.ValueOf(decodedStep("")).Pointer()
+	namedStepPC   = reflect.ValueOf(NamedStep("", decodedStep(""))).Pointer()
+)
+
+// isDecoded reports whether the step came from a log rather than from a consumer.
+func (as AssessmentStep) isDecoded() bool {
+	return as != nil && reflect.ValueOf(as).Pointer() == decodedStepPC
+}
+
+// isNamed reports whether the step came from NamedStep.
+func (as AssessmentStep) isNamed() bool {
+	return as != nil && reflect.ValueOf(as).Pointer() == namedStepPC
+}
 
 // EvidenceCollector is an embeddable helper that gives a targetData payload the
 // well-known evidence location and satisfies HasEvidence via method promotion,
@@ -73,6 +141,11 @@ type HasEvidence interface {
 }
 
 func (as AssessmentStep) String() string {
+	// The recorded name lives inside the closure, not in its symbol.
+	if as.isDecoded() || as.isNamed() {
+		_, name, _ := as(stepNameProbe{})
+		return name
+	}
 	// Get the function pointer correctly
 	fn := runtime.FuncForPC(reflect.ValueOf(as).Pointer())
 	if fn == nil {
@@ -81,11 +154,56 @@ func (as AssessmentStep) String() string {
 	return fn.Name()
 }
 
+// UnmarshalYAML reads the step name the log recorded. The spec declares the wire
+// type as a string (evaluationlog.cue: `#AssessmentStep: string`).
+//
+// UnmarshalText alone would satisfy goccy/go-yaml, but goccy reports the source
+// position and offending type only when the target implements its
+// BytesUnmarshaler. This method exists for that diagnostic;
+// TestMalformedStepDiagnostics locks it in.
+func (as *AssessmentStep) UnmarshalYAML(data []byte) error {
+	// goccy passes zero bytes for a null inside a sequence or mapping, and the
+	// two quote characters for an explicit "", so returning here keeps a null
+	// step nil without losing an empty name. A document-level null arrives as
+	// the literal bytes and decodes to a step named "", which no real log
+	// produces.
+	if len(data) == 0 {
+		return nil
+	}
+
+	var name string
+	if err := codec.UnmarshalYAML(data, &name); err != nil {
+		return err
+	}
+	*as = decodedStep(name)
+	return nil
+}
+
+// UnmarshalText decodes a step name for encoding/json and for the yaml.v3 family,
+// both of which honor encoding.TextUnmarshaler for scalar values.
+//
+// There is deliberately no UnmarshalJSON: encoding/json's own error names the
+// field path and type (.steps.0, gemara.AssessmentStep), and an inner
+// json.Unmarshal would lose both. Neither decoder calls this method for a null,
+// so a null step stays nil.
+func (as *AssessmentStep) UnmarshalText(data []byte) error {
+	*as = decodedStep(string(data))
+	return nil
+}
+
+// MarshalJSON and MarshalYAML write a nil step as null so it decodes back to
+// nil rather than to a step named after String's placeholder.
 func (as AssessmentStep) MarshalJSON() ([]byte, error) {
+	if as == nil {
+		return []byte("null"), nil
+	}
 	return json.Marshal(as.String())
 }
 
 func (as AssessmentStep) MarshalYAML() (interface{}, error) {
+	if as == nil {
+		return nil, nil
+	}
 	return as.String(), nil
 }
 
@@ -138,8 +256,15 @@ func (a *AssessmentLog) runStep(targetData interface{}, step AssessmentStep) Res
 // Run executes the steps in order, halting early on the first step that returns
 // Failed or NotApplicable. Every other result aggregates into a.Result via
 // UpdateAggregateResult and execution continues.
+//
+// A log decoded from JSON or YAML records step names only, so each of its steps
+// reports Unknown with a message saying it cannot be re-run.
 func (a *AssessmentLog) Run(targetData interface{}) Result {
+	// Reset everything Run accumulates, so a second run, or a run of a log
+	// decoded with counts already recorded, does not compound them.
 	a.Result = NotRun
+	a.StepsExecuted = 0
+	a.Evidence = nil
 
 	a.Start = Datetime(time.Now().Format(time.RFC3339))
 	err := a.precheck()
@@ -176,16 +301,21 @@ func (a *AssessmentLog) Run(targetData interface{}) Result {
 // precheck verifies that the assessment has all the required fields.
 // It returns an error if the assessment is not valid.
 func (a *AssessmentLog) precheck() error {
+	var message string
 	if a.Requirement.EntryId == "" || a.Description == "" || a.Applicability == nil || a.Steps == nil || len(a.Applicability) == 0 || len(a.Steps) == 0 {
-		message := fmt.Sprintf(
+		message = fmt.Sprintf(
 			"expected all AssessmentLog fields to have a value, but got: requirementId=len(%v), description=len=(%v), applicability=len(%v), steps=len(%v)",
 			len(a.Requirement.EntryId), len(a.Description), len(a.Applicability), len(a.Steps),
 		)
-		a.Result = Unknown
-		a.Message = message
-		a.ConfidenceLevel = Undetermined
-		return errors.New(message)
+	} else if i := slices.IndexFunc(a.Steps, func(s AssessmentStep) bool { return s == nil }); i >= 0 {
+		// A null step in a decoded log stays nil, and calling it would panic.
+		message = fmt.Sprintf("expected every AssessmentLog step to be a function, but step %d is nil", i)
 	}
-
-	return nil
+	if message == "" {
+		return nil
+	}
+	a.Result = Unknown
+	a.Message = message
+	a.ConfidenceLevel = Undetermined
+	return errors.New(message)
 }

@@ -1,10 +1,14 @@
 package gemara
 
 import (
+	"context"
+	"encoding/json"
 	"testing"
 
+	"github.com/gemaraproj/go-gemara/internal/codec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	yaml3 "gopkg.in/yaml.v3"
 )
 
 func getAssessmentsTestData() []struct {
@@ -624,4 +628,256 @@ func TestRunWithoutEvidence(t *testing.T) {
 			assert.Empty(t, a.Evidence)
 		})
 	}
+}
+
+// TestAssessmentStepRoundTrip covers the defect that made a published
+// EvaluationLog unreadable: steps marshalled to their function names but had no
+// decoder. The name assertions are also what catch a decodedStepPC that has
+// stopped identifying decoded steps.
+func TestAssessmentStepRoundTrip(t *testing.T) {
+	want := AssessmentStep(passingAssessmentStep).String()
+	require.NotEmpty(t, want)
+	require.NotContains(t, want, "decodedStep", "sanity: want the real step name, not the decoder closure")
+
+	in := AssessmentLog{
+		Requirement:   EntryMapping{EntryId: "test"},
+		Description:   "round trip",
+		Applicability: testingApplicability,
+		Result:        Passed,
+		Steps:         []AssessmentStep{passingAssessmentStep},
+	}
+
+	// goccy/go-yaml reaches AssessmentStep via the BytesUnmarshaler signature;
+	// encoding/json and yaml.v3 both reach it via encoding.TextUnmarshaler.
+	codecs := []struct {
+		name      string
+		marshal   func(interface{}) ([]byte, error)
+		unmarshal func([]byte, interface{}) error
+	}{
+		{"json", json.Marshal, json.Unmarshal},
+		{"goccy-yaml", codec.MarshalYAML, codec.UnmarshalYAML},
+		{"yaml.v3", yaml3.Marshal, yaml3.Unmarshal},
+	}
+
+	for _, c := range codecs {
+		t.Run(c.name, func(t *testing.T) {
+			data, err := c.marshal(in)
+			require.NoError(t, err)
+
+			var out AssessmentLog
+			require.NoError(t, c.unmarshal(data, &out))
+			require.Len(t, out.Steps, 1)
+			assert.Equal(t, want, out.Steps[0].String(), "step name must survive decoding")
+
+			// Re-encoding a decoded log must reproduce the same bytes, or a log that
+			// passes through this package is corrupted by the trip.
+			again, err := c.marshal(out)
+			require.NoError(t, err)
+			assert.Equal(t, string(data), string(again), "round trip must be lossless")
+		})
+	}
+
+	// A decoded log has names but no functions, so running it reports Unknown
+	// and says why rather than a result it never assessed.
+	t.Run("running a decoded log reports Unknown", func(t *testing.T) {
+		data, err := json.Marshal(in)
+		require.NoError(t, err)
+		var out AssessmentLog
+		require.NoError(t, json.Unmarshal(data, &out))
+
+		assert.Equal(t, Unknown, out.Run(nil))
+		assert.Contains(t, out.Message, "cannot be re-run")
+	})
+
+	// The probe is an internal detail; a consumer step must never receive it.
+	t.Run("real steps are never probed", func(t *testing.T) {
+		var sawProbe bool
+		step := AssessmentStep(func(payload interface{}) (Result, string, ConfidenceLevel) {
+			if _, ok := payload.(stepNameProbe); ok {
+				sawProbe = true
+			}
+			return Passed, "ok", High
+		})
+		_ = step.String()
+		assert.False(t, sawProbe, "String must not invoke a consumer's step")
+	})
+}
+
+// TestAssessmentStepNullDecodesToNil checks that a null step stays nil instead
+// of becoming a non-nil step with an empty name, which would slip past a
+// caller's nil check -- gemaraconv/sarif.go guards on nil before calling
+// String() to build a SARIF logical location.
+func TestAssessmentStepNullDecodesToNil(t *testing.T) {
+	t.Run("json", func(t *testing.T) {
+		var step AssessmentStep
+		require.NoError(t, json.Unmarshal([]byte("null"), &step))
+		assert.Nil(t, step)
+	})
+
+	t.Run("goccy-yaml", func(t *testing.T) {
+		var doc struct {
+			Steps []AssessmentStep `yaml:"steps"`
+		}
+		require.NoError(t, codec.UnmarshalYAML([]byte("steps:\n  - null\n"), &doc))
+		require.Len(t, doc.Steps, 1)
+		assert.Nil(t, doc.Steps[0])
+	})
+
+	t.Run("yaml.v3", func(t *testing.T) {
+		var doc struct {
+			Steps []AssessmentStep `yaml:"steps"`
+		}
+		require.NoError(t, yaml3.Unmarshal([]byte("steps:\n  - null\n"), &doc))
+		// yaml.v3 drops the entry rather than keeping a nil one, so a null shifts
+		// later steps down and desyncs len(Steps) from steps-executed; goccy and
+		// JSON keep position. The SDK decodes through goccy, so this only pins
+		// the shape for consumers who decode with yaml.v3.
+		assert.Empty(t, doc.Steps)
+	})
+
+	// An explicitly empty name is a name, not a null, and must still decode.
+	t.Run("empty name is not null", func(t *testing.T) {
+		var step AssessmentStep
+		require.NoError(t, json.Unmarshal([]byte(`""`), &step))
+		require.NotNil(t, step)
+		assert.Empty(t, step.String())
+	})
+}
+
+// TestMalformedStepDiagnostics locks in the reason AssessmentStep has an
+// UnmarshalYAML but deliberately no UnmarshalJSON: each decoder's own error is
+// better than one routed through an inner unmarshal. Re-adding UnmarshalJSON, or
+// dropping UnmarshalYAML, degrades one of these.
+//
+// A wrong-typed YAML scalar is not malformed here: a plain scalar carries no
+// type, so `steps: [123]` decodes to a step named "123" under both goccy and
+// yaml.v3. Only JSON, whose numbers are typed, rejects it.
+func TestMalformedStepDiagnostics(t *testing.T) {
+	t.Run("json names the field and type", func(t *testing.T) {
+		var doc struct {
+			Steps []AssessmentStep `json:"steps"`
+		}
+		err := json.Unmarshal([]byte(`{"steps":[123]}`), &doc)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), ".steps.0", "error must locate the bad entry")
+		assert.Contains(t, err.Error(), "AssessmentStep", "error must name the real type")
+	})
+
+	t.Run("goccy reports the source position", func(t *testing.T) {
+		var doc struct {
+			Steps []AssessmentStep `yaml:"steps"`
+		}
+		err := codec.UnmarshalYAML([]byte("steps:\n  - [nested, seq]\n"), &doc)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Steps", "error must name the field")
+		assert.NotContains(t, err.Error(), "does not implemented Unmarshaler",
+			"goccy's fallback error carries no position; UnmarshalYAML exists to avoid it")
+	})
+}
+
+// TestEvaluationLogFixtureRoundTrip is the fixture-level counterpart of
+// TestAssessmentStepRoundTrip: a log as a plugin emits it, step names included,
+// must load through the public loader and survive a re-encode unchanged.
+func TestEvaluationLogFixtureRoundTrip(t *testing.T) {
+	log, err := Load[EvaluationLog](context.Background(), fileFetcher, "test-data/good-evaluation-log.yaml")
+	require.NoError(t, err)
+
+	require.Len(t, log.Evaluations, 2)
+	steps := log.Evaluations[1].AssessmentLogs[0].Steps
+	require.Len(t, steps, 3)
+	assert.Equal(t, "github.com/revanite-io/pvtr-github-repo/evaluation_plans/osps/docs.hasUserGuides", steps[2].String())
+
+	first, err := codec.MarshalYAML(log)
+	require.NoError(t, err)
+	var again EvaluationLog
+	require.NoError(t, codec.UnmarshalYAML(first, &again))
+	second, err := codec.MarshalYAML(again)
+	require.NoError(t, err)
+	assert.Equal(t, string(first), string(second), "re-encoding a loaded log must be lossless")
+}
+
+// TestRunResetsCounts guards against Run compounding what an earlier run, or a
+// decoded log, already recorded. gemaraconv branches on StepsExecuted > 0, so an
+// inflated count feeds downstream.
+func TestRunResetsCounts(t *testing.T) {
+	t.Run("decoded log", func(t *testing.T) {
+		var log AssessmentLog
+		require.NoError(t, json.Unmarshal([]byte(`{"requirement":{"entry-id":"r"},"description":"d","applicability":["x"],"steps":["a","b"],"steps-executed":3,"evidence":[{"id":"old"}]}`), &log))
+		log.Run(nil)
+		assert.EqualValues(t, 2, log.StepsExecuted)
+		assert.Empty(t, log.Evidence)
+	})
+
+	t.Run("run twice", func(t *testing.T) {
+		log, err := NewAssessment("r", "d", testingApplicability, []AssessmentStep{passingAssessmentStep, passingAssessmentStep})
+		require.NoError(t, err)
+		log.Run(nil)
+		log.Run(nil)
+		assert.EqualValues(t, 2, log.StepsExecuted)
+	})
+}
+
+// TestNilStep covers a null step that decoded to nil: running it must refuse
+// rather than panic, and marshaling it must write null rather than a name, so
+// the trip is lossless.
+func TestNilStep(t *testing.T) {
+	steps := []AssessmentStep{passingAssessmentStep, nil, passingAssessmentStep}
+
+	t.Run("Run refuses", func(t *testing.T) {
+		log := AssessmentLog{Requirement: EntryMapping{EntryId: "r"}, Description: "d", Applicability: testingApplicability, Steps: steps}
+		assert.Equal(t, Unknown, log.Run(nil))
+		assert.Contains(t, log.Message, "step 1 is nil")
+		assert.Zero(t, log.StepsExecuted)
+	})
+
+	t.Run("NewAssessment refuses", func(t *testing.T) {
+		_, err := NewAssessment("r", "d", testingApplicability, steps)
+		require.ErrorContains(t, err, "step 1 is nil")
+	})
+
+	t.Run("json round trip", func(t *testing.T) {
+		data, err := json.Marshal(steps)
+		require.NoError(t, err)
+		assert.NotContains(t, string(data), "unknown function")
+		var out []AssessmentStep
+		require.NoError(t, json.Unmarshal(data, &out))
+		require.Len(t, out, 3)
+		assert.Nil(t, out[1])
+	})
+
+	t.Run("goccy round trip", func(t *testing.T) {
+		data, err := codec.MarshalYAML(steps)
+		require.NoError(t, err)
+		assert.NotContains(t, string(data), "unknown function")
+		var out []AssessmentStep
+		require.NoError(t, codec.UnmarshalYAML(data, &out))
+		require.Len(t, out, 3)
+		assert.Nil(t, out[1])
+	})
+}
+
+func TestNamedStep(t *testing.T) {
+	ran := false
+	step := NamedStep("pkg.checkThing", func(payload interface{}) (Result, string, ConfidenceLevel) {
+		ran = true
+		return Passed, "ok", High
+	})
+
+	assert.Equal(t, "pkg.checkThing", step.String())
+	assert.False(t, step.isDecoded())
+
+	result, msg, conf := step(nil)
+	assert.True(t, ran)
+	assert.Equal(t, Passed, result)
+	assert.Equal(t, "ok", msg)
+	assert.Equal(t, High, conf)
+
+	out, err := codec.MarshalYAML([]AssessmentStep{step})
+	require.NoError(t, err)
+	assert.Equal(t, "- pkg.checkThing\n", string(out))
+
+	// A name without a function is a decoded step.
+	nameOnly := NamedStep("pkg.gone", nil)
+	assert.Equal(t, "pkg.gone", nameOnly.String())
+	assert.True(t, nameOnly.isDecoded())
 }

@@ -33,6 +33,8 @@ evaluations:
           - Maturity Level 1
           - Maturity Level 2
           - Maturity Level 3
+        steps:
+          - github.com/revanite-io/pvtr-github-repo/evaluation_plans/osps/access_control.orgRequiresMFA
         steps-executed: 1
         start: "2025-08-22T16:02:00Z"
         end: "2025-08-22T16:02:00.000003708Z"
@@ -54,5 +56,9 @@ evaluations:
           - Maturity Level 1
           - Maturity Level 2
           - Maturity Level 3
+        steps:
+          - github.com/revanite-io/pvtr-github-repo/evaluation_plans/reusable_steps.HasMadeReleases
+          - github.com/revanite-io/pvtr-github-repo/evaluation_plans/reusable_steps.HasSecurityInsightsFile
+          - github.com/revanite-io/pvtr-github-repo/evaluation_plans/osps/docs.hasUserGuides
         steps-executed: 3
         start: "2025-08-22T16:02:00Z"
