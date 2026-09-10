@@ -10,6 +10,14 @@ metadata:
     name: pvtr-github-repo
     type: Software
     version: "0.1.0"
+  mapping-references:
+    - id: osps
+      title: OpenSSF Open Source Project Security Baseline
+      version: "2025.1"
+      url: https://baseline.openssf.org
+    - id: api
+      title: GitHub API
+      url: https://github.com
 result: Failed
 target:
   id: pvtr
@@ -38,6 +46,32 @@ evaluations:
         steps-executed: 1
         start: "2025-08-22T16:02:00Z"
         end: "2025-08-22T16:02:00.000003708Z"
+        evidence:
+          - id: branch-protection
+            type: configuration
+            collected-at: "2025-08-22T16:02:00Z"
+            payload:
+              required-status-checks: true
+            source:
+              reference-id: api
+              coordinate: /repos/revanite-io/pvtr-github-repo/branches/main/protection
+              digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+              remarks: Retrieved through the GitHub REST API
+            description: Branch protection requires status checks before merging.
+          - id: mfa-requirement
+            type: command-output
+            collected-at: "2025-08-22T16:02:01Z"
+            source:
+              reference-id: osps
+              entry-id: OSPS-AC-01.01
+              digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            description: The MFA requirement was evaluated against the OSPS control.
+          - id: scan-summary
+            type: command-output
+            collected-at: "2025-08-22T16:02:02Z"
+            payload:
+              passed: true
+            description: The baseline scan completed successfully.
   - name: Documentation - User Guides
     result: Failed
     message: User guide was NOT specified in Security Insights data
