@@ -19,10 +19,10 @@ func DecodeYAML(reader io.Reader, target interface{}) error {
 }
 
 // DecodeJSON decodes JSON from a reader into the target.
-// Unknown fields in the input are rejected.
+// Unknown fields in the input are ignored, so artifacts written against a
+// newer Gemara schema still decode into the types this version supports.
 func DecodeJSON(reader io.Reader, target interface{}) error {
 	decoder := json.NewDecoder(reader)
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		return fmt.Errorf("error decoding JSON: %w", err)
 	}
@@ -35,6 +35,7 @@ func MarshalYAML(v interface{}) ([]byte, error) {
 }
 
 // UnmarshalYAML unmarshals YAML bytes into the provided target.
+// Unknown fields in the input are ignored.
 func UnmarshalYAML(data []byte, target interface{}) error {
 	return yaml.Unmarshal(data, target)
 }

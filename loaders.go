@@ -30,6 +30,23 @@ func DetectType(data []byte) (ArtifactType, error) {
 	return tm.Metadata.Type, nil
 }
 
+// Decode unmarshals raw YAML or JSON bytes into a Gemara type. It is the
+// in-memory counterpart to [Load], for callers that already hold the bytes
+// (for example from bundle.Unpack) and so have no source URL to fetch.
+//
+// JSON is decoded as a subset of YAML, so no format detection is needed.
+// Unknown fields are ignored, letting artifacts written against a newer
+// Gemara schema decode into the types this version supports; the unknown
+// keys are dropped rather than preserved, so re-serializing writes only
+// the schema version this library is at.
+func Decode[T any](data []byte) (*T, error) {
+	var target T
+	if err := codec.UnmarshalYAML(data, &target); err != nil {
+		return nil, err
+	}
+	return &target, nil
+}
+
 // Fetcher retrieves content from a source location.
 //
 // Network-capable implementations (e.g. [fetcher.HTTP], [fetcher.URI])
