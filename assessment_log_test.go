@@ -761,7 +761,9 @@ func TestMalformedStepDiagnostics(t *testing.T) {
 		require.Error(t, err)
 		var typeErr *json.UnmarshalTypeError
 		require.ErrorAs(t, err, &typeErr)
-		assert.Equal(t, "steps", typeErr.Field, "error must locate the bad field")
+		// Go 1.27 includes the offending array index; older supported versions
+		// report only the parent field.
+		assert.Contains(t, []string{"steps", "steps.0"}, typeErr.Field, "error must locate the bad field")
 		assert.Contains(t, err.Error(), "AssessmentStep", "error must name the real type")
 	})
 
