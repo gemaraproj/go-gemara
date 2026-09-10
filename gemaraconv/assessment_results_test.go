@@ -203,6 +203,133 @@ func TestEvaluationLogToOSCALAssessmentResults_BackMatter(t *testing.T) {
 	assertValidJSON(t, ar)
 }
 
+func TestEvaluationLogToOSCALAssessmentResults_RelevantEvidence(t *testing.T) {
+	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Evaluations[0].AssessmentLogs[0].Evidence = []gemara.Evidence{
+		{
+			Id:          "ev-1",
+			Type:        gemara.EvidenceType("configuration"),
+			CollectedAt: "2026-01-02T03:04:05Z",
+			Payload:     map[string]any{"enabled": true},
+			Source: gemara.EvidenceMapping{
+				ReferenceId: "source-1",
+				Coordinate:  "/etc/example.conf",
+				Digest:      "sha256:abc123",
+				Remarks:     "collected remotely",
+			},
+			Description: "The observed configuration.",
+		},
+		{
+			Id:          "ev-2",
+			Type:        gemara.EvidenceType("command-output"),
+			CollectedAt: "2026-01-02T03:04:06Z",
+			Source: gemara.EvidenceMapping{
+				ReferenceId: "source-1",
+				EntryId:     "entry-1",
+			},
+			Description: "The observed command output.",
+		},
+		{
+			Id:          "ev-3",
+			Type:        gemara.EvidenceType("command-output"),
+			CollectedAt: "2026-01-02T03:04:07Z",
+			Description: "The observed command output without a source.",
+		},
+	}
+	log.Metadata.MappingReferences = []gemara.MappingReference{{Id: "source-1", Title: "Source"}}
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log)
+	require.NoError(t, err)
+
+	obs := (*ar.Results[0].Observations)[0]
+	require.NotNil(t, obs.RelevantEvidence)
+	require.Len(t, *obs.RelevantEvidence, 3)
+	evidence := (*obs.RelevantEvidence)[0]
+	assert.Equal(t, "The observed configuration.", evidence.Description)
+	assert.Equal(t, "collected remotely", evidence.Remarks)
+	require.NotNil(t, evidence.Links)
+	require.Len(t, *evidence.Links, 1)
+	assert.Equal(t, "reference", (*evidence.Links)[0].Rel)
+	require.NotNil(t, ar.BackMatter)
+	assert.Equal(t, "#"+(*ar.BackMatter.Resources)[0].UUID, (*evidence.Links)[0].Href)
+	require.NotNil(t, evidence.Props)
+	props := make(map[string]string, len(*evidence.Props))
+	for _, prop := range *evidence.Props {
+		assert.Equal(t, "https://github.com/gemaraproj/go-gemara/ns/oscal", prop.Ns)
+		props[prop.Name] = prop.Value
+	}
+	assert.Equal(t, "ev-1", props["id"])
+	assert.Equal(t, "configuration", props["type"])
+	assert.Equal(t, "2026-01-02T03:04:05Z", props["collected-at"])
+	assert.Equal(t, "source-1", props["source-reference-id"])
+	assert.Equal(t, "/etc/example.conf", props["source-coordinate"])
+	assert.NotContains(t, props, "payload")
+	assert.NotContains(t, props, "source-digest")
+	require.NotNil(t, (*ar.BackMatter.Resources)[0].Rlinks)
+	hashes := (*(*ar.BackMatter.Resources)[0].Rlinks)[0].Hashes
+	require.NotNil(t, hashes)
+	require.Len(t, *hashes, 1)
+	assert.Equal(t, "sha256", (*hashes)[0].Algorithm)
+	assert.Equal(t, "abc123", (*hashes)[0].Value)
+	secondEvidence := (*obs.RelevantEvidence)[1]
+	assert.Equal(t, "The observed command output.", secondEvidence.Description)
+	require.NotNil(t, secondEvidence.Links)
+	assert.Equal(t, "#"+(*ar.BackMatter.Resources)[0].UUID, (*secondEvidence.Links)[0].Href)
+	require.NotNil(t, secondEvidence.Props)
+	assert.Len(t, *secondEvidence.Props, 5)
+	assert.Equal(t, "entry-1", (*secondEvidence.Props)[4].Value)
+	thirdEvidence := (*obs.RelevantEvidence)[2]
+	assert.Equal(t, "The observed command output without a source.", thirdEvidence.Description)
+	assert.Nil(t, thirdEvidence.Links)
+	require.NotNil(t, thirdEvidence.Props)
+	assert.Len(t, *thirdEvidence.Props, 3)
+	assertValidJSON(t, ar)
+}
+
+func TestEvaluationLogToOSCALAssessmentResults_OmitsRelevantEvidenceWhenEmpty(t *testing.T) {
+	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log)
+	require.NoError(t, err)
+
+	assert.Nil(t, (*ar.Results[0].Observations)[0].RelevantEvidence)
+}
+
+func TestEvaluationLogToOSCALAssessmentResults_OmitsEvidencePayload(t *testing.T) {
+	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Evaluations[0].AssessmentLogs[0].Evidence = []gemara.Evidence{{
+		Id:      "ev-1",
+		Payload: func() {},
+	}}
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log)
+	require.NoError(t, err)
+
+	props := *(*(*ar.Results[0].Observations)[0].RelevantEvidence)[0].Props
+	for _, prop := range props {
+		assert.NotEqual(t, "payload", prop.Name)
+	}
+}
+
+func TestEvaluationLogToOSCALAssessmentResults_InvalidEvidenceDigest(t *testing.T) {
+	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Evaluations[0].AssessmentLogs[0].Evidence = []gemara.Evidence{{
+		Source: gemara.EvidenceMapping{Digest: "not-a-digest"},
+	}}
+
+	_, err := EvaluationLogToOSCALAssessmentResults(log)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "expected algorithm:value")
+}
+
 func TestEvaluationLogToOSCALAssessmentResults_NoBackMatterWhenEmpty(t *testing.T) {
 	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
 		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
