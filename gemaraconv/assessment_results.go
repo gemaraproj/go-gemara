@@ -11,6 +11,7 @@ import (
 	oscal "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
 	"github.com/gemaraproj/go-gemara"
 	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
+	"github.com/opencontainers/go-digest"
 )
 
 // EvaluationLogToOSCALAssessmentResults converts a Gemara EvaluationLog into an
@@ -311,23 +312,23 @@ func collectEvidenceHashes(log gemara.EvaluationLog) (map[string][]oscal.Hash, e
 				continue
 			}
 			for _, evidence := range assessmentLog.Evidence {
-				digest := evidence.Source.Digest
-				if digest == "" {
+				rawDigest := evidence.Source.Digest
+				if rawDigest == "" {
 					continue
 				}
-				algorithm, value, found := strings.Cut(digest, ":")
-				if !found || algorithm == "" || value == "" {
-					return nil, fmt.Errorf("parsing evidence digest %q: expected algorithm:value", digest)
+				parsedDigest, err := digest.Parse(rawDigest)
+				if err != nil {
+					return nil, fmt.Errorf("parsing evidence digest %q: %w", rawDigest, err)
 				}
 				referenceID := evidence.Source.ReferenceId
 				if _, exists := seen[referenceID]; !exists {
 					seen[referenceID] = make(map[string]struct{})
 				}
-				if _, exists := seen[referenceID][digest]; exists {
+				if _, exists := seen[referenceID][rawDigest]; exists {
 					continue
 				}
-				seen[referenceID][digest] = struct{}{}
-				hashesByReference[referenceID] = append(hashesByReference[referenceID], oscal.Hash{Algorithm: algorithm, Value: value})
+				seen[referenceID][rawDigest] = struct{}{}
+				hashesByReference[referenceID] = append(hashesByReference[referenceID], oscal.Hash{Algorithm: parsedDigest.Algorithm().String(), Value: parsedDigest.Encoded()})
 			}
 		}
 	}

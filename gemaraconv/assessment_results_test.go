@@ -216,7 +216,7 @@ func TestEvaluationLogToOSCALAssessmentResults_RelevantEvidence(t *testing.T) {
 			Source: gemara.EvidenceMapping{
 				ReferenceId: "source-1",
 				Coordinate:  "/etc/example.conf",
-				Digest:      "sha256:abc123",
+				Digest:      "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 				Remarks:     "collected remotely",
 			},
 			Description: "The observed configuration.",
@@ -272,7 +272,7 @@ func TestEvaluationLogToOSCALAssessmentResults_RelevantEvidence(t *testing.T) {
 	require.NotNil(t, hashes)
 	require.Len(t, *hashes, 1)
 	assert.Equal(t, "sha256", (*hashes)[0].Algorithm)
-	assert.Equal(t, "abc123", (*hashes)[0].Value)
+	assert.Equal(t, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", (*hashes)[0].Value)
 	secondEvidence := (*obs.RelevantEvidence)[1]
 	assert.Equal(t, "The observed command output.", secondEvidence.Description)
 	require.NotNil(t, secondEvidence.Links)
@@ -327,7 +327,19 @@ func TestEvaluationLogToOSCALAssessmentResults_InvalidEvidenceDigest(t *testing.
 
 	_, err := EvaluationLogToOSCALAssessmentResults(log)
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "expected algorithm:value")
+	assert.ErrorContains(t, err, "parsing evidence digest")
+}
+
+func TestEvaluationLogToOSCALAssessmentResults_InvalidEvidenceDigestEncoding(t *testing.T) {
+	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Evaluations[0].AssessmentLogs[0].Evidence = []gemara.Evidence{{
+		Source: gemara.EvidenceMapping{Digest: "sha256:abc123"},
+	}}
+
+	_, err := EvaluationLogToOSCALAssessmentResults(log)
+	require.Error(t, err)
 }
 
 func TestEvaluationLogToOSCALAssessmentResults_NoBackMatterWhenEmpty(t *testing.T) {
