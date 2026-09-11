@@ -17,7 +17,7 @@ metadata:
       url: https://baseline.openssf.org
     - id: api
       title: GitHub API
-      url: https://github.com
+      url: https://api.github.com
 result: Failed
 target:
   id: pvtr
