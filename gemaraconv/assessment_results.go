@@ -11,6 +11,7 @@ import (
 	oscal "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
 	"github.com/gemaraproj/go-gemara"
 	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
+	"github.com/opencontainers/go-digest"
 )
 
 // EvaluationLogToOSCALAssessmentResults converts a Gemara EvaluationLog into an
@@ -27,7 +28,12 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 	authorPartyUUID := uuid.NewUUID()
 	metadata := createAssessmentResultsMetadata(log, authorPartyUUID)
 
-	result, err := evaluationLogToResult(log, options.catalog, authorPartyUUID)
+	evidenceHashes, err := collectEvidenceHashes(log)
+	if err != nil {
+		return oscal.AssessmentResults{}, fmt.Errorf("converting evaluation log %q: %w", log.Metadata.Id, err)
+	}
+	backMatter, mappingResourceUUIDs := mappingToBackMatterWithUUIDs(log.Metadata.MappingReferences, evidenceHashes)
+	result, err := evaluationLogToResult(log, options.catalog, authorPartyUUID, mappingResourceUUIDs)
 	if err != nil {
 		return oscal.AssessmentResults{}, fmt.Errorf("converting evaluation log %q: %w", log.Metadata.Id, err)
 	}
@@ -37,11 +43,11 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 		Metadata:   metadata,
 		ImportAp:   oscal.ImportAp{Href: options.importApHref},
 		Results:    []oscal.Result{result},
-		BackMatter: mappingToBackMatter(log.Metadata.MappingReferences),
+		BackMatter: backMatter,
 	}, nil
 }
 
-func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCatalog, authorPartyUUID string) (oscal.Result, error) {
+func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCatalog, authorPartyUUID string, mappingResourceUUIDs map[string]string) (oscal.Result, error) {
 	now := time.Now()
 	start := oscalUtils.GetTimeWithFallback(string(log.Metadata.Date), now)
 
@@ -67,7 +73,10 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 				continue
 			}
 
-			obs := buildObservation(alog, eval, origin, start)
+			obs, err := buildObservation(alog, eval, origin, start, mappingResourceUUIDs)
+			if err != nil {
+				return oscal.Result{}, fmt.Errorf("converting assessment log for requirement %q: %w", alog.Requirement.EntryId, err)
+			}
 			observations = append(observations, obs)
 			relatedObs = append(relatedObs, oscal.RelatedObservation{ObservationUuid: obs.UUID})
 
@@ -208,7 +217,7 @@ func buildFinding(eval *gemara.ControlEvaluation, catalog *gemara.ControlCatalog
 	}
 }
 
-func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, origin oscal.Origin, fallback time.Time) oscal.Observation {
+func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, origin oscal.Origin, fallback time.Time, mappingResourceUUIDs map[string]string) (oscal.Observation, error) {
 	collected := oscalUtils.GetTimeWithFallback(string(alog.Start), fallback)
 
 	description := alog.Description
@@ -253,7 +262,77 @@ func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation
 		obs.Remarks = alog.Recommendation
 	}
 
-	return obs
+	if len(alog.Evidence) > 0 {
+		evidence := buildRelevantEvidence(alog.Evidence, mappingResourceUUIDs)
+		obs.RelevantEvidence = &evidence
+	}
+
+	return obs, nil
+}
+
+func buildRelevantEvidence(evidence []gemara.Evidence, mappingResourceUUIDs map[string]string) []oscal.RelevantEvidence {
+	relevantEvidence := make([]oscal.RelevantEvidence, 0, len(evidence))
+	for _, item := range evidence {
+		props := []oscal.Property{
+			{Name: "id", Value: item.Id, Ns: oscalUtils.GemaraNamespace},
+			{Name: "type", Value: string(item.Type), Ns: oscalUtils.GemaraNamespace},
+			{Name: "collected-at", Value: string(item.CollectedAt), Ns: oscalUtils.GemaraNamespace},
+		}
+		if item.Source.ReferenceId != "" {
+			props = append(props, oscal.Property{Name: "source-reference-id", Value: item.Source.ReferenceId, Ns: oscalUtils.GemaraNamespace})
+		}
+		if item.Source.Coordinate != "" {
+			props = append(props, oscal.Property{Name: "source-coordinate", Value: item.Source.Coordinate, Ns: oscalUtils.GemaraNamespace})
+		}
+		if item.Source.EntryId != "" {
+			props = append(props, oscal.Property{Name: "source-entry-id", Value: item.Source.EntryId, Ns: oscalUtils.GemaraNamespace})
+		}
+		itemEvidence := oscal.RelevantEvidence{
+			Description: item.Description,
+			Props:       &props,
+			Remarks:     item.Source.Remarks,
+		}
+		if resourceUUID, found := mappingResourceUUIDs[item.Source.ReferenceId]; found {
+			itemEvidence.Links = &[]oscal.Link{{Href: "#" + resourceUUID, Rel: "reference"}}
+		}
+		relevantEvidence = append(relevantEvidence, itemEvidence)
+	}
+	return relevantEvidence
+}
+
+func collectEvidenceHashes(log gemara.EvaluationLog) (map[string][]oscal.Hash, error) {
+	hashesByReference := make(map[string][]oscal.Hash)
+	seen := make(map[string]map[string]struct{})
+	for _, eval := range log.Evaluations {
+		if eval == nil {
+			continue
+		}
+		for _, assessmentLog := range eval.AssessmentLogs {
+			if assessmentLog == nil {
+				continue
+			}
+			for _, evidence := range assessmentLog.Evidence {
+				rawDigest := evidence.Source.Digest
+				if rawDigest == "" {
+					continue
+				}
+				parsedDigest, err := digest.Parse(rawDigest)
+				if err != nil {
+					return nil, fmt.Errorf("parsing evidence digest %q: %w", rawDigest, err)
+				}
+				referenceID := evidence.Source.ReferenceId
+				if _, exists := seen[referenceID]; !exists {
+					seen[referenceID] = make(map[string]struct{})
+				}
+				if _, exists := seen[referenceID][rawDigest]; exists {
+					continue
+				}
+				seen[referenceID][rawDigest] = struct{}{}
+				hashesByReference[referenceID] = append(hashesByReference[referenceID], oscal.Hash{Algorithm: parsedDigest.Algorithm().String(), Value: parsedDigest.Encoded()})
+			}
+		}
+	}
+	return hashesByReference, nil
 }
 
 func buildLogEntry(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, partyUUID string, fallback time.Time) oscal.AssessmentLogEntry {
