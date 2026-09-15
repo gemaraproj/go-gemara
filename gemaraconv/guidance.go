@@ -494,20 +494,19 @@ func mappingToLinks(mappings []gemara.MultiEntryMapping, resourcesMap map[string
 }
 
 func mappingToBackMatter(resourceRefs []gemara.MappingReference) *oscal.BackMatter {
-	backMatter, _ := mappingToBackMatterWithUUIDs(resourceRefs, nil)
+	backMatter, _ := mappingToBackMatterWithUUIDs(resourceRefs)
 	return backMatter
 }
 
-func mappingToBackMatterWithUUIDs(resourceRefs []gemara.MappingReference, hashesByReference map[string][]oscal.Hash) (*oscal.BackMatter, map[string]string) {
+func mappingToBackMatterWithUUIDs(resourceRefs []gemara.MappingReference) (*oscal.BackMatter, map[string]string) {
 	var resources []oscal.Resource
 	resourceUUIDs := make(map[string]string, len(resourceRefs))
 	for _, ref := range resourceRefs {
+		if ref.Id == "" {
+			continue
+		}
 		resourceUUID := uuid.NewUUID()
 		resourceUUIDs[ref.Id] = resourceUUID
-		link := oscal.ResourceLink{Href: ref.Url}
-		if hashes := hashesByReference[ref.Id]; len(hashes) > 0 {
-			link.Hashes = &hashes
-		}
 		resource := oscal.Resource{
 			UUID:        resourceUUID,
 			Title:       ref.Title,
@@ -519,7 +518,7 @@ func mappingToBackMatterWithUUIDs(resourceRefs []gemara.MappingReference, hashes
 					Ns:    oscalUtils.GemaraNamespace,
 				},
 			},
-			Rlinks: &[]oscal.ResourceLink{link},
+			Rlinks: &[]oscal.ResourceLink{{Href: ref.Url}},
 			Citation: &oscal.Citation{
 				Text: fmt.Sprintf(
 					"*%s*. %s",

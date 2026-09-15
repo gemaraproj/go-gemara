@@ -212,7 +212,6 @@ func TestEvaluationLogToOSCALAssessmentResults_RelevantEvidence(t *testing.T) {
 			Id:          "ev-1",
 			Type:        gemara.EvidenceType("configuration"),
 			CollectedAt: "2026-01-02T03:04:05Z",
-			Payload:     map[string]any{"enabled": true},
 			Source: gemara.EvidenceMapping{
 				ReferenceId: "source-1",
 				Coordinate:  "/etc/example.conf",
@@ -251,7 +250,7 @@ func TestEvaluationLogToOSCALAssessmentResults_RelevantEvidence(t *testing.T) {
 	assert.Equal(t, "collected remotely", evidence.Remarks)
 	require.NotNil(t, evidence.Links)
 	require.Len(t, *evidence.Links, 1)
-	assert.Equal(t, "reference", (*evidence.Links)[0].Rel)
+	assert.Equal(t, "resource", (*evidence.Links)[0].Rel)
 	require.NotNil(t, ar.BackMatter)
 	assert.Equal(t, "#"+(*ar.BackMatter.Resources)[0].UUID, (*evidence.Links)[0].Href)
 	require.NotNil(t, evidence.Props)
@@ -265,14 +264,10 @@ func TestEvaluationLogToOSCALAssessmentResults_RelevantEvidence(t *testing.T) {
 	assert.Equal(t, "2026-01-02T03:04:05Z", props["collected-at"])
 	assert.Equal(t, "source-1", props["source-reference-id"])
 	assert.Equal(t, "/etc/example.conf", props["source-coordinate"])
-	assert.NotContains(t, props, "payload")
-	assert.NotContains(t, props, "source-digest")
+	assert.Equal(t, "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", props["source-digest"])
 	require.NotNil(t, (*ar.BackMatter.Resources)[0].Rlinks)
 	hashes := (*(*ar.BackMatter.Resources)[0].Rlinks)[0].Hashes
-	require.NotNil(t, hashes)
-	require.Len(t, *hashes, 1)
-	assert.Equal(t, "sha256", (*hashes)[0].Algorithm)
-	assert.Equal(t, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", (*hashes)[0].Value)
+	assert.Nil(t, hashes)
 	secondEvidence := (*obs.RelevantEvidence)[1]
 	assert.Equal(t, "The observed command output.", secondEvidence.Description)
 	require.NotNil(t, secondEvidence.Links)
@@ -317,29 +312,30 @@ func TestEvaluationLogToOSCALAssessmentResults_OmitsEvidencePayload(t *testing.T
 	}
 }
 
-func TestEvaluationLogToOSCALAssessmentResults_InvalidEvidenceDigest(t *testing.T) {
+func TestEvaluationLogToOSCALAssessmentResults_PreservesEvidenceDigest(t *testing.T) {
 	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
 		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
 	})
-	log.Evaluations[0].AssessmentLogs[0].Evidence = []gemara.Evidence{{
-		Source: gemara.EvidenceMapping{Digest: "not-a-digest"},
-	}}
+	log.Evaluations[0].AssessmentLogs[0].Evidence = []gemara.Evidence{
+		{Source: gemara.EvidenceMapping{Digest: "sha3-512:arbitrary-encoding=="}},
+		{Source: gemara.EvidenceMapping{Digest: "not-a-digest"}},
+		{Source: gemara.EvidenceMapping{ReferenceId: "unknown", Digest: "sha256:abc123"}},
+		{},
+	}
+	log.Metadata.MappingReferences = []gemara.MappingReference{{Title: "Unidentified source"}}
 
-	_, err := EvaluationLogToOSCALAssessmentResults(log)
-	require.Error(t, err)
-	assert.ErrorContains(t, err, "parsing evidence digest")
-}
+	ar, err := EvaluationLogToOSCALAssessmentResults(log)
+	require.NoError(t, err)
+	evidence := *(*ar.Results[0].Observations)[0].RelevantEvidence
+	require.Len(t, evidence, 4)
 
-func TestEvaluationLogToOSCALAssessmentResults_InvalidEvidenceDigestEncoding(t *testing.T) {
-	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
-		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
-	})
-	log.Evaluations[0].AssessmentLogs[0].Evidence = []gemara.Evidence{{
-		Source: gemara.EvidenceMapping{Digest: "sha256:abc123"},
-	}}
-
-	_, err := EvaluationLogToOSCALAssessmentResults(log)
-	require.Error(t, err)
+	assert.Equal(t, "sha3-512:arbitrary-encoding==", propertyValue(t, evidence[0].Props, "source-digest"))
+	assert.Equal(t, "not-a-digest", propertyValue(t, evidence[1].Props, "source-digest"))
+	assert.Equal(t, "sha256:abc123", propertyValue(t, evidence[2].Props, "source-digest"))
+	assert.Nil(t, evidence[2].Links)
+	assert.Nil(t, evidence[3].Props)
+	assert.Nil(t, evidence[3].Links)
+	assert.Nil(t, ar.BackMatter)
 }
 
 func TestEvaluationLogToOSCALAssessmentResults_NoBackMatterWhenEmpty(t *testing.T) {
@@ -400,4 +396,16 @@ func assertValidJSON(t *testing.T, ar oscal.AssessmentResults) {
 	var roundtrip oscal.OscalModels
 	require.NoError(t, json.Unmarshal(data, &roundtrip))
 	require.NotNil(t, roundtrip.AssessmentResults)
+}
+
+func propertyValue(t *testing.T, props *[]oscal.Property, name string) string {
+	t.Helper()
+	require.NotNil(t, props)
+	for _, prop := range *props {
+		if prop.Name == name {
+			return prop.Value
+		}
+	}
+	t.Fatalf("property %q not found", name)
+	return ""
 }
