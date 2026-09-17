@@ -759,7 +759,11 @@ func TestMalformedStepDiagnostics(t *testing.T) {
 		}
 		err := json.Unmarshal([]byte(`{"steps":[123]}`), &doc)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), ".steps.0", "error must locate the bad entry")
+		var typeErr *json.UnmarshalTypeError
+		require.ErrorAs(t, err, &typeErr)
+		// Go 1.27 includes the offending array index; older supported versions
+		// report only the parent field.
+		assert.Contains(t, []string{"steps", "steps.0"}, typeErr.Field, "error must locate the bad field")
 		assert.Contains(t, err.Error(), "AssessmentStep", "error must name the real type")
 	})
 

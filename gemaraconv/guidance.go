@@ -494,10 +494,21 @@ func mappingToLinks(mappings []gemara.MultiEntryMapping, resourcesMap map[string
 }
 
 func mappingToBackMatter(resourceRefs []gemara.MappingReference) *oscal.BackMatter {
+	backMatter, _ := mappingToBackMatterWithUUIDs(resourceRefs)
+	return backMatter
+}
+
+func mappingToBackMatterWithUUIDs(resourceRefs []gemara.MappingReference) (*oscal.BackMatter, map[string]string) {
 	var resources []oscal.Resource
+	resourceUUIDs := make(map[string]string, len(resourceRefs))
 	for _, ref := range resourceRefs {
+		if ref.Id == "" {
+			continue
+		}
+		resourceUUID := uuid.NewUUID()
+		resourceUUIDs[ref.Id] = resourceUUID
 		resource := oscal.Resource{
-			UUID:        uuid.NewUUID(),
+			UUID:        resourceUUID,
 			Title:       ref.Title,
 			Description: ref.Description,
 			Props: &[]oscal.Property{
@@ -507,11 +518,7 @@ func mappingToBackMatter(resourceRefs []gemara.MappingReference) *oscal.BackMatt
 					Ns:    oscalUtils.GemaraNamespace,
 				},
 			},
-			Rlinks: &[]oscal.ResourceLink{
-				{
-					Href: ref.Url,
-				},
-			},
+			Rlinks: &[]oscal.ResourceLink{{Href: ref.Url}},
 			Citation: &oscal.Citation{
 				Text: fmt.Sprintf(
 					"*%s*. %s",
@@ -523,11 +530,11 @@ func mappingToBackMatter(resourceRefs []gemara.MappingReference) *oscal.BackMatt
 	}
 
 	if len(resources) == 0 {
-		return nil
+		return nil, resourceUUIDs
 	}
 
 	backmatter := oscal.BackMatter{
 		Resources: &resources,
 	}
-	return &backmatter
+	return &backmatter, resourceUUIDs
 }

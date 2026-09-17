@@ -27,21 +27,19 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 	authorPartyUUID := uuid.NewUUID()
 	metadata := createAssessmentResultsMetadata(log, authorPartyUUID)
 
-	result, err := evaluationLogToResult(log, options.catalog, authorPartyUUID)
-	if err != nil {
-		return oscal.AssessmentResults{}, fmt.Errorf("converting evaluation log %q: %w", log.Metadata.Id, err)
-	}
+	backMatter, mappingResourceUUIDs := mappingToBackMatterWithUUIDs(log.Metadata.MappingReferences)
+	result := evaluationLogToResult(log, options.catalog, authorPartyUUID, mappingResourceUUIDs)
 
 	return oscal.AssessmentResults{
 		UUID:       uuid.NewUUID(),
 		Metadata:   metadata,
 		ImportAp:   oscal.ImportAp{Href: options.importApHref},
 		Results:    []oscal.Result{result},
-		BackMatter: mappingToBackMatter(log.Metadata.MappingReferences),
+		BackMatter: backMatter,
 	}, nil
 }
 
-func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCatalog, authorPartyUUID string) (oscal.Result, error) {
+func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCatalog, authorPartyUUID string, mappingResourceUUIDs map[string]string) oscal.Result {
 	now := time.Now()
 	start := oscalUtils.GetTimeWithFallback(string(log.Metadata.Date), now)
 
@@ -67,7 +65,7 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 				continue
 			}
 
-			obs := buildObservation(alog, eval, origin, start)
+			obs := buildObservation(alog, eval, origin, start, mappingResourceUUIDs)
 			observations = append(observations, obs)
 			relatedObs = append(relatedObs, oscal.RelatedObservation{ObservationUuid: obs.UUID})
 
@@ -110,7 +108,7 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 		result.AssessmentLog = &oscal.AssessmentLog{Entries: logEntries}
 	}
 
-	return result, nil
+	return result
 }
 
 func createAssessmentResultsMetadata(log gemara.EvaluationLog, authorPartyUUID string) oscal.Metadata {
@@ -208,7 +206,7 @@ func buildFinding(eval *gemara.ControlEvaluation, catalog *gemara.ControlCatalog
 	}
 }
 
-func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, origin oscal.Origin, fallback time.Time) oscal.Observation {
+func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, origin oscal.Origin, fallback time.Time, mappingResourceUUIDs map[string]string) oscal.Observation {
 	collected := oscalUtils.GetTimeWithFallback(string(alog.Start), fallback)
 
 	description := alog.Description
@@ -253,7 +251,52 @@ func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation
 		obs.Remarks = alog.Recommendation
 	}
 
+	if len(alog.Evidence) > 0 {
+		evidence := buildRelevantEvidence(alog.Evidence, mappingResourceUUIDs)
+		obs.RelevantEvidence = &evidence
+	}
+
 	return obs
+}
+
+func buildRelevantEvidence(evidence []gemara.Evidence, mappingResourceUUIDs map[string]string) []oscal.RelevantEvidence {
+	relevantEvidence := make([]oscal.RelevantEvidence, 0, len(evidence))
+	for _, item := range evidence {
+		var props []oscal.Property
+		if item.Id != "" {
+			props = append(props, oscal.Property{Name: "id", Value: item.Id, Ns: oscalUtils.GemaraNamespace})
+		}
+		if item.Type != "" {
+			props = append(props, oscal.Property{Name: "type", Value: string(item.Type), Ns: oscalUtils.GemaraNamespace})
+		}
+		if item.CollectedAt != "" {
+			props = append(props, oscal.Property{Name: "collected-at", Value: string(item.CollectedAt), Ns: oscalUtils.GemaraNamespace})
+		}
+		if item.Source.ReferenceId != "" {
+			props = append(props, oscal.Property{Name: "source-reference-id", Value: item.Source.ReferenceId, Ns: oscalUtils.GemaraNamespace})
+		}
+		if item.Source.Coordinate != "" {
+			props = append(props, oscal.Property{Name: "source-coordinate", Value: item.Source.Coordinate, Ns: oscalUtils.GemaraNamespace})
+		}
+		if item.Source.EntryId != "" {
+			props = append(props, oscal.Property{Name: "source-entry-id", Value: item.Source.EntryId, Ns: oscalUtils.GemaraNamespace})
+		}
+		if item.Source.Digest != "" {
+			props = append(props, oscal.Property{Name: "source-digest", Value: item.Source.Digest, Ns: oscalUtils.GemaraNamespace})
+		}
+		itemEvidence := oscal.RelevantEvidence{
+			Description: item.Description,
+			Props:       oscalUtils.NilIfEmpty(props),
+			Remarks:     item.Source.Remarks,
+		}
+		if item.Source.ReferenceId != "" {
+			if resourceUUID, found := mappingResourceUUIDs[item.Source.ReferenceId]; found {
+				itemEvidence.Links = &[]oscal.Link{{Href: "#" + resourceUUID, Rel: "resource"}}
+			}
+		}
+		relevantEvidence = append(relevantEvidence, itemEvidence)
+	}
+	return relevantEvidence
 }
 
 func buildLogEntry(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, partyUUID string, fallback time.Time) oscal.AssessmentLogEntry {
