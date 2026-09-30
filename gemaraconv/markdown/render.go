@@ -18,6 +18,23 @@ var templatesFS embed.FS
 // CatalogToMarkdown renders a ControlCatalog as Markdown using embedded templates.
 // Only controls whose state is LifecycleActive are included (TOC, body, and summary counts).
 func CatalogToMarkdown(ctx context.Context, catalog gemara.ControlCatalog, cfg Config) ([]byte, error) {
+	return render(ctx, catalog.Metadata, cfg, "catalog", func(lex []markdownLexiconGlossaryEntry) any {
+		return buildMarkdownCatalogView(catalog, cfg, lex)
+	})
+}
+
+// GuidanceToMarkdown renders a GuidanceCatalog as Markdown using embedded templates.
+// Only guidelines whose state is LifecycleActive are included (TOC, body, and summary counts).
+func GuidanceToMarkdown(ctx context.Context, guidance gemara.GuidanceCatalog, cfg Config) ([]byte, error) {
+	return render(ctx, guidance.Metadata, cfg, "guidance", func(lex []markdownLexiconGlossaryEntry) any {
+		return buildMarkdownGuidanceView(guidance, cfg, lex)
+	})
+}
+
+// render is the shared pipeline: load the lexicon (if configured), build the
+// template root through buildView, execute rootTemplate, then normalise blank
+// lines and line endings.
+func render(ctx context.Context, meta gemara.Metadata, cfg Config, rootTemplate string, buildView func([]markdownLexiconGlossaryEntry) any) ([]byte, error) {
 	lineEnding := cfg.LineEnding
 	if lineEnding == "" {
 		lineEnding = "\n"
@@ -26,11 +43,11 @@ func CatalogToMarkdown(ctx context.Context, catalog gemara.ControlCatalog, cfg C
 
 	var lexEntries []lexiconEntry
 	switch {
-	case cfg.LexiconAutolink && catalog.Metadata.Lexicon != nil:
+	case cfg.LexiconAutolink && meta.Lexicon != nil:
 		if cfg.Fetcher == nil {
 			return nil, fmt.Errorf("lexicon autolink requires a non-nil Fetcher")
 		}
-		lexiconURI, err := resolveLexiconURL(catalog.Metadata)
+		lexiconURI, err := resolveLexiconURL(meta)
 		if err != nil {
 			return nil, fmt.Errorf("lexicon: resolve URL: %w", err)
 		}
@@ -47,8 +64,7 @@ func CatalogToMarkdown(ctx context.Context, catalog gemara.ControlCatalog, cfg C
 		lexEntries = loaded
 	}
 
-	lexGlossary := buildLexiconGlossaryView(lexEntries)
-	view := buildMarkdownCatalogView(catalog, cfg, lexGlossary)
+	view := buildView(buildLexiconGlossaryView(lexEntries))
 
 	linker := newLexiconLinker(lexEntries)
 	t, err := template.New("").Funcs(markdownFuncMap(linker)).ParseFS(templatesFS, "templates/*.tmpl")
@@ -57,12 +73,14 @@ func CatalogToMarkdown(ctx context.Context, catalog gemara.ControlCatalog, cfg C
 	}
 
 	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "catalog", view); err != nil {
+	if err := t.ExecuteTemplate(&buf, rootTemplate, view); err != nil {
 		return nil, fmt.Errorf("execute markdown template: %w", err)
 	}
 
-	text := collapseExtraNewlines(buf.String())
-	text = strings.ReplaceAll(text, "\r\n", "\n")
+	// Normalise CRLF first: templates and fixtures may be checked out with CRLF
+	// (Windows autocrlf), and the collapse only recognises bare "\n" runs.
+	text := strings.ReplaceAll(buf.String(), "\r\n", "\n")
+	text = collapseExtraNewlines(text)
 	out := []byte(text)
 	if lineEnding != "\n" {
 		out = []byte(strings.ReplaceAll(string(out), "\n", lineEnding))
@@ -87,8 +105,11 @@ func markdownFuncMap(lexiconLink func(string) string) template.FuncMap {
 		"isRetired":    func(l gemara.Lifecycle) bool { return l == gemara.LifecycleRetired },
 		"artifactType": func(a gemara.ArtifactType) string { return a.String() },
 		"entityType":   func(e gemara.EntityType) string { return e.String() },
-		"datetime":     func(d gemara.Datetime) string { return string(d) },
-		"joinStrings":  func(ss []string, sep string) string { return strings.Join(ss, sep) },
+		"guidanceType": func(g gemara.GuidanceType) string { return g.String() },
+		// indent keeps a multi-line string inside one list item.
+		"indent":      func(s string) string { return strings.ReplaceAll(strings.TrimRight(s, "\n"), "\n", "\n  ") },
+		"datetime":    func(d gemara.Datetime) string { return string(d) },
+		"joinStrings": func(ss []string, sep string) string { return strings.Join(ss, sep) },
 		"joinArtifactEntries": func(entries []gemara.ArtifactMapping, sep string) string {
 			if len(entries) == 0 {
 				return ""

@@ -12,8 +12,13 @@ Version: {{.Metadata.Version}}
 {{if .LexiconGlossary}}{{template "lexicon_section" .}}{{end}}
 {{end}}
 
-{{define "metadata"}}
-_{{.Title}}_ is a Gemara{{if .Metadata.GemaraVersion}} {{.Metadata.GemaraVersion}}{{end}} {{artifactType .Metadata.Type}}{{if .Metadata.Date}}, published **{{.Metadata.Date}}**{{end}} by {{.Metadata.Author.Name}} ({{entityType .Metadata.Author.Type}}{{if .Metadata.Author.Id}}, `{{.Metadata.Author.Id}}`{{end}}).
+{{define "metadata"}}{{template "metadata_intro" .}}
+_Summary: {{.NumControls}} control(s), {{.NumARs}} assessment requirement(s)._
+
+{{end}}
+
+{{define "metadata_intro"}}
+_{{.Title}}_ is a Gemara{{if .Metadata.GemaraVersion}} {{.Metadata.GemaraVersion}}{{end}} {{with artifactType .Metadata.Type}}{{if ne . "Invalid"}}{{.}}{{else}}artifact{{end}}{{end}}{{if .Metadata.Date}}, published **{{.Metadata.Date}}**{{end}} by {{.Metadata.Author.Name}} ({{entityType .Metadata.Author.Type}}{{if .Metadata.Author.Id}}, `{{.Metadata.Author.Id}}`{{end}}).
 
 {{if .Metadata.Draft}}**Warning**: This is a draft, and should only be used as a preview of the upcoming artifact publication.{{end}}
 
@@ -23,16 +28,13 @@ _{{.Title}}_ is a Gemara{{if .Metadata.GemaraVersion}} {{.Metadata.GemaraVersion
 
 {{.Metadata.Description}}
 
-{{if .Metadata.ApplicabilityGroups}}### Requirement Applicability Groups
+{{if .Metadata.ApplicabilityGroups}}### Applicability Groups
 
-The following groups are used to specify the circumstance within which an assessment requirement is mandated.
+The following groups are used to specify the circumstances within which an entry applies.
 
 {{range .Metadata.ApplicabilityGroups}}- **{{.Id}}** — {{.Title}}: {{.Description}}
 {{end}}
 {{end}}
-
-_Summary: {{.NumControls}} control(s), {{.NumARs}} assessment requirement(s)._
-
 {{end}}
 
 {{define "toc_section"}}## Table of contents
@@ -55,7 +57,7 @@ _Summary: {{.NumControls}} control(s), {{.NumARs}} assessment requirement(s)._
 {{define "extends_imports"}}
 {{if .Extends}}## Extends
 
-This document builds upon all of the requirements and applicability groups detailed in:
+This document builds upon all of the {{.EntryNoun}} and applicability groups detailed in:
 
 {{range .Extends}}- {{artifactMapping .}}
 {{end}}
@@ -63,7 +65,7 @@ This document builds upon all of the requirements and applicability groups detai
 {{end}}
 {{if .Imports}}## Imports
 
-The following controls are imported from external catalogs. All assessment requirements and other relevant details for these controls can be found in the respective catalog's source.
+The following {{.EntryNoun}} are imported from external catalogs. All relevant details for these {{.EntryNoun}} can be found in the respective catalog's source.
 
 {{range .Imports}}### {{lexiconLink .ReferenceId}}{{if .Title}}: {{.Title}}{{end}}
 

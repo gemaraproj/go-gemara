@@ -89,7 +89,7 @@ func (o *markdownOpts) apply(opts ...MarkdownOption) {
 	}
 }
 
-// MarkdownOption configures ControlCatalog Markdown export.
+// MarkdownOption configures ControlCatalog and GuidanceCatalog Markdown export.
 type MarkdownOption func(*markdownOpts)
 
 // WithTOC sets whether a table of contents is emitted (default true).

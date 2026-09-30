@@ -2,7 +2,7 @@
 // into various standard formats.
 //
 // Primary API (strconv-style):
-//   - Direct functions: ToSARIF(), CatalogToOSCAL(), CatalogToMarkdown(), GuidanceToOSCAL()
+//   - Direct functions: ToSARIF(), CatalogToOSCAL(), CatalogToMarkdown(), GuidanceToOSCAL(), GuidanceToMarkdown()
 //
 // Fluent Wrappers (for IDE discoverability):
 //   - EvaluationLog(), ControlCatalog(), GuidanceCatalog()

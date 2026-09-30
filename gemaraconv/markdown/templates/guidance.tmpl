@@ -1,0 +1,86 @@
+{{ define "guidance"}}# {{.Title}}
+
+Version: {{.Metadata.Version}}
+
+{{if .FrontMatter}}{{.FrontMatter}}
+
+{{end}}
+{{if .ShowMetadata}}{{ template "guidance_metadata" .}}{{end}}
+{{if .TOC}}{{template "toc_section" .}}{{end}}
+{{ template "extends_imports" .}}
+{{ range .Groups}}{{template "guidance_group_section" .}}{{end}}
+{{if .Exemptions}}{{template "exemptions_section" .}}{{end}}
+{{if and .ShowMetadata .Metadata.MappingReferences}}{{ template "mapping_references_section" .}}{{end}}
+{{if .LexiconGlossary}}{{template "lexicon_section" .}}{{end}}
+{{end}}
+
+{{define "guidance_metadata"}}{{template "metadata_intro" .}}
+_Summary: {{with guidanceType .GuidanceType}}{{if ne . "Invalid"}}{{.}}{{else}}Guidance{{end}}{{end}} with {{.NumGuidelines}} guideline(s), {{.NumStatements}} statement(s)._
+
+{{end}}
+
+{{define "guidance_group_section"}}
+## {{if .ID}}{{.ID}}{{if .Title}}: {{.Title}}{{end}}{{else}}{{.Title}}{{end}}
+
+{{if .Description}}{{.Description}}
+
+{{end}}{{range .Guidelines}}{{template "guideline_section" .}}{{end}}
+{{end}}
+
+{{define "guideline_section"}}### {{.Id}}: {{lexiconLink .Title}}
+
+{{if .ReplacedBy}} · **Replaced by:** `{{.ReplacedBy.EntryId}}`{{if .ReplacedBy.Remarks}} ({{.ReplacedBy.Remarks}}){{end}}{{end}}
+
+{{if .Extends}}**Extends:** `{{.Extends.EntryId}}` in {{.Extends.ReferenceId}}{{if .Extends.Remarks}} — {{.Extends.Remarks}}{{end}}
+
+{{end}}**Objective**
+
+{{lexiconLink .Objective}}
+
+{{if .Applicability}}**Applicability:** {{joinStrings .Applicability ", "}}
+
+{{end}}{{if .Rationale}}**Rationale**
+
+{{lexiconLink .Rationale.Importance}}
+
+{{range .Rationale.Goals}}- {{indent (lexiconLink .)}}
+{{end}}
+{{end}}{{range .Statements}}{{template "statement_section" .}}{{end}}
+{{if .Recommendations}}**Recommendations**
+
+{{range .Recommendations}}- {{indent (lexiconLink .)}}
+{{end}}
+{{end}}{{if .Principles}}#### Principles
+
+This guideline supports the following principles:
+
+{{template "multi_entry_mapping_table_start"}}
+{{range .Principles}}{{template "multi_entry_mapping_table_row" .}}{{end}}
+{{end}}
+{{if .Vectors}}#### Vectors
+
+This guideline addresses the following vectors:
+
+{{template "multi_entry_mapping_table_start"}}
+{{range .Vectors}}{{template "multi_entry_mapping_table_row" .}}{{end}}
+{{end}}
+{{if .SeeAlsoLinks}}**See also:** {{range $i, $l := .SeeAlsoLinks}}{{if $i}}, {{end}}{{if $l.Anchor}}[{{$l.Label}}](#{{$l.Anchor}}){{else}}{{$l.Label}}{{end}}{{end}}
+
+{{end}}{{end}}
+
+{{define "statement_section"}}#### {{.Id}}{{if .Title}}: {{lexiconLink .Title}}{{end}}
+
+{{lexiconLink .Text}}
+
+{{if .Recommendations}}**Recommendations**
+
+{{range .Recommendations}}- {{indent (lexiconLink .)}}
+{{end}}
+{{end}}{{end}}
+
+{{define "exemptions_section"}}## Exemptions
+
+{{range .Exemptions}}- **{{lexiconLink .Description}}** — {{lexiconLink .Reason}}{{if .Redirect}} See instead: {{lexiconLink .Redirect.ReferenceId}}{{if .Redirect.Entries}} ({{joinArtifactEntries .Redirect.Entries " · "}}){{end}}{{if .Redirect.Remarks}} — {{.Redirect.Remarks}}{{end}}.{{end}}
+{{end}}
+
+{{end}}

@@ -15,8 +15,11 @@ type InlineLexiconTerm = markdown.InlineLexiconTerm
 func CatalogToMarkdown(ctx context.Context, catalog gemara.ControlCatalog, opts ...MarkdownOption) ([]byte, error) {
 	o := defaultMarkdownOpts()
 	o.apply(opts...)
+	return markdown.CatalogToMarkdown(ctx, catalog, o.config())
+}
 
-	cfg := markdown.Config{
+func (o markdownOpts) config() markdown.Config {
+	return markdown.Config{
 		TOC:                 o.toc,
 		LineEnding:          o.lineEnding,
 		Metadata:            o.metadata,
@@ -25,5 +28,4 @@ func CatalogToMarkdown(ctx context.Context, catalog gemara.ControlCatalog, opts 
 		InlineLexicon:       o.inlineLexicon,
 		Fetcher:             o.fetcher,
 	}
-	return markdown.CatalogToMarkdown(ctx, catalog, cfg)
 }

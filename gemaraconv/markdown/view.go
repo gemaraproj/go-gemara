@@ -27,12 +27,14 @@ type markdownCatalogView struct {
 	ApplicabilityMatrixRows    []markdownApplicabilityMatrixRow
 	Extends                    []gemara.ArtifactMapping
 	Imports                    []markdownImportView
-	TOC                        bool
-	LineEnding                 string
-	Groups                     []markdownGroupView
-	TOCItems                   []markdownTOCItem
-	NumControls                int
-	NumARs                     int
+	// EntryNoun names the catalog entries in the Extends and Imports prose ("controls").
+	EntryNoun   string
+	TOC         bool
+	LineEnding  string
+	Groups      []markdownGroupView
+	TOCItems    []markdownTOCItem
+	NumControls int
+	NumARs      int
 	// LexiconGlossary is non-empty when lexicon autolink loaded a valid document.
 	LexiconGlossary []markdownLexiconGlossaryEntry
 }
@@ -60,10 +62,9 @@ type markdownApplicabilityMatrixRow struct {
 
 // markdownTOCItem is one line in the table of contents (group or control).
 type markdownTOCItem struct {
-	Label   string
-	Anchor  string
-	Indent  int // 0 = group, 1 = control under group
-	Control bool
+	Label  string
+	Anchor string
+	Indent int // 0 = group, 1 = entry under group
 }
 
 // markdownImportView is one source in the resolved Imports section.
@@ -136,13 +137,12 @@ func buildMarkdownCatalogView(catalog gemara.ControlCatalog, cfg Config, lexGlos
 		if !cfg.TOC {
 			return
 		}
-		toc = append(toc, markdownTOCItem{Label: gv.Title, Anchor: gv.Anchor, Indent: 0, Control: false})
+		toc = append(toc, markdownTOCItem{Label: gv.Title, Anchor: gv.Anchor})
 		for _, ctl := range gv.Controls {
 			toc = append(toc, markdownTOCItem{
-				Label:   ctl.Id + ": " + ctl.Title,
-				Anchor:  Anchor(ctl.Id + ": " + ctl.Title),
-				Indent:  1,
-				Control: true,
+				Label:  ctl.Id + ": " + ctl.Title,
+				Anchor: Anchor(ctl.Id + ": " + ctl.Title),
+				Indent: 1,
 			})
 		}
 	}
@@ -193,7 +193,8 @@ func buildMarkdownCatalogView(catalog gemara.ControlCatalog, cfg Config, lexGlos
 		ApplicabilityMatrixColumns: applicabilityCols,
 		ApplicabilityMatrixRows:    applicabilityRows,
 		Extends:                    catalog.Extends,
-		Imports:                    buildImportViews(catalog),
+		Imports:                    buildImportViews(catalog.Imports, catalog.Metadata),
+		EntryNoun:                  "controls",
 		TOC:                        cfg.TOC,
 		LineEnding:                 cfg.LineEnding,
 		Groups:                     groups,
@@ -206,16 +207,16 @@ func buildMarkdownCatalogView(catalog gemara.ControlCatalog, cfg Config, lexGlos
 
 // buildImportViews resolves each Import's ReferenceId against Metadata.MappingReferences
 // to populate the title and URL for the rendered imports section.
-func buildImportViews(catalog gemara.ControlCatalog) []markdownImportView {
-	if len(catalog.Imports) == 0 {
+func buildImportViews(imports []gemara.MultiEntryMapping, meta gemara.Metadata) []markdownImportView {
+	if len(imports) == 0 {
 		return nil
 	}
-	refMap := make(map[string]gemara.MappingReference, len(catalog.Metadata.MappingReferences))
-	for _, ref := range catalog.Metadata.MappingReferences {
+	refMap := make(map[string]gemara.MappingReference, len(meta.MappingReferences))
+	for _, ref := range meta.MappingReferences {
 		refMap[ref.Id] = ref
 	}
-	views := make([]markdownImportView, len(catalog.Imports))
-	for i, imp := range catalog.Imports {
+	views := make([]markdownImportView, len(imports))
+	for i, imp := range imports {
 		v := markdownImportView{
 			ReferenceId: imp.ReferenceId,
 			Remarks:     imp.Remarks,

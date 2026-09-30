@@ -69,7 +69,7 @@ func TestCatalogToMarkdown_metadataBranches(t *testing.T) {
 	s := string(out)
 	assert.Contains(t, s, "published **2024-06-01**")
 	assert.Contains(t, s, "draft")
-	assert.Contains(t, s, "### Requirement Applicability Groups")
+	assert.Contains(t, s, "### Applicability Groups")
 	assert.Contains(t, s, "**ag1**")
 	assert.Contains(t, s, "defined in **lex**")
 	assert.Contains(t, s, "see refs")

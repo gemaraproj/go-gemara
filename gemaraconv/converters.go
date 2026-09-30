@@ -63,3 +63,8 @@ func GuidanceCatalog(guidance gemara.GuidanceCatalog) *GuidanceCatalogConverter 
 func (c *GuidanceCatalogConverter) ToOSCAL(guidanceDocHref string, opts ...GenerateOption) (oscal.Catalog, oscal.Profile, error) {
 	return GuidanceToOSCAL(c.guidance, guidanceDocHref, opts...)
 }
+
+// ToMarkdown converts the GuidanceCatalog to Markdown format.
+func (c *GuidanceCatalogConverter) ToMarkdown(ctx context.Context, opts ...MarkdownOption) ([]byte, error) {
+	return GuidanceToMarkdown(ctx, c.guidance, opts...)
+}

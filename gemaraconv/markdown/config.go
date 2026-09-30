@@ -2,7 +2,7 @@ package markdown
 
 import "github.com/gemaraproj/go-gemara"
 
-// Config holds Markdown rendering options for CatalogToMarkdown.
+// Config holds Markdown rendering options for CatalogToMarkdown and GuidanceToMarkdown.
 type Config struct {
 	TOC                 bool
 	LineEnding          string
