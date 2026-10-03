@@ -97,7 +97,7 @@ func collapseExtraNewlines(s string) string {
 	return s
 }
 
-func markdownFuncMap(lexiconLink func(string) string) template.FuncMap {
+func markdownFuncMap(lexiconLink func(string) (string, error)) template.FuncMap {
 	return template.FuncMap{
 		"lexiconLink":  lexiconLink,
 		"anchor":       Anchor,

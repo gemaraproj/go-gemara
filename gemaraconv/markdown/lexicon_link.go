@@ -32,7 +32,7 @@ func lexiconIsWrapped(text, matched string) bool {
 	return openBrackets > closeBrackets
 }
 
-func addLexiconLinksForTerm(lexicon []lexiconEntry, text, term string) string {
+func addLexiconLinksForTerm(lexicon []lexiconEntry, text, term string) (string, error) {
 	escapedTerm := regexp.QuoteMeta(term)
 	termRegex := regexp.MustCompile(`(?i)\b` + escapedTerm + `(?:s)?\b`)
 
@@ -40,7 +40,7 @@ func addLexiconLinksForTerm(lexicon []lexiconEntry, text, term string) string {
 		return containsLexiconSynonym(entry.Synonyms, entry.Canonical, term)
 	})
 	if termIdx == -1 {
-		panic(fmt.Sprintf("markdown: addLexiconLinksForTerm called for unknown term %q", term))
+		return "", fmt.Errorf("markdown: cannot link unknown lexicon term %q", term)
 	}
 	canonical := lexicon[termIdx].Canonical
 
@@ -49,25 +49,32 @@ func addLexiconLinksForTerm(lexicon []lexiconEntry, text, term string) string {
 			return matched
 		}
 		return fmt.Sprintf("[%s][%s]", matched, canonical)
-	})
+	}), nil
 }
 
 // addLexiconLinks applies baseline-style reference autolinks for every canonical term and synonym.
-func addLexiconLinks(lexicon []lexiconEntry, text string) string {
+func addLexiconLinks(lexicon []lexiconEntry, text string) (string, error) {
 	for _, entry := range lexicon {
-		text = addLexiconLinksForTerm(lexicon, text, entry.Canonical)
+		var err error
+		text, err = addLexiconLinksForTerm(lexicon, text, entry.Canonical)
+		if err != nil {
+			return "", err
+		}
 		for _, syn := range entry.Synonyms {
-			text = addLexiconLinksForTerm(lexicon, text, syn)
+			text, err = addLexiconLinksForTerm(lexicon, text, syn)
+			if err != nil {
+				return "", err
+			}
 		}
 	}
-	return text
+	return text, nil
 }
 
-func newLexiconLinker(entries []lexiconEntry) func(string) string {
+func newLexiconLinker(entries []lexiconEntry) func(string) (string, error) {
 	if len(entries) == 0 {
-		return func(plain string) string { return plain }
+		return func(plain string) (string, error) { return plain, nil }
 	}
-	return func(text string) string {
+	return func(text string) (string, error) {
 		return addLexiconLinks(entries, text)
 	}
 }
