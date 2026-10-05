@@ -325,7 +325,7 @@ func TestCatalogToMarkdown_inlineLexiconNormalizeError(t *testing.T) {
 }
 
 func TestMarkdownFuncMap_joinArtifactEntriesEmpty(t *testing.T) {
-	fn := markdownFuncMap(func(s string) string { return s })
+	fn := markdownFuncMap(func(s string) (string, error) { return s, nil })
 	join := fn["joinArtifactEntries"].(func([]gemara.ArtifactMapping, string) string)
 	assert.Equal(t, "", join(nil, " · "))
 	assert.Equal(t, "", join([]gemara.ArtifactMapping{}, " · "))
