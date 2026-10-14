@@ -12,7 +12,7 @@ project:
       affiliation: Red Hat
       primary: true
     - name: Eddie Knight
-      affiliation: Sonatype
+      affiliation: Revanite
       primary: false
   documentation:
     detailed-guide: https://github.com/gemaraproj/go-gemara/blob/main/README.md
@@ -38,8 +38,8 @@ repository:
   accepts-automated-change-request: true
   core-team:
     - name: Eddie Knight
-      affiliation: Sonatype
-      email: knight@linux.com
+      affiliation: Revanite
+      email: eknight@revanite.io
       primary: false
     - name: Jenn Power
       affiliation: Red Hat
