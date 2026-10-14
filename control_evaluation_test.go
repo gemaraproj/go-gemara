@@ -263,3 +263,113 @@ func TestAddAssesment(t *testing.T) {
 	}
 
 }
+
+// outOfScopeAssessmentPtr returns an assessment tagged for an applicability that
+// testingApplicability does not request. Its step flips *ran so tests can prove
+// Evaluate never executed it.
+func outOfScopeAssessmentPtr(ran *bool) *AssessmentLog {
+	return &AssessmentLog{
+		Requirement:   EntryMapping{EntryId: "outOfScopeAssessment()"},
+		Description:   "out of scope assessment",
+		Applicability: []string{"maturity-1"},
+		Steps: []AssessmentStep{func(interface{}) (Result, string, ConfidenceLevel) {
+			*ran = true
+			return Failed, "out of scope step ran", Low
+		}},
+	}
+}
+
+// TestEvaluate_MarksOutOfScopeAssessmentNotApplicable is a regression test for
+// assessments whose applicability matched none of the requested values being
+// left at their zero value, NotRun, with an empty message.
+func TestEvaluate_MarksOutOfScopeAssessmentNotApplicable(t *testing.T) {
+	var ran bool
+	assessment := outOfScopeAssessmentPtr(&ran)
+	c := &ControlEvaluation{AssessmentLogs: []*AssessmentLog{assessment}}
+
+	c.Evaluate(nil, []string{"maturity-2"})
+
+	if assessment.Result != NotApplicable {
+		t.Errorf("assessment Result: got = %v, want = %v", assessment.Result, NotApplicable)
+	}
+	if want := "Not applicable: requirement applies to [maturity-1], evaluation requested [maturity-2]"; assessment.Message != want {
+		t.Errorf("assessment Message: got = %q, want = %q", assessment.Message, want)
+	}
+	if ran {
+		t.Error("expected the out of scope assessment's steps not to run")
+	}
+	if assessment.StepsExecuted != 0 {
+		t.Errorf("assessment StepsExecuted: got = %d, want = 0", assessment.StepsExecuted)
+	}
+	if assessment.Start != "" || assessment.End != "" {
+		t.Errorf("assessment Start/End: got = %q/%q, want both empty", assessment.Start, assessment.End)
+	}
+	if c.Result != NotApplicable {
+		t.Errorf("control Result: got = %v, want = %v", c.Result, NotApplicable)
+	}
+	if c.Message != assessment.Message {
+		t.Errorf("control Message: got = %q, want = %q", c.Message, assessment.Message)
+	}
+}
+
+// TestEvaluate_AggregatesOutOfScopeAssessments verifies that an out of scope
+// assessment rolls into the control result as NotApplicable, the weakest
+// reportable result, so any applicable sibling's result wins.
+func TestEvaluate_AggregatesOutOfScopeAssessments(t *testing.T) {
+	tests := []struct {
+		name          string
+		applicable    func() *AssessmentLog
+		outOfScope    int
+		wantResult    Result
+		inScopeBefore bool
+	}{
+		{name: "passed then out of scope", applicable: passingAssessmentPtr, outOfScope: 1, wantResult: Passed, inScopeBefore: true},
+		{name: "out of scope then passed", applicable: passingAssessmentPtr, outOfScope: 1, wantResult: Passed},
+		{name: "failed then out of scope", applicable: failingAssessmentPtr, outOfScope: 1, wantResult: Failed, inScopeBefore: true},
+		{name: "out of scope then failed", applicable: failingAssessmentPtr, outOfScope: 1, wantResult: Failed},
+		{name: "nothing applies", outOfScope: 2, wantResult: NotApplicable},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var ran bool
+			logs := make([]*AssessmentLog, 0, test.outOfScope+1)
+			for range test.outOfScope {
+				logs = append(logs, outOfScopeAssessmentPtr(&ran))
+			}
+			var inScope *AssessmentLog
+			if test.applicable != nil {
+				inScope = test.applicable()
+				if test.inScopeBefore {
+					logs = append([]*AssessmentLog{inScope}, logs...)
+				} else {
+					logs = append(logs, inScope)
+				}
+			}
+			c := &ControlEvaluation{AssessmentLogs: logs}
+
+			c.Evaluate(nil, testingApplicability)
+
+			if c.Result != test.wantResult {
+				t.Errorf("control Result: got = %v, want = %v", c.Result, test.wantResult)
+			}
+			if ran {
+				t.Error("expected out of scope steps not to run")
+			}
+			for _, a := range logs {
+				if a == inScope {
+					if a.StepsExecuted == 0 {
+						t.Error("expected the applicable assessment to run")
+					}
+					continue
+				}
+				if a.Result != NotApplicable {
+					t.Errorf("out of scope assessment Result: got = %v, want = %v", a.Result, NotApplicable)
+				}
+				if a.Message == "" {
+					t.Error("expected out of scope assessment to explain why it was skipped")
+				}
+			}
+		})
+	}
+}
