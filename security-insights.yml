@@ -1,10 +1,35 @@
 ---
 header:
   schema-version: 2.0.0
-  last-updated: '2026-04-06'
-  last-reviewed: '2026-04-06'
+  last-updated: '2026-10-13'
+  last-reviewed: '2026-10-13'
   url: https://github.com/gemaraproj/go-gemara
-  project-si-source: https://raw.githubusercontent.com/gemaraproj/.github/refs/heads/main/.github/security-insights.yml
+
+project:
+  name: go-gemara
+  administrators:
+    - name: Jenn Power
+      affiliation: Red Hat
+      primary: true
+    - name: Eddie Knight
+      affiliation: Sonatype
+      primary: false
+  documentation:
+    detailed-guide: https://github.com/gemaraproj/go-gemara/blob/main/README.md
+  repositories:
+    - name: go-gemara
+      url: https://github.com/gemaraproj/go-gemara
+      comment: Go SDK for parsing Gemara documents.
+  vulnerability-reporting:
+    reports-accepted: true
+    bug-bounty-available: false
+    contact:
+      name: Jenn Power
+      primary: true
+    policy: https://github.com/gemaraproj/.github/blob/main/SECURITY.md
+    comment: |
+      Report vulnerabilities privately through GitHub Private Vulnerability Reporting:
+      https://github.com/gemaraproj/go-gemara/security/advisories/new
 
 repository:
   url: https://github.com/gemaraproj/go-gemara
@@ -15,12 +40,13 @@ repository:
     - name: Eddie Knight
       affiliation: Sonatype
       email: knight@linux.com
+      primary: false
     - name: Jenn Power
       affiliation: Red Hat
       email: barnabei.jennifer@gmail.com
       primary: true
   documentation:
-    contributing-guide: https://github.com/gemaraproj/gemara/blob/main/CONTRIBUTING.md
+    contributing-guide: https://github.com/gemaraproj/go-gemara/blob/main/CONTRIBUTING.md
   license:
     url: https://github.com/gemaraproj/go-gemara?tab=Apache-2.0-1-ov-file#readme
     expression: Apache-2.0
