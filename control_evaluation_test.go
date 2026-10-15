@@ -271,7 +271,7 @@ func outOfScopeAssessmentPtr(ran *bool) *AssessmentLog {
 	return &AssessmentLog{
 		Requirement:   EntryMapping{EntryId: "outOfScopeAssessment()"},
 		Description:   "out of scope assessment",
-		Applicability: []string{"maturity-1"},
+		Applicability: []string{"maturity-2"},
 		Steps: []AssessmentStep{func(interface{}) (Result, string, ConfidenceLevel) {
 			*ran = true
 			return Failed, "out of scope step ran", Low
@@ -287,12 +287,12 @@ func TestEvaluate_MarksOutOfScopeAssessmentNotApplicable(t *testing.T) {
 	assessment := outOfScopeAssessmentPtr(&ran)
 	c := &ControlEvaluation{AssessmentLogs: []*AssessmentLog{assessment}}
 
-	c.Evaluate(nil, []string{"maturity-2"})
+	c.Evaluate(nil, []string{"maturity-1"})
 
 	if assessment.Result != NotApplicable {
 		t.Errorf("assessment Result: got = %v, want = %v", assessment.Result, NotApplicable)
 	}
-	if want := "Not applicable: requirement applies to [maturity-1], evaluation requested [maturity-2]"; assessment.Message != want {
+	if want := "Not applicable: requirement applies to [maturity-2], evaluation requested [maturity-1]"; assessment.Message != want {
 		t.Errorf("assessment Message: got = %q, want = %q", assessment.Message, want)
 	}
 	if ran {
