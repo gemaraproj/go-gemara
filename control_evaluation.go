@@ -1,5 +1,7 @@
 package gemara
 
+import "fmt"
+
 // AddAssessment creates a new AssessmentLog object and adds it to the ControlEvaluation.
 func (c *ControlEvaluation) AddAssessment(requirementId string, description string, applicability []string, steps []AssessmentStep) (assessment *AssessmentLog) {
 	assessment, err := NewAssessment(requirementId, description, applicability, steps)
@@ -20,6 +22,9 @@ func (c *ControlEvaluation) AddAssessment(requirementId string, description stri
 // consumers can report every condition rather than relying only on the control-level summary.
 // Consequently, a later sibling's steps may produce side effects after an earlier assessment fails;
 // each assessment retains its own step-level fail-fast behavior.
+// An assessment whose applicability matches none of the userApplicability values is not run. It is
+// recorded as NotApplicable with a message naming both lists, and rolls into the control result like
+// any other assessment, so a control where nothing applies is NotApplicable.
 // The targetData is the data that the assessment will be run against. The userApplicability is a slice
 // of strings that determine when the assessment is applicable.
 func (c *ControlEvaluation) Evaluate(targetData interface{}, userApplicability []string) {
@@ -37,13 +42,18 @@ func (c *ControlEvaluation) Evaluate(targetData interface{}, userApplicability [
 				}
 			}
 		}
+		var result Result
 		if applicable {
-			result := assessment.Run(targetData)
-			aggregateResult := UpdateAggregateResult(c.Result, result)
-			if aggregateResult != c.Result {
-				c.Message = assessment.Message
-			}
-			c.Result = aggregateResult
+			result = assessment.Run(targetData)
+		} else {
+			assessment.Result = NotApplicable
+			assessment.Message = fmt.Sprintf("Not applicable: requirement applies to %v, evaluation requested %v", assessment.Applicability, userApplicability)
+			result = assessment.Result
 		}
+		aggregateResult := UpdateAggregateResult(c.Result, result)
+		if aggregateResult != c.Result {
+			c.Message = assessment.Message
+		}
+		c.Result = aggregateResult
 	}
 }
