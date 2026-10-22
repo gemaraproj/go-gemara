@@ -24,14 +24,19 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 		opt(&options)
 	}
 
-	authorPartyUUID := uuid.NewUUID()
+	authorPartyUUID := uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/party", log.Metadata.Author.Name, log.Metadata.Author.Type))
 	metadata := createAssessmentResultsMetadata(log, authorPartyUUID)
 
 	backMatter, mappingResourceUUIDs := mappingToBackMatterWithUUIDs(log.Metadata.MappingReferences)
 	result := evaluationLogToResult(log, options.catalog, authorPartyUUID, mappingResourceUUIDs)
 
+	version := log.Metadata.Version
+	if version == "" {
+		version = oscalUtils.DefaultOSCALVersion
+	}
+
 	return oscal.AssessmentResults{
-		UUID:       uuid.NewUUID(),
+		UUID:       uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/assessment-results", log.Metadata.Id, version)),
 		Metadata:   metadata,
 		ImportAp:   oscal.ImportAp{Href: options.importApHref},
 		Results:    []oscal.Result{result},
@@ -87,7 +92,7 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 	}
 
 	result := oscal.Result{
-		UUID:             uuid.NewUUID(),
+		UUID:             uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/result", log.Metadata.Id)),
 		Title:            title,
 		Description:      fmt.Sprintf("Results from Gemara EvaluationLog %s", log.Metadata.Id),
 		Start:            start,
@@ -194,7 +199,7 @@ func buildFinding(eval *gemara.ControlEvaluation, catalog *gemara.ControlCatalog
 	title = sanitizeTitle(title)
 
 	return oscal.Finding{
-		UUID:        uuid.NewUUID(),
+		UUID:        uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/finding", controlId)),
 		Title:       title,
 		Description: description,
 		Origins:     &[]oscal.Origin{origin},
@@ -223,7 +228,7 @@ func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation
 	}
 
 	obs := oscal.Observation{
-		UUID:        uuid.NewUUID(),
+		UUID:        uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/observation", eval.Control.EntryId, alog.Requirement.EntryId)),
 		Description: description,
 		Collected:   collected,
 		Methods:     methods,
@@ -305,7 +310,7 @@ func buildLogEntry(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, p
 	title := fmt.Sprintf("%s / %s", eval.Control.EntryId, alog.Requirement.EntryId)
 
 	entry := oscal.AssessmentLogEntry{
-		UUID:        uuid.NewUUID(),
+		UUID:        uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/log-entry", eval.Control.EntryId, alog.Requirement.EntryId)),
 		Title:       title,
 		Start:       start,
 		Description: alog.Description,
@@ -328,7 +333,7 @@ func buildTargetInventoryItem(target gemara.Resource) oscal.InventoryItem {
 	}
 
 	return oscal.InventoryItem{
-		UUID:        uuid.NewUUID(),
+		UUID:        uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/inventory-item", target.Id)),
 		Description: description,
 		Props: &[]oscal.Property{
 			{

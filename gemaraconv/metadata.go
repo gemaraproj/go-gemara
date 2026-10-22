@@ -42,7 +42,7 @@ func createMetadata(title string, version string, published *time.Time, canonica
 		}
 
 		author := oscal.Party{
-			UUID: uuid.NewUUID(),
+			UUID: uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/party", authorName)),
 			Type: "person",
 			Name: authorName,
 		}

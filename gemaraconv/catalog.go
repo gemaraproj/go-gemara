@@ -29,7 +29,7 @@ func CatalogToOSCAL(catalog gemara.ControlCatalog, opts ...GenerateOption) (osca
 	}
 
 	oscalCatalog := oscal.Catalog{
-		UUID:     uuid.NewUUID(),
+		UUID:     uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/catalog", catalog.Metadata.Id, options.version)),
 		Groups:   nil,
 		Metadata: metadata,
 	}
