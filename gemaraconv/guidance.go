@@ -71,7 +71,7 @@ func GuidanceToOSCAL(g gemara.GuidanceCatalog, guidanceDocHref string, opts ...G
 	}
 
 	catalog := oscal.Catalog{
-		UUID:       uuid.NewUUID(),
+		UUID:       uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/guidance-catalog", g.Metadata.Id, options.version)),
 		Metadata:   catalogMetadata,
 		Groups:     oscalUtils.NilIfEmpty(groups),
 		BackMatter: backmatter,
@@ -107,7 +107,7 @@ func GuidanceToOSCAL(g gemara.GuidanceCatalog, guidanceDocHref string, opts ...G
 	modify := buildModifySection(alterationMap)
 
 	profile := oscal.Profile{
-		UUID:     uuid.NewUUID(),
+		UUID:     uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/guidance-profile", g.Metadata.Id, options.version)),
 		Imports:  imports,
 		Metadata: profileMetadata,
 		Modify:   modify,
@@ -505,7 +505,7 @@ func mappingToBackMatterWithUUIDs(resourceRefs []gemara.MappingReference) (*osca
 		if ref.Id == "" {
 			continue
 		}
-		resourceUUID := uuid.NewUUID()
+		resourceUUID := uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/resource", ref.Id))
 		resourceUUIDs[ref.Id] = resourceUUID
 		resource := oscal.Resource{
 			UUID:        resourceUUID,
