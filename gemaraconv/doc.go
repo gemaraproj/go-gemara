@@ -12,9 +12,12 @@
 //
 // OSCAL conversions produce deterministic UUIDv5 values (SHA-1, URL namespace)
 // via go-oscal's uuid.NewUUIDWithSource. Each UUID source string follows the
-// pattern "gemara:<identity-fields>/<entity-type>". Document-root UUIDs use
-// metadata.Id + version (change-on-write). Assembly UUIDs use identity fields
-// only (per-subject). See docs/dev/deterministic-uuids.md for the full mapping.
+// pattern "gemara:<escaped-identity-fields>/<entity-type>", where identity fields
+// are URL-encoded with url.PathEscape to prevent separator ambiguity.
+// Document-root UUIDs use options.version (defaulting to metadata.Version, then
+// "0.0.0") as the change-on-write trigger. Assessment assembly UUIDs include the
+// log ID for per-document uniqueness. See docs/dev/deterministic-uuids.md for the
+// full mapping.
 //
 // Examples:
 //

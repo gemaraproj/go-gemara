@@ -55,22 +55,33 @@ The `gemara:` prefix prevents collision with other UUIDv5 URL-namespace users.
 The entity-type suffix prevents collision between assemblies that share the same
 identity fields (a finding and an observation for the same control+requirement).
 
+### Field Escaping
+
+Identity fields are URL-encoded with `url.PathEscape()` before concatenation.
+This prevents ambiguity when a field contains `/`, which is also the separator
+between fields. For example, a catalog with `metadata.Id = "A/B"` and
+`version = "C"` produces `gemara:A%2FB/C/catalog`, distinct from `metadata.Id = "A"`
+with `version = "B/C"` which produces `gemara:A/B%2FC/catalog`.
+
 ### Complete Mapping
 
 | OSCAL Assembly | Persistence | Source String | Identity Fields |
 |---|---|---|---|
-| Catalog (control) | `change-on-write` | `gemara:{metadata.Id}/{version}/catalog` | Document ID + version |
-| Catalog (guidance) | `change-on-write` | `gemara:{metadata.Id}/{version}/guidance-catalog` | Document ID + version |
-| Profile | `change-on-write` | `gemara:{metadata.Id}/{version}/guidance-profile` | Document ID + version |
-| AssessmentResults | `change-on-write` | `gemara:{metadata.Id}/{version}/assessment-results` | Document ID + version |
-| Party (catalog/guidance) | `per-subject` | `gemara:{authorName}/party` | Author name |
-| Party (assessment) | `per-subject` | `gemara:{author.Name}/{author.Type}/party` | Author name + type |
+| Catalog (control) | `change-on-write` | `gemara:{id}/{version}/catalog` | Document ID + version |
+| Catalog (guidance) | `change-on-write` | `gemara:{id}/{version}/guidance-catalog` | Document ID + version |
+| Profile | `change-on-write` | `gemara:{id}/{version}/guidance-profile` | Document ID + version |
+| AssessmentResults | `change-on-write` | `gemara:{id}/{version}/assessment-results` | Document ID + version |
+| Party | `per-subject` | `gemara:{authorName}/{authorType}/party` | Author name + type |
 | Resource | `per-subject` | `gemara:{ref.Id}/resource` | Mapping reference ID |
 | Result | `per-subject` | `gemara:{log.Metadata.Id}/result` | Log ID |
-| Finding | `per-subject` | `gemara:{controlId}/finding` | Control entry ID |
-| Observation | `per-subject` | `gemara:{controlId}/{requirementId}/observation` | Control + requirement |
-| LogEntry | `per-subject` | `gemara:{controlId}/{requirementId}/log-entry` | Control + requirement |
+| Finding | `per-subject` | `gemara:{logId}/{controlId}/finding` | Log ID + control entry ID |
+| Observation | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/observation` | Log ID + control + requirement |
+| LogEntry | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/log-entry` | Log ID + control + requirement |
 | InventoryItem | `per-subject` | `gemara:{target.Id}/inventory-item` | Target resource ID |
+
+All `{field}` placeholders denote `url.PathEscape(field)` values. Document-root
+UUIDs use `options.version`, which defaults to `metadata.Version` and falls back
+to `"0.0.0"` when both are empty.
 
 ### Fields Excluded from Source Strings
 
@@ -93,7 +104,8 @@ subject, not its identity:
   same.
 - **Content changes do not change assembly UUIDs.** Editing a finding's message,
   an observation's description, or a resource's title does not change its UUID.
-- **Different subjects get different UUIDs.** Different control IDs, requirement
-  IDs, or document IDs produce different UUIDs.
+- **Different subjects get different UUIDs.** Each assembly type derives its UUID
+  from its own identity fields (see the mapping table above). Different values in
+  those fields produce different UUIDs.
 - **No collision across assembly types.** A Finding and an Observation for the
   same control+requirement get different UUIDs because of the entity-type suffix.
