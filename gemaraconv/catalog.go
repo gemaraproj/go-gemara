@@ -2,6 +2,7 @@ package gemaraconv
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/defenseunicorns/go-oscal/src/pkg/uuid"
@@ -29,7 +30,7 @@ func CatalogToOSCAL(catalog gemara.ControlCatalog, opts ...GenerateOption) (osca
 	}
 
 	oscalCatalog := oscal.Catalog{
-		UUID:     uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/catalog", catalog.Metadata.Id, options.version)),
+		UUID:     uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/catalog", url.PathEscape(catalog.Metadata.Id), url.PathEscape(options.version))),
 		Groups:   nil,
 		Metadata: metadata,
 	}

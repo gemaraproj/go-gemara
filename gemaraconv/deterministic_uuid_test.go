@@ -276,12 +276,13 @@ func TestSpecialCharactersInIds_ProduceDeterministicUUIDs(t *testing.T) {
 }
 
 func TestSeparatorAmbiguity_DifferentInputsDiffer(t *testing.T) {
-	// If metadata.Id contains "/" it could theoretically collide with the
-	// field separator. Verify that different logical inputs still produce
-	// different UUIDs when they would not collide in practice.
+	// Verify that "/" in identity fields does not cause collisions.
+	// catalog1: id="A/B", version="C" → source "gemara:A%2FB/C/catalog"
+	// catalog2: id="A",   version="B/C" → source "gemara:A/B%2FC/catalog"
+	// Without escaping, both would produce "gemara:A/B/C/catalog".
 	catalog1 := gemara.ControlCatalog{
-		Metadata: gemara.Metadata{Id: "a", Version: "1.0.0"},
-		Title:    "A",
+		Metadata: gemara.Metadata{Id: "A/B", Version: "C"},
+		Title:    "Catalog 1",
 		Groups:   []gemara.Group{{Id: "G1", Description: "G"}},
 		Controls: []gemara.Control{{
 			Id: "C-1", Group: "G1", Title: "C",
@@ -289,8 +290,8 @@ func TestSeparatorAmbiguity_DifferentInputsDiffer(t *testing.T) {
 		}},
 	}
 	catalog2 := gemara.ControlCatalog{
-		Metadata: gemara.Metadata{Id: "b", Version: "1.0.0"},
-		Title:    "B",
+		Metadata: gemara.Metadata{Id: "A", Version: "B/C"},
+		Title:    "Catalog 2",
 		Groups:   []gemara.Group{{Id: "G1", Description: "G"}},
 		Controls: []gemara.Control{{
 			Id: "C-1", Group: "G1", Title: "C",
@@ -303,7 +304,26 @@ func TestSeparatorAmbiguity_DifferentInputsDiffer(t *testing.T) {
 	r2, err := CatalogToOSCAL(catalog2)
 	require.NoError(t, err)
 
-	assert.NotEqual(t, r1.UUID, r2.UUID, "different metadata.Id should produce different UUIDs even with same version")
+	assert.NotEqual(t, r1.UUID, r2.UUID, "id=A/B version=C must differ from id=A version=B/C")
+}
+
+func TestPinnedCatalogUUID(t *testing.T) {
+	// Pin a known UUID to catch source-string regressions.
+	// Source: "gemara:test-catalog/1.0.0/catalog" → UUIDv5(URL, ...).
+	catalog := gemara.ControlCatalog{
+		Metadata: gemara.Metadata{Id: "test-catalog", Version: "1.0.0"},
+		Title:    "Test Catalog",
+		Groups:   []gemara.Group{{Id: "G1", Description: "G"}},
+		Controls: []gemara.Control{{
+			Id: "C-1", Group: "G1", Title: "C",
+			AssessmentRequirements: []gemara.AssessmentRequirement{{Id: "C-1.1", Text: "R"}},
+		}},
+	}
+
+	r, err := CatalogToOSCAL(catalog)
+	require.NoError(t, err)
+
+	assert.Equal(t, "7c8fc6e5-7637-5f21-aedc-27d913baf0ae", r.UUID, "catalog UUID must match pinned value")
 }
 
 func TestNilEvaluations_DoNotPanic(t *testing.T) {
@@ -428,6 +448,35 @@ func TestContentChange_DoesNotAffectUUIDs(t *testing.T) {
 	assert.Equal(t, o1, o3, "result change should not affect observation UUID")
 }
 
+func TestEmptyVersion_DefaultsBeforeUUIDGeneration(t *testing.T) {
+	log := makeEvaluationLog(gemara.Actor{
+		Name: "test-tool",
+		Type: gemara.Software,
+	}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Metadata.Id = "eval-empty-version"
+	log.Metadata.Version = ""
+	log.Target = gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software}
+
+	ar1, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	ar2, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	// Empty version should still produce deterministic UUIDs
+	assert.Equal(t, ar1.UUID, ar2.UUID, "empty version should produce deterministic document UUID")
+	assert.NotEmpty(t, ar1.UUID)
+
+	// The UUID should match what an explicit DefaultOSCALVersion would produce
+	log.Metadata.Version = "0.0.0"
+	ar3, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	assert.Equal(t, ar1.UUID, ar3.UUID, "empty version should produce same UUID as explicit default version")
+}
+
 func TestVersionBump_ChangesDocumentUUID_KeepsAssemblyUUIDs(t *testing.T) {
 	log := makeEvaluationLog(gemara.Actor{
 		Name: "test-tool",
@@ -448,6 +497,11 @@ func TestVersionBump_ChangesDocumentUUID_KeepsAssemblyUUIDs(t *testing.T) {
 
 	// Document UUID changes on version bump
 	assert.NotEqual(t, ar1.UUID, ar2.UUID, "version bump should change document UUID")
+
+	// Result UUID stays the same (per-subject: same log ID)
+	assert.Equal(t, ar1.Results[0].UUID, ar2.Results[0].UUID,
+		"result UUID should not change on version bump",
+	)
 
 	// Assembly UUIDs stay the same (per-subject: same control, same requirement)
 	assert.Equal(t,

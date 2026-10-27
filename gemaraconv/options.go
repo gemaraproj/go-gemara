@@ -2,7 +2,10 @@
 
 package gemaraconv
 
-import "github.com/gemaraproj/go-gemara"
+import (
+	"github.com/gemaraproj/go-gemara"
+	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
+)
 
 type generateOpts struct {
 	version       string
@@ -15,6 +18,9 @@ func (g *generateOpts) completeFromGuidance(doc gemara.GuidanceCatalog) {
 	if g.version == "" {
 		g.version = doc.Metadata.Version
 	}
+	if g.version == "" {
+		g.version = oscalUtils.DefaultOSCALVersion
+	}
 	if g.imports == nil {
 		g.imports = make(map[string]string)
 		for _, mappingRef := range doc.Metadata.MappingReferences {
@@ -26,6 +32,9 @@ func (g *generateOpts) completeFromGuidance(doc gemara.GuidanceCatalog) {
 func (g *generateOpts) completeFromCatalog(catalog gemara.ControlCatalog) {
 	if g.version == "" {
 		g.version = catalog.Metadata.Version
+	}
+	if g.version == "" {
+		g.version = oscalUtils.DefaultOSCALVersion
 	}
 }
 

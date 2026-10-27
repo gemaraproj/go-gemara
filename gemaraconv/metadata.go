@@ -2,6 +2,7 @@ package gemaraconv
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/defenseunicorns/go-oscal/src/pkg/uuid"
@@ -11,7 +12,7 @@ import (
 )
 
 // createMetadata creates OSCAL metadata with common fields and optional author information
-func createMetadata(title string, version string, published *time.Time, canonicalHref string, authorName string) oscal.Metadata {
+func createMetadata(title string, version string, published *time.Time, canonicalHref string, authorName string, authorType gemara.EntityType) oscal.Metadata {
 	now := time.Now()
 	// Ensure version is never empty by using default if not provided
 	if version == "" {
@@ -42,8 +43,8 @@ func createMetadata(title string, version string, published *time.Time, canonica
 		}
 
 		author := oscal.Party{
-			UUID: uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/party", authorName)),
-			Type: "person",
+			UUID: uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/party", url.PathEscape(authorName), url.PathEscape(authorType.String()))),
+			Type: mapPartyType(authorType),
 			Name: authorName,
 		}
 
@@ -74,6 +75,7 @@ func createMetadataFromGuidance(guidance gemara.GuidanceCatalog, opts generateOp
 		published,
 		canonicalHref,
 		guidance.Metadata.Author.Name,
+		guidance.Metadata.Author.Type,
 	)
 
 	return metadata, nil
@@ -98,6 +100,7 @@ func createMetadataFromCatalog(catalog gemara.ControlCatalog, opts generateOpts)
 		published,
 		canonicalHref,
 		catalog.Metadata.Author.Name,
+		catalog.Metadata.Author.Type,
 	)
 
 	return metadata, nil
