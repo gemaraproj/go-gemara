@@ -8,6 +8,7 @@ import (
 
 	oscal "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
 	"github.com/gemaraproj/go-gemara"
+	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -53,7 +54,7 @@ func TestEvaluationLogToOSCALAssessmentResults(t *testing.T) {
 	require.Len(t, *sel.IncludeControls, 1)
 	assert.Equal(t, "CTRL-1", (*sel.IncludeControls)[0].ControlId)
 
-	assertValidJSON(t, ar)
+	assertValidOSCAL(t, ar)
 }
 
 func TestEvaluationLogToOSCALAssessmentResults_WithCatalogEnrichment(t *testing.T) {
@@ -70,7 +71,7 @@ func TestEvaluationLogToOSCALAssessmentResults_WithCatalogEnrichment(t *testing.
 
 	finding := (*ar.Results[0].Findings)[0]
 	assert.Equal(t, "Access Control", finding.Title)
-	assertValidJSON(t, ar)
+	assertValidOSCAL(t, ar)
 }
 
 func TestEvaluationLogToOSCALAssessmentResults_ResultMapping(t *testing.T) {
@@ -82,9 +83,11 @@ func TestEvaluationLogToOSCALAssessmentResults_ResultMapping(t *testing.T) {
 	}{
 		{gemara.Passed, "satisfied", "", "passed maps to satisfied"},
 		{gemara.Failed, "not-satisfied", "", "failed maps to not-satisfied"},
-		{gemara.NeedsReview, "not-satisfied", "Needs Review", "needs-review maps to not-satisfied with reason"},
-		{gemara.Unknown, "not-satisfied", "Unknown", "unknown maps to not-satisfied with reason"},
-		{gemara.NotApplicable, "not-satisfied", "Not Applicable", "not-applicable maps to not-satisfied with reason"},
+		{gemara.NeedsReview, "not-satisfied", "needs-review", "needs-review maps to not-satisfied with reason"},
+		{gemara.Unknown, "not-satisfied", "unknown", "unknown maps to not-satisfied with reason"},
+		{gemara.NotApplicable, "not-satisfied", "not-applicable", "not-applicable maps to not-satisfied with reason"},
+		{gemara.NotRun, "not-satisfied", "not-run", "not-run maps to not-satisfied with reason"},
+		{gemara.Result(99), "not-satisfied", "invalid", "unrecognized result maps to not-satisfied with invalid"},
 	}
 
 	for _, tt := range tests {
@@ -100,6 +103,7 @@ func TestEvaluationLogToOSCALAssessmentResults_ResultMapping(t *testing.T) {
 			finding := (*ar.Results[0].Findings)[0]
 			assert.Equal(t, tt.wantState, finding.Target.Status.State)
 			assert.Equal(t, tt.wantReason, finding.Target.Status.Reason)
+			assertValidOSCAL(t, ar)
 		})
 	}
 }
@@ -200,7 +204,7 @@ func TestEvaluationLogToOSCALAssessmentResults_BackMatter(t *testing.T) {
 	resource := (*ar.BackMatter.Resources)[0]
 	assert.Equal(t, "Cloud Native Security Controls", resource.Title)
 	assert.NotEmpty(t, resource.UUID)
-	assertValidJSON(t, ar)
+	assertValidOSCAL(t, ar)
 }
 
 func TestEvaluationLogToOSCALAssessmentResults_RelevantEvidence(t *testing.T) {
@@ -280,7 +284,7 @@ func TestEvaluationLogToOSCALAssessmentResults_RelevantEvidence(t *testing.T) {
 	assert.Nil(t, thirdEvidence.Links)
 	require.NotNil(t, thirdEvidence.Props)
 	assert.Len(t, *thirdEvidence.Props, 3)
-	assertValidJSON(t, ar)
+	assertValidOSCAL(t, ar)
 }
 
 func TestEvaluationLogToOSCALAssessmentResults_OmitsRelevantEvidenceWhenEmpty(t *testing.T) {
@@ -386,7 +390,7 @@ func TestMapPartyType(t *testing.T) {
 
 // Helpers
 
-func assertValidJSON(t *testing.T, ar oscal.AssessmentResults) {
+func assertValidOSCAL(t *testing.T, ar oscal.AssessmentResults) {
 	t.Helper()
 	model := oscal.OscalModels{AssessmentResults: &ar}
 	data, err := json.MarshalIndent(model, "", "  ")
@@ -396,6 +400,8 @@ func assertValidJSON(t *testing.T, ar oscal.AssessmentResults) {
 	var roundtrip oscal.OscalModels
 	require.NoError(t, json.Unmarshal(data, &roundtrip))
 	require.NotNil(t, roundtrip.AssessmentResults)
+
+	require.NoError(t, oscalUtils.Validate(model))
 }
 
 func propertyValue(t *testing.T, props *[]oscal.Property, name string) string {
