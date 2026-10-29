@@ -8,6 +8,17 @@
 //   - EvaluationLog(), ControlCatalog(), GuidanceCatalog()
 //   - Thin wrappers that delegate to the primary functions
 //
+// # UUID Generation
+//
+// OSCAL conversions produce deterministic UUIDv5 values (SHA-1, URL namespace)
+// via go-oscal's uuid.NewUUIDWithSource. Each UUID source string follows the
+// pattern "gemara:<escaped-identity-fields>/<entity-type>", where identity fields
+// are URL-encoded with url.PathEscape to prevent separator ambiguity.
+// Document-root UUIDs use options.version (defaulting to metadata.Version, then
+// "0.0.0") as the change-on-write trigger. Assessment assembly UUIDs include the
+// log ID for per-document uniqueness. See docs/dev/deterministic-uuids.md for the
+// full mapping.
+//
 // Examples:
 //
 //	sarifBytes, err := gemaraconv.ToSARIF(log, gemaraconv.WithArtifactURI("file.md"), gemaraconv.WithCatalog(catalog))

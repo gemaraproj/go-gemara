@@ -2,6 +2,7 @@ package gemaraconv
 
 import (
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -71,7 +72,7 @@ func GuidanceToOSCAL(g gemara.GuidanceCatalog, guidanceDocHref string, opts ...G
 	}
 
 	catalog := oscal.Catalog{
-		UUID:       uuid.NewUUID(),
+		UUID:       uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/guidance-catalog", url.PathEscape(g.Metadata.Id), url.PathEscape(options.version))),
 		Metadata:   catalogMetadata,
 		Groups:     oscalUtils.NilIfEmpty(groups),
 		BackMatter: backmatter,
@@ -107,7 +108,7 @@ func GuidanceToOSCAL(g gemara.GuidanceCatalog, guidanceDocHref string, opts ...G
 	modify := buildModifySection(alterationMap)
 
 	profile := oscal.Profile{
-		UUID:     uuid.NewUUID(),
+		UUID:     uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/guidance-profile", url.PathEscape(g.Metadata.Id), url.PathEscape(options.version))),
 		Imports:  imports,
 		Metadata: profileMetadata,
 		Modify:   modify,
@@ -505,7 +506,10 @@ func mappingToBackMatterWithUUIDs(resourceRefs []gemara.MappingReference) (*osca
 		if ref.Id == "" {
 			continue
 		}
-		resourceUUID := uuid.NewUUID()
+		if _, exists := resourceUUIDs[ref.Id]; exists {
+			continue
+		}
+		resourceUUID := uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/resource", url.PathEscape(ref.Id)))
 		resourceUUIDs[ref.Id] = resourceUUID
 		resource := oscal.Resource{
 			UUID:        resourceUUID,
