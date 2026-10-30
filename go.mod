@@ -3,14 +3,14 @@ module github.com/gemaraproj/go-gemara
 go 1.26.0
 
 require (
-	github.com/defenseunicorns/go-oscal v0.7.1
+	github.com/defenseunicorns/go-oscal v0.7.2
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/go-cmp v0.7.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/stretchr/testify v1.12.1
 	gopkg.in/yaml.v3 v3.0.1
-	oras.land/oras-go/v2 v2.6.4
+	oras.land/oras-go/v2 v2.7.0
 )
 
 require (
