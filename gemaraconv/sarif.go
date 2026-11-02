@@ -3,7 +3,9 @@ package gemaraconv
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"slices"
+	"strings"
 
 	"github.com/gemaraproj/go-gemara"
 )
@@ -14,7 +16,13 @@ var emptyArtifactURIMessage = "no file associated with this alert"
 // Each AssessmentLog is emitted as a SARIF result. The rule id is derived from
 // the control id and requirement id.
 //
-// Use WithArtifactURI to set PhysicalLocation (defaults to a placeholder).
+// When an AssessmentLog carries Evidence with a source, real artifact URIs are
+// resolved from the evidence source and metadata mapping references, replacing
+// synthetic artifact URIs. The evidence digest is recorded on the artifactLocation
+// properties and mapped into run.artifacts hashes. If evidence or its source is
+// absent, PhysicalLocation falls back to WithArtifactURI (or a placeholder).
+//
+// Use WithArtifactURI to set the fallback PhysicalLocation (defaults to a placeholder).
 // Use WithCatalog to enrich rules with requirement text and recommendations.
 // Use WithExcludedStatuses to omit results by Gemara status.
 //
@@ -32,7 +40,10 @@ func ToSARIF(evaluationLog gemara.EvaluationLog, opts ...EvalOption) ([]byte, er
 	for _, opt := range opts {
 		opt(&options)
 	}
-	artifactURI := options.artifactURI
+	defaultArtifactURI := options.artifactURI
+	if defaultArtifactURI == "" {
+		defaultArtifactURI = emptyArtifactURIMessage
+	}
 	catalog := options.catalog
 	report := &SarifReport{
 		Schema:  "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/123e95847b13fbdd4cbe2120fa5e33355d4a042b/Schemata/sarif-schema-2.1.0.json",
@@ -44,6 +55,16 @@ func ToSARIF(evaluationLog gemara.EvaluationLog, opts ...EvalOption) ([]byte, er
 		Version:        evaluationLog.Metadata.Author.Version,
 	}
 	run := Run{Tool: Tool{Driver: driver}}
+
+	refMap := make(map[string]gemara.MappingReference, len(evaluationLog.Metadata.MappingReferences))
+	for _, ref := range evaluationLog.Metadata.MappingReferences {
+		if ref.Id != "" {
+			refMap[ref.Id] = ref
+		}
+	}
+
+	var artifacts []Artifact
+	artifactIndexMap := make(map[string]int)
 
 	// Build a simple in-memory set of rules to avoid duplicates
 	ruleIdSeen := map[string]bool{}
@@ -119,16 +140,6 @@ func ToSARIF(evaluationLog gemara.EvaluationLog, opts ...EvalOption) ([]byte, er
 				msg = log.Description
 			}
 
-			var physicalLocation *PhysicalLocation
-			if artifactURI == "" {
-				artifactURI = emptyArtifactURIMessage
-			}
-			physicalLocation = &PhysicalLocation{
-				ArtifactLocation: ArtifactLocation{
-					URI: artifactURI,
-				},
-			}
-
 			// Use the last AssessmentStep for LogicalLocation (the location is for the entire evaluation)
 			logicalLocationName := ruleID
 			if len(log.Steps) > 0 {
@@ -138,21 +149,31 @@ func ToSARIF(evaluationLog gemara.EvaluationLog, opts ...EvalOption) ([]byte, er
 				}
 			}
 
-			location := Location{
-				PhysicalLocation: physicalLocation,
-				LogicalLocations: []LogicalLocation{
-					{FullyQualifiedName: logicalLocationName},
-				},
+			var locations []Location
+			if len(log.Evidence) > 0 {
+				locations = buildLocationsFromEvidence(log.Evidence, refMap, logicalLocationName, &artifacts, artifactIndexMap)
+			}
+			if len(locations) == 0 {
+				locations = []Location{
+					{
+						PhysicalLocation: &PhysicalLocation{
+							ArtifactLocation: ArtifactLocation{
+								URI: defaultArtifactURI,
+							},
+						},
+						LogicalLocations: []LogicalLocation{
+							{FullyQualifiedName: logicalLocationName},
+						},
+					},
+				}
 			}
 
 			result := ResultEntry{
-				RuleID:  ruleID,
-				Kind:    kind,
-				Level:   level,
-				Message: Message{Text: msg},
-				Locations: []Location{
-					location,
-				},
+				RuleID:    ruleID,
+				Kind:      kind,
+				Level:     level,
+				Message:   Message{Text: msg},
+				Locations: locations,
 				PartialFingerprints: map[string]string{
 					"gemara/requirementId/v1": ruleID,
 				},
@@ -167,6 +188,11 @@ func ToSARIF(evaluationLog gemara.EvaluationLog, opts ...EvalOption) ([]byte, er
 	// attach rules if any
 	if len(rules) > 0 {
 		run.Tool.Driver.Rules = rules
+	}
+
+	// attach artifacts if any
+	if len(artifacts) > 0 {
+		run.Artifacts = artifacts
 	}
 
 	report.Runs = append(report.Runs, run)
@@ -199,8 +225,9 @@ type SarifReport struct {
 }
 
 type Run struct {
-	Tool    Tool          `json:"tool"`
-	Results []ResultEntry `json:"results,omitempty"`
+	Tool      Tool          `json:"tool"`
+	Artifacts []Artifact    `json:"artifacts,omitempty"`
+	Results   []ResultEntry `json:"results,omitempty"`
 }
 
 type Tool struct {
@@ -214,6 +241,12 @@ type ToolComponent struct {
 	SemanticVersion       string                `json:"semanticVersion,omitempty"`
 	DottedQuadFileVersion string                `json:"dottedQuadFileVersion,omitempty"`
 	Rules                 []ReportingDescriptor `json:"rules,omitempty"`
+}
+
+type Artifact struct {
+	Description *Message          `json:"description,omitempty"`
+	Location    *ArtifactLocation `json:"location,omitempty"`
+	Hashes      map[string]string `json:"hashes,omitempty"`
 }
 
 type ReportingDescriptor struct {
@@ -250,9 +283,11 @@ type PhysicalLocation struct {
 }
 
 type ArtifactLocation struct {
-	URI       string `json:"uri"`
-	URIBaseID string `json:"uriBaseId,omitempty"`
-	Index     int    `json:"index,omitempty"`
+	URI         string         `json:"uri"`
+	URIBaseID   string         `json:"uriBaseId,omitempty"`
+	Index       *int           `json:"index,omitempty"`
+	Description *Message       `json:"description,omitempty"`
+	Properties  map[string]any `json:"properties,omitempty"`
 }
 
 type Region struct {
@@ -269,6 +304,178 @@ type Snippet struct {
 
 type LogicalLocation struct {
 	FullyQualifiedName string `json:"fullyQualifiedName,omitempty"`
+}
+
+// buildLocationsFromEvidence constructs SARIF Location objects from Gemara Evidence items.
+func buildLocationsFromEvidence(
+	evidence []gemara.Evidence,
+	refMap map[string]gemara.MappingReference,
+	stepLocationName string,
+	artifacts *[]Artifact,
+	artifactIndexMap map[string]int,
+) []Location {
+	var locations []Location
+	seenURIs := make(map[string]bool)
+
+	for _, item := range evidence {
+		uri := resolveArtifactURI(refMap, item.Source)
+		if uri == "" {
+			continue
+		}
+
+		if seenURIs[uri] {
+			continue
+		}
+		seenURIs[uri] = true
+
+		artLoc := ArtifactLocation{
+			URI: uri,
+		}
+
+		desc := item.Description
+		if desc == "" {
+			desc = item.Source.Remarks
+		}
+		if desc != "" {
+			artLoc.Description = &Message{Text: desc}
+		}
+
+		var props map[string]any
+		if item.Source.Digest != "" {
+			if props == nil {
+				props = make(map[string]any)
+			}
+			props["gemara/digest"] = item.Source.Digest
+			props["gemara/source-digest"] = item.Source.Digest
+		}
+		if item.Source.ReferenceId != "" {
+			if props == nil {
+				props = make(map[string]any)
+			}
+			props["gemara/source-reference-id"] = item.Source.ReferenceId
+		}
+		if item.Source.Coordinate != "" {
+			if props == nil {
+				props = make(map[string]any)
+			}
+			props["gemara/source-coordinate"] = item.Source.Coordinate
+		}
+		if item.Source.EntryId != "" {
+			if props == nil {
+				props = make(map[string]any)
+			}
+			props["gemara/source-entry-id"] = item.Source.EntryId
+		}
+		artLoc.Properties = props
+
+		idx, found := artifactIndexMap[uri]
+		if !found {
+			var hashes map[string]string
+			if item.Source.Digest != "" {
+				algo, hash, ok := strings.Cut(item.Source.Digest, ":")
+				if ok && algo != "" && hash != "" {
+					algo = normalizeHashAlgorithm(algo)
+					hashes = map[string]string{algo: hash}
+				}
+			}
+			art := Artifact{
+				Location: &ArtifactLocation{URI: uri},
+				Hashes:   hashes,
+			}
+			if desc != "" {
+				art.Description = &Message{Text: desc}
+			}
+			idx = len(*artifacts)
+			*artifacts = append(*artifacts, art)
+			artifactIndexMap[uri] = idx
+		} else if item.Source.Digest != "" && (*artifacts)[idx].Hashes == nil {
+			algo, hash, ok := strings.Cut(item.Source.Digest, ":")
+			if ok && algo != "" && hash != "" {
+				algo = normalizeHashAlgorithm(algo)
+				(*artifacts)[idx].Hashes = map[string]string{algo: hash}
+			}
+		}
+
+		idxCopy := idx
+		artLoc.Index = &idxCopy
+
+		locations = append(locations, Location{
+			PhysicalLocation: &PhysicalLocation{
+				ArtifactLocation: artLoc,
+			},
+			LogicalLocations: []LogicalLocation{
+				{FullyQualifiedName: stepLocationName},
+			},
+		})
+	}
+
+	return locations
+}
+
+// resolveArtifactURI resolves an artifact URI from an EvidenceMapping and the document's MappingReferences.
+func resolveArtifactURI(refMap map[string]gemara.MappingReference, source gemara.EvidenceMapping) string {
+	refURL := ""
+	if source.ReferenceId != "" {
+		if ref, found := refMap[source.ReferenceId]; found {
+			refURL = ref.Url
+		}
+	}
+
+	coord := source.Coordinate
+
+	// If coordinate is already an absolute URI
+	if strings.Contains(coord, "://") {
+		return coord
+	}
+
+	if refURL != "" {
+		if coord != "" {
+			baseURL, err := url.Parse(refURL)
+			if err == nil {
+				if strings.HasPrefix(coord, "/") {
+					coordURL, err := url.Parse(coord)
+					if err == nil {
+						return baseURL.ResolveReference(coordURL).String()
+					}
+				} else {
+					if !strings.HasSuffix(baseURL.Path, "/") && baseURL.Path != "" {
+						baseURL.Path += "/"
+					}
+					coordURL, err := url.Parse(coord)
+					if err == nil {
+						return baseURL.ResolveReference(coordURL).String()
+					}
+				}
+			}
+			return strings.TrimRight(refURL, "/") + "/" + strings.TrimLeft(coord, "/")
+		}
+		return refURL
+	}
+
+	if coord != "" {
+		return coord
+	}
+
+	if source.ReferenceId != "" {
+		return source.ReferenceId
+	}
+
+	return ""
+}
+
+func normalizeHashAlgorithm(algo string) string {
+	switch strings.ToLower(algo) {
+	case "sha256":
+		return "sha-256"
+	case "sha512":
+		return "sha-512"
+	case "sha384":
+		return "sha-384"
+	case "sha1":
+		return "sha-1"
+	default:
+		return strings.ToLower(algo)
+	}
 }
 
 // findControlAndRequirement searches the catalog for a control and requirement by their IDs.
