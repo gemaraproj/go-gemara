@@ -16,37 +16,47 @@ The fix switches from `uuid.NewUUID()` (random v4) to `uuid.NewUUIDWithSource()`
 site passes a source string derived from the assembly's identity fields in the
 Gemara input.
 
-## OSCAL Persistence Rules
+## UUID Persistence
 
-The OSCAL metaschema defines two persistence models for UUIDs. The source-string
-convention follows both.
+The OSCAL 1.1.3 schemas bundled with go-oscal describe most UUIDs as
+per-subject: "This UUID should be assigned per-subject, which means it should
+be consistently used to identify the same subject across revisions of the
+document." That sentence appears on the AssessmentResults root, the Result,
+and the assembly types gemaraconv emits (finding, observation, party,
+resource, and the rest). The catalog and profile root UUIDs carry no
+persistence wording at all; their schema description is only a "globally
+unique means to identify a given catalog instance."
 
-### `change-on-write` (document roots)
+The convention below has three tiers.
 
-Catalog and Profile root UUIDs declare `identifier-persistence: change-on-write`
-in their metaschema. The [OSCAL Model Overview](https://pages.nist.gov/OSCAL/learn/concepts/layer/overview/)
-states: "Every time the content of an OSCAL file changes, a new UUID value must
-be generated and assigned to the root element's uuid."
+### Document roots: stable per identity
 
-For `gemaraconv`, the conversion is a pure function: same Gemara input at the same
-version always produces the same OSCAL. The version bump is the `change-on-write`
-trigger. Source string: `gemara:{metadata.Id}/{version}/{document-type}`.
+Catalog and Profile roots derive from `metadata.Id` and `version`:
+`gemara:{metadata.Id}/{version}/{document-type}`. The conversion is a pure
+function, so the same document at the same version always produces the same
+root, and a version bump mints a new one.
 
-For Assessment Results, each run is a new write, so the root also includes
-`metadata.Date`: `gemara:{metadata.Id}/{version}/{metadata.Date}/assessment-results`.
-A log re-run on a new date gets a new root UUID even when the version is
-unchanged (Privateer, for example, leaves the version empty).
+### Assessment Results roots and Results: per run
 
-### `per-subject` (assembly UUIDs)
+The AssessmentResults root and its Result additionally include
+`metadata.Date`:
+`gemara:{metadata.Id}/{version}/{metadata.Date}/assessment-results`. Each
+conversion of an evaluation log is a new assessment run, even when the log id
+and version are unchanged (Privateer, for example, leaves the version empty),
+so the root and the Result change with the date.
 
-Every inner assembly UUID (finding, observation, result, party, log entry,
-resource) declares in its metaschema description: "This UUID should be assigned
-per-subject, which means it should be consistently used to identify the same
-subject across revisions of the document."
+This is a deliberate departure from the per-subject wording above: a re-run
+on a new date is a new write of the results document, not a revision of the
+same one. Consumers that need a stable handle on the assessment itself should
+key on the log's `metadata.Id`, not on the root UUID.
 
-Source strings use identity fields only (IDs, structural keys), not content
-fields. Changing a control's description or an assessment's result does not change
-the UUID because the subject (the control, the requirement) has not changed.
+### Assemblies: per-subject
+
+Every inner assembly UUID (finding, observation, party, resource, log entry,
+inventory item) uses identity fields only (IDs, structural keys), not content
+fields. Changing a control's description or an assessment's result does not
+change the UUID, because the subject (the control, the requirement) has not
+changed. This is the per-subject rule as the schema states it.
 
 The Result is the exception: a Result is one run of the log, so its source
 includes `metadata.Date` alongside the log ID.
@@ -75,10 +85,10 @@ with `version = "B/C"` which produces `gemara:A/B%2FC/catalog`.
 
 | OSCAL Assembly | Persistence | Source String | Identity Fields |
 |---|---|---|---|
-| Catalog (control) | `change-on-write` | `gemara:{id}/{version}/catalog` | Document ID + version |
-| Catalog (guidance) | `change-on-write` | `gemara:{id}/{version}/guidance-catalog` | Document ID + version |
-| Profile | `change-on-write` | `gemara:{id}/{version}/guidance-profile` | Document ID + version |
-| AssessmentResults | `change-on-write` | `gemara:{id}/{version}/{date}/assessment-results` | Document ID + version + date |
+| Catalog (control) | per (id, version) | `gemara:{id}/{version}/catalog` | Document ID + version |
+| Catalog (guidance) | per (id, version) | `gemara:{id}/{version}/guidance-catalog` | Document ID + version |
+| Profile | per (id, version) | `gemara:{id}/{version}/guidance-profile` | Document ID + version |
+| AssessmentResults | per run | `gemara:{id}/{version}/{date}/assessment-results` | Document ID + version + date |
 | Party | `per-subject` | `gemara:{actor-id}/party` (name + type when the id is empty) | Actor ID, or author name + type when absent |
 | Resource | `per-subject` | `gemara:{ref.Id}/resource` | Mapping reference ID |
 | Result | per-run | `gemara:{log.Metadata.Id}/{date}/result` | Log ID + date |
@@ -87,9 +97,10 @@ with `version = "B/C"` which produces `gemara:A/B%2FC/catalog`.
 | LogEntry | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/{occurrence}/log-entry` | Log ID + control + requirement + occurrence |
 | InventoryItem | `per-subject` | `gemara:{target.Id}/inventory-item` | Target resource ID |
 
-All `{field}` placeholders denote `url.PathEscape(field)` values. Document-root
-UUIDs use `options.version`, which defaults to `metadata.Version` and falls back
-to `"0.0.0"` when both are empty.
+All `{field}` placeholders denote `url.PathEscape(field)` values. Catalog and
+Profile roots use `options.version` (`WithVersion`, else `metadata.Version`,
+else `"0.0.0"`). The AssessmentResults root has no version option; it uses
+`log.Metadata.Version` with the same `"0.0.0"` fallback.
 
 The `{occurrence}` field is a 1-based counter over assessment logs that share
 the same (control, requirement) key, counted in input order. A requirement can

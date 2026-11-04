@@ -68,16 +68,17 @@ func TestGuidanceToOSCAL_DeterministicUUIDs(t *testing.T) {
 	assert.NotEqual(t, cat1.UUID, prof1.UUID, "catalog and profile UUIDs should differ")
 
 	// Backmatter resource UUIDs should be deterministic
-	if cat1.BackMatter != nil && cat1.BackMatter.Resources != nil {
-		require.NotNil(t, cat2.BackMatter)
-		require.NotNil(t, cat2.BackMatter.Resources)
-		for i := range *cat1.BackMatter.Resources {
-			assert.Equal(t,
-				(*cat1.BackMatter.Resources)[i].UUID,
-				(*cat2.BackMatter.Resources)[i].UUID,
-				"resource UUID should be deterministic",
-			)
-		}
+	require.NotNil(t, cat1.BackMatter, "guidance catalog should have back matter")
+	require.NotNil(t, cat1.BackMatter.Resources, "guidance catalog should have back-matter resources")
+	require.NotNil(t, cat2.BackMatter)
+	require.NotNil(t, cat2.BackMatter.Resources)
+	require.Len(t, *cat2.BackMatter.Resources, len(*cat1.BackMatter.Resources))
+	for i := range *cat1.BackMatter.Resources {
+		assert.Equal(t,
+			(*cat1.BackMatter.Resources)[i].UUID,
+			(*cat2.BackMatter.Resources)[i].UUID,
+			"resource UUID should be deterministic",
+		)
 	}
 }
 
@@ -630,8 +631,7 @@ func TestDuplicateControlIds_ReturnError(t *testing.T) {
 	assert.Contains(t, err.Error(), "AC-1", "error should name the duplicated control ID")
 }
 
-func TestConflictingMappingReferences_ReturnError(t *testing.T) {
-	log := makeEvaluationLog(gemara.Actor{
+func TestConflictingMappingReferences_ReturnError(t *testing.T) {	log := makeEvaluationLog(gemara.Actor{
 		Name: "test-tool",
 		Type: gemara.Software,
 	}, []*gemara.AssessmentLog{
@@ -756,4 +756,125 @@ func firstPartyUUID(t *testing.T, author gemara.Actor) string {
 	require.NotNil(t, r.Metadata.Parties)
 	require.Len(t, *r.Metadata.Parties, 1)
 	return (*r.Metadata.Parties)[0].UUID
+}
+
+func TestDuplicateMappingReferences_Deduplicated(t *testing.T) {
+	one := gemara.MappingReference{Id: "osps", Title: "OSPS", Url: "https://example.com/osps"}
+	identical := []gemara.MappingReference{one, one}
+	differentTitle := []gemara.MappingReference{one, {Id: "osps", Title: "Other", Url: one.Url}}
+	differentURL := []gemara.MappingReference{one, {Id: "osps", Title: one.Title, Url: "https://example.com/other"}}
+
+	bm, _, err := mappingToBackMatterWithUUIDs([]gemara.MappingReference{one})
+	require.NoError(t, err)
+	require.Len(t, *bm.Resources, 1)
+
+	deduped, _, err := mappingToBackMatterWithUUIDs(identical)
+	require.NoError(t, err)
+	require.Len(t, *deduped.Resources, 1,
+		"an identical duplicate mapping reference is deduplicated, not repeated")
+	assert.Equal(t, (*bm.Resources)[0].UUID, (*deduped.Resources)[0].UUID,
+		"the kept resource keeps the UUID a single reference would get")
+
+	_, _, err = mappingToBackMatterWithUUIDs(differentTitle)
+	require.Error(t, err, "same id with a different title must error")
+	assert.Contains(t, err.Error(), "osps")
+
+	_, _, err = mappingToBackMatterWithUUIDs(differentURL)
+	require.Error(t, err, "same id with a different url must error")
+	assert.Contains(t, err.Error(), "osps")
+}
+
+func TestGuidanceConflictingMappingReferences_ReturnError(t *testing.T) {
+	g := guidanceWithExternalExtends()
+	g.Metadata.MappingReferences = append(g.Metadata.MappingReferences, gemara.MappingReference{
+		Id:    "NIST-800-53",
+		Title: "A different title for the same id",
+	})
+
+	_, _, err := GuidanceToOSCAL(g, "catalog.json",
+		WithOSCALImports(map[string]string{"NIST-800-53": "https://nist.gov/800-53/catalog.json"}))
+	require.Error(t, err, "GuidanceToOSCAL must propagate the mapping-reference conflict")
+	assert.Contains(t, err.Error(), "NIST-800-53")
+}
+
+func TestEmptyVersion_CatalogDefaultsBeforeUUIDGeneration(t *testing.T) {
+	catalog := gemara.ControlCatalog{
+		Metadata: gemara.Metadata{Id: "empty-version-catalog", Author: gemara.Actor{Id: "a1", Name: "A", Type: gemara.Human}},
+		Title:    "Empty Version",
+		Groups:   []gemara.Group{{Id: "G1", Description: "G"}},
+		Controls: []gemara.Control{{
+			Id: "C-1", Group: "G1", Title: "C",
+			AssessmentRequirements: []gemara.AssessmentRequirement{{Id: "C-1.1", Text: "R"}},
+		}},
+	}
+
+	defaulted, err := CatalogToOSCAL(catalog)
+	require.NoError(t, err)
+	pinned, err := CatalogToOSCAL(catalog, WithVersion("0.0.0"))
+	require.NoError(t, err)
+
+	assert.Equal(t, pinned.UUID, defaulted.UUID,
+		"an empty version must default to 0.0.0 before the root UUID is generated")
+	assert.Equal(t, "0.0.0", defaulted.Metadata.Version)
+}
+
+func TestEmptyVersion_GuidanceDefaultsBeforeUUIDGeneration(t *testing.T) {
+	g := guidanceWithExternalExtends()
+	g.Metadata.Version = ""
+
+	catDefaulted, profDefaulted, err := GuidanceToOSCAL(g, "catalog.json",
+		WithOSCALImports(map[string]string{"NIST-800-53": "https://nist.gov/800-53/catalog.json"}))
+	require.NoError(t, err)
+	catPinned, profPinned, err := GuidanceToOSCAL(g, "catalog.json",
+		WithOSCALImports(map[string]string{"NIST-800-53": "https://nist.gov/800-53/catalog.json"}),
+		WithVersion("0.0.0"))
+	require.NoError(t, err)
+
+	assert.Equal(t, catPinned.UUID, catDefaulted.UUID,
+		"an empty version must default to 0.0.0 before the guidance catalog root UUID is generated")
+	assert.Equal(t, profPinned.UUID, profDefaulted.UUID,
+		"an empty version must default to 0.0.0 before the profile root UUID is generated")
+	assert.Equal(t, "0.0.0", catDefaulted.Metadata.Version)
+}
+
+func TestSameResourceAndInventory_StableAcrossDocuments(t *testing.T) {
+	author := gemara.Actor{Id: "author-1", Name: "Tool", Type: gemara.Software}
+	ref := gemara.MappingReference{Id: "osps", Title: "OSPS", Url: "https://example.com/osps"}
+
+	logA := makeEvaluationLog(author, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	logA.Metadata.Id = "log-a"
+	logA.Metadata.Version = "1.0.0"
+	logA.Metadata.MappingReferences = []gemara.MappingReference{ref}
+	logA.Target = gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software}
+
+	logB := makeEvaluationLog(author, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-2", "check differently", gemara.Failed, "", nil),
+	})
+	logB.Metadata.Id = "log-b"
+	logB.Metadata.Version = "1.0.0"
+	logB.Metadata.MappingReferences = []gemara.MappingReference{ref}
+	logB.Target = gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software}
+
+	arA, err := EvaluationLogToOSCALAssessmentResults(logA, WithImportApHref("#"))
+	require.NoError(t, err)
+	arB, err := EvaluationLogToOSCALAssessmentResults(logB, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	require.NotNil(t, arA.BackMatter.Resources)
+	require.NotNil(t, arB.BackMatter.Resources)
+	assert.Equal(t,
+		(*arA.BackMatter.Resources)[0].UUID,
+		(*arB.BackMatter.Resources)[0].UUID,
+		"the same mapping reference id must get the same resource UUID across documents",
+	)
+
+	require.NotNil(t, arA.Results[0].LocalDefinitions.InventoryItems)
+	require.NotNil(t, arB.Results[0].LocalDefinitions.InventoryItems)
+	assert.Equal(t,
+		(*arA.Results[0].LocalDefinitions.InventoryItems)[0].UUID,
+		(*arB.Results[0].LocalDefinitions.InventoryItems)[0].UUID,
+		"the same target id must get the same inventory-item UUID across documents",
+	)
 }
