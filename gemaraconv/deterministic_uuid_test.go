@@ -1,8 +1,11 @@
 package gemaraconv
 
 import (
+	"fmt"
+	"net/url"
 	"testing"
 
+	"github.com/defenseunicorns/go-oscal/src/pkg/uuid"
 	"github.com/gemaraproj/go-gemara"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -684,4 +687,73 @@ func TestSameAuthor_SamePartyUUIDAcrossDocuments(t *testing.T) {
 		(*ar.Metadata.Parties)[0].UUID,
 		"the same author must get the same Party UUID in a catalog and in assessment results",
 	)
+}
+
+func TestActorId_RenameKeepsPartyUUID(t *testing.T) {
+	base := gemara.Actor{Id: "author-1", Name: "Alice", Type: gemara.Human}
+	renamed := gemara.Actor{Id: "author-1", Name: "Alice Smith", Type: gemara.Human}
+
+	baseUUID := firstPartyUUID(t, base)
+	renamedUUID := firstPartyUUID(t, renamed)
+
+	assert.Equal(t, baseUUID, renamedUUID,
+		"renaming an actor must keep its Party UUID when the id is unchanged",
+	)
+}
+
+func TestActorId_SameNameDifferentId_DistinctUUID(t *testing.T) {
+	a := gemara.Actor{Id: "author-1", Name: "Alice", Type: gemara.Human}
+	b := gemara.Actor{Id: "author-2", Name: "Alice", Type: gemara.Human}
+
+	assert.NotEqual(t, firstPartyUUID(t, a), firstPartyUUID(t, b),
+		"two actors sharing a name must not share a Party UUID",
+	)
+}
+
+func TestActorId_EmptyFallsBackToNameType(t *testing.T) {
+	// No id: the source falls back to name and type, so the same actor
+	// still gets the same UUID as before the Actor.Id change.
+	author := gemara.Actor{Name: "Alice", Type: gemara.Human}
+
+	catalog := gemara.ControlCatalog{
+		Metadata: gemara.Metadata{Id: "fallback-catalog", Version: "1.0.0", Author: author},
+		Title:    "Fallback",
+		Groups:   []gemara.Group{{Id: "G1", Description: "G"}},
+		Controls: []gemara.Control{{
+			Id: "C-1", Group: "G1", Title: "C",
+			AssessmentRequirements: []gemara.AssessmentRequirement{{Id: "C-1.1", Text: "R"}},
+		}},
+	}
+
+	r, err := CatalogToOSCAL(catalog)
+	require.NoError(t, err)
+	require.NotNil(t, r.Metadata.Parties)
+
+	want := uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/party",
+		url.PathEscape("Alice"), url.PathEscape(gemara.Human.String())))
+	assert.Equal(t, want, (*r.Metadata.Parties)[0].UUID,
+		"an author without an id falls back to the name/type source",
+	)
+}
+
+// firstPartyUUID converts a catalog with the given author and returns the
+// UUID of its single author party.
+func firstPartyUUID(t *testing.T, author gemara.Actor) string {
+	t.Helper()
+
+	catalog := gemara.ControlCatalog{
+		Metadata: gemara.Metadata{Id: "party-catalog", Version: "1.0.0", Author: author},
+		Title:    "Party Catalog",
+		Groups:   []gemara.Group{{Id: "G1", Description: "G"}},
+		Controls: []gemara.Control{{
+			Id: "C-1", Group: "G1", Title: "C",
+			AssessmentRequirements: []gemara.AssessmentRequirement{{Id: "C-1.1", Text: "R"}},
+		}},
+	}
+
+	r, err := CatalogToOSCAL(catalog)
+	require.NoError(t, err)
+	require.NotNil(t, r.Metadata.Parties)
+	require.Len(t, *r.Metadata.Parties, 1)
+	return (*r.Metadata.Parties)[0].UUID
 }

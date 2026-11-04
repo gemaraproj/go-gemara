@@ -37,7 +37,7 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 		seenControls[controlId] = struct{}{}
 	}
 
-	authorPartyUUID := uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/party", url.PathEscape(log.Metadata.Author.Name), url.PathEscape(log.Metadata.Author.Type.String())))
+	authorPartyUUID := uuid.NewUUIDWithSource(partyUUIDSource(log.Metadata.Author))
 	metadata := createAssessmentResultsMetadata(log, authorPartyUUID)
 
 	backMatter, mappingResourceUUIDs, err := mappingToBackMatterWithUUIDs(log.Metadata.MappingReferences)

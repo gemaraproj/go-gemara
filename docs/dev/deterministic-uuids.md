@@ -79,7 +79,7 @@ with `version = "B/C"` which produces `gemara:A/B%2FC/catalog`.
 | Catalog (guidance) | `change-on-write` | `gemara:{id}/{version}/guidance-catalog` | Document ID + version |
 | Profile | `change-on-write` | `gemara:{id}/{version}/guidance-profile` | Document ID + version |
 | AssessmentResults | `change-on-write` | `gemara:{id}/{version}/{date}/assessment-results` | Document ID + version + date |
-| Party | `per-subject` | `gemara:{authorName}/{authorType}/party` | Author name + type |
+| Party | `per-subject` | `gemara:{actor-id}/party` (name + type when the id is empty) | Actor ID, or author name + type when absent |
 | Resource | `per-subject` | `gemara:{ref.Id}/resource` | Mapping reference ID |
 | Result | per-run | `gemara:{log.Metadata.Id}/{date}/result` | Log ID + date |
 | Finding | `per-subject` | `gemara:{logId}/{controlId}/finding` | Log ID + control entry ID |
