@@ -372,7 +372,6 @@ func makeEvaluationLog(author gemara.Actor, logs []*gemara.AssessmentLog) gemara
 			},
 		},
 		Metadata: gemara.Metadata{Author: author},
-		Target:   gemara.Resource{Id: "example-target", Name: "Example Target", Type: gemara.Software},
 	}
 }
 
