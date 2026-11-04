@@ -15,8 +15,11 @@
 // pattern "gemara:<escaped-identity-fields>/<entity-type>", where identity fields
 // are URL-encoded with url.PathEscape to prevent separator ambiguity.
 // Document-root UUIDs use options.version (defaulting to metadata.Version, then
-// "0.0.0") as the change-on-write trigger. Assessment assembly UUIDs include the
-// log ID for per-document uniqueness. See docs/dev/deterministic-uuids.md for the
+// "0.0.0") as the change-on-write trigger; the AssessmentResults root and its
+// Result also include metadata.Date so each run produces fresh values.
+// Assessment assembly UUIDs include the log ID for per-document uniqueness, and
+// assessment logs sharing a requirement are distinguished by an occurrence
+// counter. See docs/dev/deterministic-uuids.md for the
 // full mapping.
 //
 // Examples:

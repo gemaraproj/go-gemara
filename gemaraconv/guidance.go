@@ -42,7 +42,10 @@ func GuidanceToOSCAL(g gemara.GuidanceCatalog, guidanceDocHref string, opts ...G
 
 	// Create a resource map for control linking
 	resourcesMap := make(map[string]string)
-	backmatter := mappingToBackMatter(g.Metadata.MappingReferences)
+	backmatter, err := mappingToBackMatter(g.Metadata.MappingReferences)
+	if err != nil {
+		return oscal.Catalog{}, oscal.Profile{}, err
+	}
 	if backmatter != nil && backmatter.Resources != nil {
 		for _, resource := range *backmatter.Resources {
 			if resource.Props != nil && len(*resource.Props) > 0 {
@@ -494,21 +497,30 @@ func mappingToLinks(mappings []gemara.MultiEntryMapping, resourcesMap map[string
 	return links
 }
 
-func mappingToBackMatter(resourceRefs []gemara.MappingReference) *oscal.BackMatter {
-	backMatter, _ := mappingToBackMatterWithUUIDs(resourceRefs)
-	return backMatter
+func mappingToBackMatter(resourceRefs []gemara.MappingReference) (*oscal.BackMatter, error) {
+	backMatter, _, err := mappingToBackMatterWithUUIDs(resourceRefs)
+	return backMatter, err
 }
 
-func mappingToBackMatterWithUUIDs(resourceRefs []gemara.MappingReference) (*oscal.BackMatter, map[string]string) {
+func mappingToBackMatterWithUUIDs(resourceRefs []gemara.MappingReference) (*oscal.BackMatter, map[string]string, error) {
 	var resources []oscal.Resource
 	resourceUUIDs := make(map[string]string, len(resourceRefs))
+	kept := make(map[string]gemara.MappingReference, len(resourceRefs))
 	for _, ref := range resourceRefs {
 		if ref.Id == "" {
 			continue
 		}
-		if _, exists := resourceUUIDs[ref.Id]; exists {
+		if first, exists := kept[ref.Id]; exists {
+			// A repeated id with the same title and URL is a plain
+			// duplicate and is skipped. A differing title or URL means
+			// two distinct resources claim one id, which would make the
+			// back-matter entry ambiguous.
+			if ref.Title != first.Title || ref.Url != first.Url {
+				return nil, nil, fmt.Errorf("mapping reference %s is duplicated with a different title or url", ref.Id)
+			}
 			continue
 		}
+		kept[ref.Id] = ref
 		resourceUUID := uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/resource", url.PathEscape(ref.Id)))
 		resourceUUIDs[ref.Id] = resourceUUID
 		resource := oscal.Resource{
@@ -534,11 +546,11 @@ func mappingToBackMatterWithUUIDs(resourceRefs []gemara.MappingReference) (*osca
 	}
 
 	if len(resources) == 0 {
-		return nil, resourceUUIDs
+		return nil, resourceUUIDs, nil
 	}
 
 	backmatter := oscal.BackMatter{
 		Resources: &resources,
 	}
-	return &backmatter, resourceUUIDs
+	return &backmatter, resourceUUIDs, nil
 }

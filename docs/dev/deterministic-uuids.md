@@ -32,6 +32,11 @@ For `gemaraconv`, the conversion is a pure function: same Gemara input at the sa
 version always produces the same OSCAL. The version bump is the `change-on-write`
 trigger. Source string: `gemara:{metadata.Id}/{version}/{document-type}`.
 
+For Assessment Results, each run is a new write, so the root also includes
+`metadata.Date`: `gemara:{metadata.Id}/{version}/{metadata.Date}/assessment-results`.
+A log re-run on a new date gets a new root UUID even when the version is
+unchanged (Privateer, for example, leaves the version empty).
+
 ### `per-subject` (assembly UUIDs)
 
 Every inner assembly UUID (finding, observation, result, party, log entry,
@@ -42,6 +47,9 @@ subject across revisions of the document."
 Source strings use identity fields only (IDs, structural keys), not content
 fields. Changing a control's description or an assessment's result does not change
 the UUID because the subject (the control, the requirement) has not changed.
+
+The Result is the exception: a Result is one run of the log, so its source
+includes `metadata.Date` alongside the log ID.
 
 ## Source String Convention
 
@@ -70,18 +78,32 @@ with `version = "B/C"` which produces `gemara:A/B%2FC/catalog`.
 | Catalog (control) | `change-on-write` | `gemara:{id}/{version}/catalog` | Document ID + version |
 | Catalog (guidance) | `change-on-write` | `gemara:{id}/{version}/guidance-catalog` | Document ID + version |
 | Profile | `change-on-write` | `gemara:{id}/{version}/guidance-profile` | Document ID + version |
-| AssessmentResults | `change-on-write` | `gemara:{id}/{version}/assessment-results` | Document ID + version |
+| AssessmentResults | `change-on-write` | `gemara:{id}/{version}/{date}/assessment-results` | Document ID + version + date |
 | Party | `per-subject` | `gemara:{authorName}/{authorType}/party` | Author name + type |
 | Resource | `per-subject` | `gemara:{ref.Id}/resource` | Mapping reference ID |
-| Result | `per-subject` | `gemara:{log.Metadata.Id}/result` | Log ID |
+| Result | per-run | `gemara:{log.Metadata.Id}/{date}/result` | Log ID + date |
 | Finding | `per-subject` | `gemara:{logId}/{controlId}/finding` | Log ID + control entry ID |
-| Observation | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/observation` | Log ID + control + requirement |
-| LogEntry | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/log-entry` | Log ID + control + requirement |
+| Observation | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/{occurrence}/observation` | Log ID + control + requirement + occurrence |
+| LogEntry | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/{occurrence}/log-entry` | Log ID + control + requirement + occurrence |
 | InventoryItem | `per-subject` | `gemara:{target.Id}/inventory-item` | Target resource ID |
 
 All `{field}` placeholders denote `url.PathEscape(field)` values. Document-root
 UUIDs use `options.version`, which defaults to `metadata.Version` and falls back
 to `"0.0.0"` when both are empty.
+
+The `{occurrence}` field is a 1-based counter over assessment logs that share
+the same (control, requirement) key, counted in input order. A requirement can
+be evaluated in more than one way, and OSCAL requires UUIDs to be unique within
+a document, so the counter keeps the observation and log-entry UUIDs distinct
+while staying reproducible. It can be swapped for plan and method ids if
+gemaraproj/gemara#506 lands.
+
+Two sources deliberately omit the document id: Resource keys on the mapping
+reference ID and InventoryItem on the target resource ID. Both identify the
+same subject regardless of which document mentions it, so their UUIDs match
+across documents that reference them. The document id is part of the Finding,
+Observation, and LogEntry sources because those assemblies are scoped to a
+single evaluation log.
 
 ### Fields Excluded from Source Strings
 
@@ -95,13 +117,29 @@ subject, not its identity:
 - `confidence-level` (in the Breaking Changes milestone, gemara#497)
 - `executor` (attribution, not identity, per gemara PR #506)
 
+## Stability Across Runs
+
+Which UUIDs survive a re-run of the same log and which change:
+
+| UUID | Same input, new run | Changes with |
+|---|---|---|
+| AssessmentResults root | changes when the date changes | `metadata.Date`, version |
+| Result | changes when the date changes | `metadata.Date` |
+| Finding, Observation, LogEntry | stable | identity fields only |
+| Party, Resource, InventoryItem | stable | identity fields only |
+| Catalog / Profile root | stable | `metadata.Id`, version |
+
+Per-subject assemblies staying stable across runs is what makes run-to-run
+diffs readable: only the root, the Result, and any changed content move.
+
 ## Behavior
 
 - **Same input, same output.** Converting the same Gemara document twice produces
   identical OSCAL UUIDs.
 - **Version bump changes document UUID.** Bumping `metadata.version` changes the
   root UUID (Catalog, Profile, AssessmentResults) but assembly UUIDs stay the
-  same.
+  same. For Assessment Results, a new `metadata.Date` also changes the root and
+  Result UUIDs.
 - **Content changes do not change assembly UUIDs.** Editing a finding's message,
   an observation's description, or a resource's title does not change its UUID.
 - **Different subjects get different UUIDs.** Each assembly type derives its UUID
@@ -109,3 +147,14 @@ subject, not its identity:
   those fields produce different UUIDs.
 - **No collision across assembly types.** A Finding and an Observation for the
   same control+requirement get different UUIDs because of the entity-type suffix.
+- **No collision within a document.** Assessment logs that evaluate the same
+  requirement under the same control get distinct observation and log-entry
+  UUIDs via the occurrence counter.
+- **Duplicate control IDs are rejected.** `EvaluationLogToOSCALAssessmentResults`
+  returns an error when two control evaluations share a control ID. The Privateer
+  SDK emits one evaluation per catalog control, so a duplicate is a catalog
+  authoring error, and duplicate findings would corrupt result rollups.
+- **Conflicting mapping references are rejected.** A repeated mapping reference ID
+  with the same title and URL is deduplicated. A repeated ID with a different
+  title or URL returns an error, since one back-matter resource cannot represent
+  two distinct sources.

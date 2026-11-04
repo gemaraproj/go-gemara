@@ -520,3 +520,168 @@ func TestVersionBump_ChangesDocumentUUID_KeepsAssemblyUUIDs(t *testing.T) {
 		"inventory item UUID should not change on version bump",
 	)
 }
+
+func TestSameRequirement_MultipleLogs_DistinctUUIDs(t *testing.T) {
+	// A requirement can be evaluated in more than one way, so one control
+	// can carry several assessment logs for the same requirement. Their
+	// observation and log-entry UUIDs must stay distinct within the document.
+	log := makeEvaluationLog(gemara.Actor{
+		Name: "test-tool",
+		Type: gemara.Software,
+	}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "examine artifact", gemara.Passed, "", nil),
+		makeAssessmentLog("REQ-1", "test configuration", gemara.Failed, "", nil),
+	})
+	log.Metadata.Id = "eval-same-requirement"
+	log.Metadata.Version = "1.0.0"
+	log.Target = gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software}
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	require.NotNil(t, ar.Results[0].Observations)
+	observations := *ar.Results[0].Observations
+	require.Len(t, observations, 2)
+	assert.NotEqual(t, observations[0].UUID, observations[1].UUID,
+		"two logs for the same requirement must produce distinct observation UUIDs",
+	)
+
+	require.NotNil(t, ar.Results[0].AssessmentLog)
+	entries := ar.Results[0].AssessmentLog.Entries
+	require.Len(t, entries, 2)
+	assert.NotEqual(t, entries[0].UUID, entries[1].UUID,
+		"two logs for the same requirement must produce distinct log-entry UUIDs",
+	)
+}
+
+func TestDateChange_ChangesRootAndResultUUID(t *testing.T) {
+	// The document root and the Result are per-run: they change with the
+	// assessment date. Per-subject assemblies must not.
+	log := makeEvaluationLog(gemara.Actor{
+		Name: "test-tool",
+		Type: gemara.Software,
+	}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Metadata.Id = "eval-date-test"
+	log.Metadata.Version = "1.0.0"
+	log.Target = gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software}
+
+	log.Metadata.Date = "2026-01-01"
+	ar1, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	log.Metadata.Date = "2026-01-02"
+	ar2, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	assert.NotEqual(t, ar1.UUID, ar2.UUID, "date change should change the document UUID")
+	assert.NotEqual(t, ar1.Results[0].UUID, ar2.Results[0].UUID, "date change should change the result UUID")
+
+	assert.Equal(t,
+		(*ar1.Results[0].Findings)[0].UUID,
+		(*ar2.Results[0].Findings)[0].UUID,
+		"finding UUID should not change with the date",
+	)
+	assert.Equal(t,
+		(*ar1.Results[0].Observations)[0].UUID,
+		(*ar2.Results[0].Observations)[0].UUID,
+		"observation UUID should not change with the date",
+	)
+	assert.Equal(t,
+		ar1.Results[0].AssessmentLog.Entries[0].UUID,
+		ar2.Results[0].AssessmentLog.Entries[0].UUID,
+		"log entry UUID should not change with the date",
+	)
+	assert.Equal(t,
+		(*ar1.Results[0].LocalDefinitions.InventoryItems)[0].UUID,
+		(*ar2.Results[0].LocalDefinitions.InventoryItems)[0].UUID,
+		"inventory item UUID should not change with the date",
+	)
+}
+
+func TestDuplicateControlIds_ReturnError(t *testing.T) {
+	log := gemara.EvaluationLog{
+		Metadata: gemara.Metadata{
+			Id:      "eval-duplicate-control",
+			Version: "1.0.0",
+			Author:  gemara.Actor{Name: "tool", Type: gemara.Software},
+		},
+		Evaluations: []*gemara.ControlEvaluation{
+			{
+				Name:    "First",
+				Control: gemara.EntryMapping{EntryId: "AC-1"},
+				Result:  gemara.Passed,
+			},
+			{
+				Name:    "Second",
+				Control: gemara.EntryMapping{EntryId: "AC-1"},
+				Result:  gemara.Failed,
+			},
+		},
+		Target: gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software},
+	}
+
+	_, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "AC-1", "error should name the duplicated control ID")
+}
+
+func TestConflictingMappingReferences_ReturnError(t *testing.T) {
+	log := makeEvaluationLog(gemara.Actor{
+		Name: "test-tool",
+		Type: gemara.Software,
+	}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Metadata.Id = "eval-conflicting-refs"
+	log.Metadata.Version = "1.0.0"
+	log.Metadata.MappingReferences = []gemara.MappingReference{
+		{Id: "ref-1", Title: "First title", Url: "https://example.com/a"},
+		{Id: "ref-1", Title: "Different title", Url: "https://example.com/a"},
+	}
+	log.Target = gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software}
+
+	_, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ref-1", "error should name the conflicting mapping reference")
+}
+
+func TestSameAuthor_SamePartyUUIDAcrossDocuments(t *testing.T) {
+	author := gemara.Actor{Name: "Alice", Type: gemara.Human}
+
+	catalog := gemara.ControlCatalog{
+		Metadata: gemara.Metadata{
+			Id:      "party-catalog",
+			Version: "1.0.0",
+			Author:  author,
+		},
+		Title:  "Party Catalog",
+		Groups: []gemara.Group{{Id: "G1", Description: "G"}},
+		Controls: []gemara.Control{{
+			Id: "C-1", Group: "G1", Title: "C",
+			AssessmentRequirements: []gemara.AssessmentRequirement{{Id: "C-1.1", Text: "R"}},
+		}},
+	}
+
+	log := makeEvaluationLog(author, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Metadata.Id = "party-results"
+	log.Metadata.Version = "1.0.0"
+	log.Target = gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software}
+
+	cat, err := CatalogToOSCAL(catalog)
+	require.NoError(t, err)
+	ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	require.NotNil(t, cat.Metadata.Parties, "catalog should have an author party")
+	require.NotNil(t, ar.Metadata.Parties, "assessment results should have an author party")
+
+	assert.Equal(t,
+		(*cat.Metadata.Parties)[0].UUID,
+		(*ar.Metadata.Parties)[0].UUID,
+		"the same author must get the same Party UUID in a catalog and in assessment results",
+	)
+}

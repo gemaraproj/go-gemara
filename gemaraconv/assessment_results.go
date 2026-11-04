@@ -25,10 +25,25 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 		opt(&options)
 	}
 
+	seenControls := make(map[string]struct{}, len(log.Evaluations))
+	for _, eval := range log.Evaluations {
+		if eval == nil {
+			continue
+		}
+		controlId := eval.Control.EntryId
+		if _, exists := seenControls[controlId]; exists {
+			return oscal.AssessmentResults{}, fmt.Errorf("duplicate control evaluation for control %s", controlId)
+		}
+		seenControls[controlId] = struct{}{}
+	}
+
 	authorPartyUUID := uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/party", url.PathEscape(log.Metadata.Author.Name), url.PathEscape(log.Metadata.Author.Type.String())))
 	metadata := createAssessmentResultsMetadata(log, authorPartyUUID)
 
-	backMatter, mappingResourceUUIDs := mappingToBackMatterWithUUIDs(log.Metadata.MappingReferences)
+	backMatter, mappingResourceUUIDs, err := mappingToBackMatterWithUUIDs(log.Metadata.MappingReferences)
+	if err != nil {
+		return oscal.AssessmentResults{}, err
+	}
 	result := evaluationLogToResult(log, options.catalog, authorPartyUUID, mappingResourceUUIDs, log.Metadata.Id)
 
 	version := log.Metadata.Version
@@ -37,12 +52,20 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 	}
 
 	return oscal.AssessmentResults{
-		UUID:       uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/assessment-results", url.PathEscape(log.Metadata.Id), url.PathEscape(version))),
+		UUID:       uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/%s/assessment-results", url.PathEscape(log.Metadata.Id), url.PathEscape(version), url.PathEscape(string(log.Metadata.Date)))),
 		Metadata:   metadata,
 		ImportAp:   oscal.ImportAp{Href: options.importApHref},
 		Results:    []oscal.Result{result},
 		BackMatter: backMatter,
 	}, nil
+}
+
+// assessmentKey identifies the (control, requirement) pair an assessment log
+// evaluates. Assessment logs that share a key are distinguished by an
+// occurrence counter rather than identity fields alone.
+type assessmentKey struct {
+	controlId     string
+	requirementId string
 }
 
 func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCatalog, authorPartyUUID string, mappingResourceUUIDs map[string]string, logId string) oscal.Result {
@@ -58,6 +81,11 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 	var findings []oscal.Finding
 	var logEntries []oscal.AssessmentLogEntry
 
+	// Occurrence counter for assessment logs sharing the same
+	// (control, requirement) key. OSCAL requires per-document UUID
+	// uniqueness, and a requirement can be evaluated in more than one way.
+	occurrences := make(map[assessmentKey]int)
+
 	for _, eval := range log.Evaluations {
 		if eval == nil {
 			continue
@@ -71,11 +99,14 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 				continue
 			}
 
-			obs := buildObservation(alog, eval, origin, start, mappingResourceUUIDs, logId)
+			key := assessmentKey{controlId: eval.Control.EntryId, requirementId: alog.Requirement.EntryId}
+			occurrences[key]++
+
+			obs := buildObservation(alog, eval, origin, start, mappingResourceUUIDs, logId, occurrences[key])
 			observations = append(observations, obs)
 			relatedObs = append(relatedObs, oscal.RelatedObservation{ObservationUuid: obs.UUID})
 
-			entry := buildLogEntry(alog, eval, authorPartyUUID, start, logId)
+			entry := buildLogEntry(alog, eval, authorPartyUUID, start, logId, occurrences[key])
 			logEntries = append(logEntries, entry)
 		}
 
@@ -93,7 +124,7 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 	}
 
 	result := oscal.Result{
-		UUID:             uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/result", url.PathEscape(log.Metadata.Id))),
+		UUID:             uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/result", url.PathEscape(log.Metadata.Id), url.PathEscape(string(log.Metadata.Date)))),
 		Title:            title,
 		Description:      fmt.Sprintf("Results from Gemara EvaluationLog %s", log.Metadata.Id),
 		Start:            start,
@@ -212,7 +243,7 @@ func buildFinding(eval *gemara.ControlEvaluation, catalog *gemara.ControlCatalog
 	}
 }
 
-func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, origin oscal.Origin, fallback time.Time, mappingResourceUUIDs map[string]string, logId string) oscal.Observation {
+func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, origin oscal.Origin, fallback time.Time, mappingResourceUUIDs map[string]string, logId string, occurrence int) oscal.Observation {
 	collected := oscalUtils.GetTimeWithFallback(string(alog.Start), fallback)
 
 	description := alog.Description
@@ -229,7 +260,7 @@ func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation
 	}
 
 	obs := oscal.Observation{
-		UUID:        uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/%s/observation", url.PathEscape(logId), url.PathEscape(eval.Control.EntryId), url.PathEscape(alog.Requirement.EntryId))),
+		UUID:        uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/%s/%d/observation", url.PathEscape(logId), url.PathEscape(eval.Control.EntryId), url.PathEscape(alog.Requirement.EntryId), occurrence)),
 		Description: description,
 		Collected:   collected,
 		Methods:     methods,
@@ -305,13 +336,13 @@ func buildRelevantEvidence(evidence []gemara.Evidence, mappingResourceUUIDs map[
 	return relevantEvidence
 }
 
-func buildLogEntry(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, partyUUID string, fallback time.Time, logId string) oscal.AssessmentLogEntry {
+func buildLogEntry(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, partyUUID string, fallback time.Time, logId string, occurrence int) oscal.AssessmentLogEntry {
 	start := oscalUtils.GetTimeWithFallback(string(alog.Start), fallback)
 
 	title := fmt.Sprintf("%s / %s", eval.Control.EntryId, alog.Requirement.EntryId)
 
 	entry := oscal.AssessmentLogEntry{
-		UUID:        uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/%s/log-entry", url.PathEscape(logId), url.PathEscape(eval.Control.EntryId), url.PathEscape(alog.Requirement.EntryId))),
+		UUID:        uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/%s/%d/log-entry", url.PathEscape(logId), url.PathEscape(eval.Control.EntryId), url.PathEscape(alog.Requirement.EntryId), occurrence)),
 		Title:       title,
 		Start:       start,
 		Description: alog.Description,
