@@ -11,7 +11,6 @@ import (
 	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
 )
 
-// createMetadata creates OSCAL metadata with common fields and optional author information
 // partyUUIDSource returns the deterministic UUID source for an author.
 // Actor.Id is the identity key: a renamed actor keeps its UUID, and two
 // actors sharing a name do not collide. Documents that omit the id (the
@@ -23,6 +22,7 @@ func partyUUIDSource(author gemara.Actor) string {
 	return fmt.Sprintf("gemara:%s/%s/party", url.PathEscape(author.Name), url.PathEscape(author.Type.String()))
 }
 
+// createMetadata creates OSCAL metadata with common fields and optional author information
 func createMetadata(title string, version string, published *time.Time, canonicalHref string, author gemara.Actor) oscal.Metadata {
 	now := time.Now()
 	// Ensure version is never empty by using default if not provided

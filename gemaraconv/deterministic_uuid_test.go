@@ -631,7 +631,8 @@ func TestDuplicateControlIds_ReturnError(t *testing.T) {
 	assert.Contains(t, err.Error(), "AC-1", "error should name the duplicated control ID")
 }
 
-func TestConflictingMappingReferences_ReturnError(t *testing.T) {	log := makeEvaluationLog(gemara.Actor{
+func TestConflictingMappingReferences_ReturnError(t *testing.T) {
+	log := makeEvaluationLog(gemara.Actor{
 		Name: "test-tool",
 		Type: gemara.Software,
 	}, []*gemara.AssessmentLog{
@@ -877,4 +878,80 @@ func TestSameResourceAndInventory_StableAcrossDocuments(t *testing.T) {
 		(*arB.Results[0].LocalDefinitions.InventoryItems)[0].UUID,
 		"the same target id must get the same inventory-item UUID across documents",
 	)
+}
+
+func TestFindingsObservationsLogEntries_DistinctAcrossDocuments(t *testing.T) {
+	author := gemara.Actor{Id: "author-1", Name: "Tool", Type: gemara.Software}
+
+	// Both logs evaluate the same control (makeEvaluationLog's fixed CTRL-1)
+	// and the same requirement, so only the log id differs: distinct finding,
+	// observation, and log-entry UUIDs are attributable to the log id alone.
+	logA := makeEvaluationLog(author, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	logA.Metadata.Id = "log-a"
+	logA.Metadata.Version = "1.0.0"
+
+	logB := makeEvaluationLog(author, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check differently", gemara.Failed, "", nil),
+	})
+	logB.Metadata.Id = "log-b"
+	logB.Metadata.Version = "1.0.0"
+
+	arA, err := EvaluationLogToOSCALAssessmentResults(logA, WithImportApHref("#"))
+	require.NoError(t, err)
+	arB, err := EvaluationLogToOSCALAssessmentResults(logB, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	require.NotNil(t, arA.Results[0].Findings)
+	require.NotNil(t, arB.Results[0].Findings)
+	assert.NotEqual(t,
+		(*arA.Results[0].Findings)[0].UUID,
+		(*arB.Results[0].Findings)[0].UUID,
+		"findings for the same control in two different logs must not share a UUID",
+	)
+
+	require.NotNil(t, arA.Results[0].Observations)
+	require.NotNil(t, arB.Results[0].Observations)
+	assert.NotEqual(t,
+		(*arA.Results[0].Observations)[0].UUID,
+		(*arB.Results[0].Observations)[0].UUID,
+		"observations for the same control and requirement in two different logs must not share a UUID",
+	)
+
+	require.NotNil(t, arA.Results[0].AssessmentLog)
+	require.NotNil(t, arB.Results[0].AssessmentLog)
+	assert.NotEqual(t,
+		arA.Results[0].AssessmentLog.Entries[0].UUID,
+		arB.Results[0].AssessmentLog.Entries[0].UUID,
+		"log entries for the same control and requirement in two different logs must not share a UUID",
+	)
+}
+
+func TestAnonymousAuthor_OmitsPartyAndOrigins(t *testing.T) {
+	// An author with neither id nor name has no identity to key a party UUID
+	// on; the conversion must not derive one, or every anonymous actor of the
+	// same entity type would collapse onto a single shared party.
+	log := makeEvaluationLog(gemara.Actor{Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Metadata.Id = "log-anon"
+	log.Metadata.Version = "1.0.0"
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	require.Nil(t, ar.Metadata.Parties, "an anonymous author must not produce a party")
+
+	require.NotNil(t, ar.Results[0].Findings)
+	assert.Nil(t, (*ar.Results[0].Findings)[0].Origins,
+		"findings from an anonymous author must carry no origin actors")
+
+	require.NotNil(t, ar.Results[0].Observations)
+	assert.Nil(t, (*ar.Results[0].Observations)[0].Origins,
+		"observations from an anonymous author must carry no origin actors")
+
+	require.NotNil(t, ar.Results[0].AssessmentLog)
+	assert.Nil(t, ar.Results[0].AssessmentLog.Entries[0].LoggedBy,
+		"log entries from an anonymous author must not be logged by a phantom party")
 }

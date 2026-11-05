@@ -37,7 +37,14 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 		seenControls[controlId] = struct{}{}
 	}
 
-	authorPartyUUID := uuid.NewUUIDWithSource(partyUUIDSource(log.Metadata.Author))
+	// An author with neither id nor name has no identity to key a party UUID
+	// on. Deriving one anyway would collapse every anonymous actor of the
+	// same entity type onto a single shared party across all documents, so
+	// such logs carry no party, no origin actors, and no logged-by entries.
+	authorPartyUUID := ""
+	if log.Metadata.Author.Id != "" || log.Metadata.Author.Name != "" {
+		authorPartyUUID = uuid.NewUUIDWithSource(partyUUIDSource(log.Metadata.Author))
+	}
 	metadata := createAssessmentResultsMetadata(log, authorPartyUUID)
 
 	backMatter, mappingResourceUUIDs, err := mappingToBackMatterWithUUIDs(log.Metadata.MappingReferences)
@@ -72,7 +79,7 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 	now := time.Now()
 	start := oscalUtils.GetTimeWithFallback(string(log.Metadata.Date), now)
 
-	origin := buildOrigin(log.Metadata.Author, authorPartyUUID)
+	origins := buildOrigins(log.Metadata.Author, authorPartyUUID)
 
 	controlIds := collectControlIds(log)
 	reviewedControls := buildReviewedControls(controlIds)
@@ -91,7 +98,7 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 			continue
 		}
 
-		finding := buildFinding(eval, catalog, origin, logId)
+		finding := buildFinding(eval, catalog, origins, logId)
 		var relatedObs []oscal.RelatedObservation
 
 		for _, alog := range eval.AssessmentLogs {
@@ -102,7 +109,7 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 			key := assessmentKey{controlId: eval.Control.EntryId, requirementId: alog.Requirement.EntryId}
 			occurrences[key]++
 
-			obs := buildObservation(alog, eval, origin, start, mappingResourceUUIDs, logId, occurrences[key])
+			obs := buildObservation(alog, eval, origins, start, mappingResourceUUIDs, logId, occurrences[key])
 			observations = append(observations, obs)
 			relatedObs = append(relatedObs, oscal.RelatedObservation{ObservationUuid: obs.UUID})
 
@@ -185,13 +192,22 @@ func createAssessmentResultsMetadata(log gemara.EvaluationLog, authorPartyUUID s
 	return metadata
 }
 
-func buildOrigin(author gemara.Actor, partyUUID string) oscal.Origin {
-	return oscal.Origin{
-		Actors: []oscal.OriginActor{
-			{
-				ActorUuid: partyUUID,
-				Type:      mapActorType(author.Type),
-				RoleId:    "assessor",
+// buildOrigins returns the origin list for the log's author, or nil when the
+// author has neither id nor name: OSCAL requires an origin to carry at least
+// one actor and an actor to reference a party UUID, and an anonymous author
+// has no identity to derive either from.
+func buildOrigins(author gemara.Actor, partyUUID string) *[]oscal.Origin {
+	if partyUUID == "" {
+		return nil
+	}
+	return &[]oscal.Origin{
+		{
+			Actors: []oscal.OriginActor{
+				{
+					ActorUuid: partyUUID,
+					Type:      mapActorType(author.Type),
+					RoleId:    "assessor",
+				},
 			},
 		},
 	}
@@ -209,7 +225,7 @@ func buildReviewedControls(controlIds []string) oscal.ReviewedControls {
 	}
 }
 
-func buildFinding(eval *gemara.ControlEvaluation, catalog *gemara.ControlCatalog, origin oscal.Origin, logId string) oscal.Finding {
+func buildFinding(eval *gemara.ControlEvaluation, catalog *gemara.ControlCatalog, origins *[]oscal.Origin, logId string) oscal.Finding {
 	controlId := eval.Control.EntryId
 	status := mapResultToObjectiveStatus(eval.Result)
 
@@ -234,7 +250,7 @@ func buildFinding(eval *gemara.ControlEvaluation, catalog *gemara.ControlCatalog
 		UUID:        uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/finding", url.PathEscape(logId), url.PathEscape(controlId))),
 		Title:       title,
 		Description: description,
-		Origins:     &[]oscal.Origin{origin},
+		Origins:     origins,
 		Target: oscal.FindingTarget{
 			Type:     "objective-id",
 			TargetId: controlId,
@@ -243,7 +259,7 @@ func buildFinding(eval *gemara.ControlEvaluation, catalog *gemara.ControlCatalog
 	}
 }
 
-func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, origin oscal.Origin, fallback time.Time, mappingResourceUUIDs map[string]string, logId string, occurrence int) oscal.Observation {
+func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, origins *[]oscal.Origin, fallback time.Time, mappingResourceUUIDs map[string]string, logId string, occurrence int) oscal.Observation {
 	collected := oscalUtils.GetTimeWithFallback(string(alog.Start), fallback)
 
 	description := alog.Description
@@ -264,7 +280,7 @@ func buildObservation(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation
 		Description: description,
 		Collected:   collected,
 		Methods:     methods,
-		Origins:     &[]oscal.Origin{origin},
+		Origins:     origins,
 		Props: &[]oscal.Property{
 			{
 				Name:  "result",
@@ -346,9 +362,15 @@ func buildLogEntry(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, p
 		Title:       title,
 		Start:       start,
 		Description: alog.Description,
-		LoggedBy: &[]oscal.LoggedBy{
+	}
+
+	// LoggedBy must reference a party UUID; an author with neither id nor
+	// name has none, so the entry is logged by no one rather than by a
+	// phantom party shared with every other anonymous actor.
+	if partyUUID != "" {
+		entry.LoggedBy = &[]oscal.LoggedBy{
 			{PartyUuid: partyUUID, RoleId: "assessor"},
-		},
+		}
 	}
 
 	if end := oscalUtils.GetTime(string(alog.End)); end != nil {

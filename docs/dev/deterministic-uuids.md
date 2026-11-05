@@ -22,10 +22,13 @@ The OSCAL 1.1.3 schemas bundled with go-oscal describe most UUIDs as
 per-subject: "This UUID should be assigned per-subject, which means it should
 be consistently used to identify the same subject across revisions of the
 document." That sentence appears on the AssessmentResults root, the Result,
-and the assembly types gemaraconv emits (finding, observation, party,
-resource, and the rest). The catalog and profile root UUIDs carry no
-persistence wording at all; their schema description is only a "globally
-unique means to identify a given catalog instance."
+and the finding, observation, log-entry, and inventory-item assemblies. Party
+and back-matter resource UUIDs are described only as plain unique identifiers
+("A unique identifier for the party." / "A unique identifier for a
+resource."); treating them as per-subject is this project's convention, not a
+schema mandate. The catalog and profile root UUIDs carry no persistence
+wording at all; their schema description is only a "globally unique means to
+identify a given catalog instance."
 
 The convention below has three tiers.
 
@@ -169,3 +172,12 @@ diffs readable: only the root, the Result, and any changed content move.
   with the same title and URL is deduplicated. A repeated ID with a different
   title or URL returns an error, since one back-matter resource cannot represent
   two distinct sources.
+- **Anonymous authors carry no party.** An author with neither `id` nor `name`
+  has no identity to key a party UUID on; deriving one would collapse every
+  anonymous actor of the same entity type onto a single shared party across all
+  documents. Such logs omit the origin actors on findings and observations and
+  the logged-by entry on assessment log entries.
+- **Party.Type follows the author's entity type.** Author parties are typed via
+  `mapPartyType` (person for human actors, organization otherwise) on every
+  conversion path. Catalog and guidance author parties were previously
+  hardcoded to "person" regardless of the author's entity type.
