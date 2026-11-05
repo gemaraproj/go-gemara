@@ -37,26 +37,26 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 		seenControls[controlId] = struct{}{}
 	}
 
-	// An author with neither id nor name has no identity to key a party UUID
-	// on. Deriving one anyway would collapse every anonymous actor of the
-	// same entity type onto a single shared party across all documents, so
-	// such logs carry no party, no origin actors, and no logged-by entries.
+	// The metadata party, the origin actors on findings and observations,
+	// and the logged-by entry all gate on a non-empty author name — the
+	// same gate createAssessmentResultsMetadata and createMetadata use to
+	// emit the party. An author with no name (with or without an id) has no
+	// party in the document, so no reference is generated either: deriving
+	// a UUID anyway would leave origins and logged-by entries pointing at
+	// a party that does not exist, and for anonymous authors it would
+	// collapse every actor of the same entity type onto one shared party.
 	authorPartyUUID := ""
-	if log.Metadata.Author.Id != "" || log.Metadata.Author.Name != "" {
+	if log.Metadata.Author.Name != "" {
 		authorPartyUUID = uuid.NewUUIDWithSource(partyUUIDSource(log.Metadata.Author))
 	}
-	metadata := createAssessmentResultsMetadata(log, authorPartyUUID)
+	version := defaultVersion(log.Metadata.Version)
+	metadata := createAssessmentResultsMetadata(log, authorPartyUUID, version)
 
 	backMatter, mappingResourceUUIDs, err := mappingToBackMatterWithUUIDs(log.Metadata.MappingReferences)
 	if err != nil {
 		return oscal.AssessmentResults{}, err
 	}
 	result := evaluationLogToResult(log, options.catalog, authorPartyUUID, mappingResourceUUIDs, log.Metadata.Id)
-
-	version := log.Metadata.Version
-	if version == "" {
-		version = oscalUtils.DefaultOSCALVersion
-	}
 
 	return oscal.AssessmentResults{
 		UUID:       uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/%s/assessment-results", url.PathEscape(log.Metadata.Id), url.PathEscape(version), url.PathEscape(string(log.Metadata.Date)))),
@@ -155,12 +155,7 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 	return result
 }
 
-func createAssessmentResultsMetadata(log gemara.EvaluationLog, authorPartyUUID string) oscal.Metadata {
-	version := log.Metadata.Version
-	if version == "" {
-		version = oscalUtils.DefaultOSCALVersion
-	}
-
+func createAssessmentResultsMetadata(log gemara.EvaluationLog, authorPartyUUID string, version string) oscal.Metadata {
 	now := time.Now()
 	published := oscalUtils.GetTime(string(log.Metadata.Date))
 

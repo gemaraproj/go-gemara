@@ -955,3 +955,83 @@ func TestAnonymousAuthor_OmitsPartyAndOrigins(t *testing.T) {
 	assert.Nil(t, ar.Results[0].AssessmentLog.Entries[0].LoggedBy,
 		"log entries from an anonymous author must not be logged by a phantom party")
 }
+
+func TestAuthorWithIdButNoName_OmitsPartyAndOrigins(t *testing.T) {
+	// The party-emission gate (author name) and the reference gate (origins,
+	// logged-by) must agree: an author with an id but no name must not get
+	// origin actors or logged-by entries pointing at a party the document
+	// never defines.
+	log := makeEvaluationLog(gemara.Actor{Id: "author-1", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Metadata.Id = "log-id-only"
+	log.Metadata.Version = "1.0.0"
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	require.Nil(t, ar.Metadata.Parties,
+		"an author with no name must not produce a party, even when an id is present")
+
+	require.NotNil(t, ar.Results[0].Findings)
+	assert.Nil(t, (*ar.Results[0].Findings)[0].Origins,
+		"findings from an author with no name must carry no origin actors")
+
+	require.NotNil(t, ar.Results[0].Observations)
+	assert.Nil(t, (*ar.Results[0].Observations)[0].Origins,
+		"observations from an author with no name must carry no origin actors")
+
+	require.NotNil(t, ar.Results[0].AssessmentLog)
+	assert.Nil(t, ar.Results[0].AssessmentLog.Entries[0].LoggedBy,
+		"log entries from an author with no name must not reference an undefined party")
+}
+
+func TestAuthorPartyType_FollowsEntityType(t *testing.T) {
+	// Pins the emitted Party.Type end to end: the unit test on mapPartyType
+	// alone would keep passing if createMetadata or
+	// createAssessmentResultsMetadata reverted to a hardcoded "person".
+	softwareAuthor := gemara.Actor{Id: "scanbot-1", Name: "ScanBot", Type: gemara.Software}
+	humanAuthor := gemara.Actor{Id: "alice-1", Name: "Alice", Type: gemara.Human}
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(
+		makeEvaluationLog(softwareAuthor, []*gemara.AssessmentLog{
+			makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+		}), WithImportApHref("#"))
+	require.NoError(t, err)
+	require.NotNil(t, ar.Metadata.Parties)
+	assert.Equal(t, "organization", (*ar.Metadata.Parties)[0].Type,
+		"assessment-results author parties must be typed by entity type")
+
+	catalog := gemara.ControlCatalog{
+		Metadata: gemara.Metadata{
+			Id:      "party-type-catalog",
+			Version: "1.0.0",
+			Author:  softwareAuthor,
+		},
+		Title: "Party Type Catalog",
+		Groups: []gemara.Group{
+			{Id: "AC", Title: "Access Control", Description: "Access control family"},
+		},
+		Controls: []gemara.Control{
+			{
+				Id: "AC-01", Group: "AC", Title: "Access Policy",
+				Objective: "Enforce access controls",
+				AssessmentRequirements: []gemara.AssessmentRequirement{
+					{Id: "AC-01.01", Text: "Verify access"},
+				},
+			},
+		},
+	}
+	oscalCatalog, err := CatalogToOSCAL(catalog)
+	require.NoError(t, err)
+	require.NotNil(t, oscalCatalog.Metadata.Parties)
+	assert.Equal(t, "organization", (*oscalCatalog.Metadata.Parties)[0].Type,
+		"catalog author parties must be typed by entity type")
+
+	catalog.Metadata.Author = humanAuthor
+	oscalCatalog, err = CatalogToOSCAL(catalog)
+	require.NoError(t, err)
+	require.NotNil(t, oscalCatalog.Metadata.Parties)
+	assert.Equal(t, "person", (*oscalCatalog.Metadata.Parties)[0].Type,
+		"human author parties must be typed as person")
+}

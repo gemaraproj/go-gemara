@@ -172,11 +172,14 @@ diffs readable: only the root, the Result, and any changed content move.
   with the same title and URL is deduplicated. A repeated ID with a different
   title or URL returns an error, since one back-matter resource cannot represent
   two distinct sources.
-- **Anonymous authors carry no party.** An author with neither `id` nor `name`
-  has no identity to key a party UUID on; deriving one would collapse every
-  anonymous actor of the same entity type onto a single shared party across all
-  documents. Such logs omit the origin actors on findings and observations and
-  the logged-by entry on assessment log entries.
+- **Authors without a name carry no party.** The metadata party, the origin
+  actors on findings and observations, and the logged-by entry on assessment
+  log entries all gate on a non-empty author name, on every conversion path.
+  An author with neither `id` nor `name` has no identity to key a party UUID
+  on; deriving one would collapse every anonymous actor of the same entity
+  type onto a single shared party across all documents. An author with an
+  `id` but no name likewise carries no party and no origin actors, so no
+  output ever references a party the document does not define.
 - **Party.Type follows the author's entity type.** Author parties are typed via
   `mapPartyType` (person for human actors, organization otherwise) on every
   conversion path. Catalog and guidance author parties were previously

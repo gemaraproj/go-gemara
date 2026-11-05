@@ -14,13 +14,23 @@ type generateOpts struct {
 	controlHREF   string
 }
 
+// defaultVersion returns the OSCAL version to stamp into metadata and hash
+// into root UUID sources when the source document and the options both omit
+// one. Every conversion path must resolve its version through this helper:
+// the fallback was once re-derived per site, and one path hashed an empty
+// version while another stamped "0.0.0" into metadata.
+func defaultVersion(version string) string {
+	if version == "" {
+		return oscalUtils.DefaultOSCALVersion
+	}
+	return version
+}
+
 func (g *generateOpts) completeFromGuidance(doc gemara.GuidanceCatalog) {
 	if g.version == "" {
 		g.version = doc.Metadata.Version
 	}
-	if g.version == "" {
-		g.version = oscalUtils.DefaultOSCALVersion
-	}
+	g.version = defaultVersion(g.version)
 	if g.imports == nil {
 		g.imports = make(map[string]string)
 		for _, mappingRef := range doc.Metadata.MappingReferences {
@@ -33,9 +43,7 @@ func (g *generateOpts) completeFromCatalog(catalog gemara.ControlCatalog) {
 	if g.version == "" {
 		g.version = catalog.Metadata.Version
 	}
-	if g.version == "" {
-		g.version = oscalUtils.DefaultOSCALVersion
-	}
+	g.version = defaultVersion(g.version)
 }
 
 // GenerateOption defines an option to tune the behavior of the OSCAL

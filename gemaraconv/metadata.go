@@ -25,10 +25,7 @@ func partyUUIDSource(author gemara.Actor) string {
 // createMetadata creates OSCAL metadata with common fields and optional author information
 func createMetadata(title string, version string, published *time.Time, canonicalHref string, author gemara.Actor) oscal.Metadata {
 	now := time.Now()
-	// Ensure version is never empty by using default if not provided
-	if version == "" {
-		version = oscalUtils.DefaultOSCALVersion
-	}
+	version = defaultVersion(version)
 	metadata := oscal.Metadata{
 		Title:        title,
 		OscalVersion: oscal.Version,
