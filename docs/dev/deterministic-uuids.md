@@ -46,7 +46,9 @@ The AssessmentResults root and its Result additionally include
 `gemara:{metadata.Id}/{version}/{metadata.Date}/assessment-results`. Each
 conversion of an evaluation log is a new assessment run, even when the log id
 and version are unchanged (Privateer, for example, leaves the version empty),
-so the root and the Result change with the date.
+so the root and the Result change with the date. A log with an empty
+`metadata.Date` falls back to the conversion date (UTC) for both sources, so
+its root and Result still rotate across days instead of freezing.
 
 This is a deliberate departure from the per-subject wording above: a re-run
 on a new date is a new write of the results document, not a revision of the
@@ -137,8 +139,8 @@ Which UUIDs survive a re-run of the same log and which change:
 
 | UUID | Same input, new run | Changes with |
 |---|---|---|
-| AssessmentResults root | changes when the date changes | `metadata.Date`, version |
-| Result | changes when the date changes | `metadata.Date` |
+| AssessmentResults root | changes when the date changes | `metadata.Date` (or the conversion date when empty), version |
+| Result | changes when the date changes | `metadata.Date` (or the conversion date when empty) |
 | Finding, Observation, LogEntry | stable | identity fields only |
 | Party, Resource, InventoryItem | stable | identity fields only |
 | Catalog / Profile root | stable | `metadata.Id`, version |
@@ -172,6 +174,17 @@ diffs readable: only the root, the Result, and any changed content move.
   with the same title and URL is deduplicated. A repeated ID with a different
   title or URL returns an error, since one back-matter resource cannot represent
   two distinct sources.
+- **Empty log metadata and target ids are rejected.**
+  `EvaluationLogToOSCALAssessmentResults` returns an error when
+  `metadata.id` or `target.id` is empty. Both key identity-bearing assembly
+  UUIDs (findings, observations, and log entries on the metadata id;
+  inventory items on the target id), so a log that omits them would silently
+  share those UUIDs with every other unidentified log or target evaluating
+  the same subjects.
+- **An empty assessment date falls back to the conversion date.** The
+  AssessmentResults root and Result sources use `metadata.date` when set and
+  the conversion date (UTC) otherwise, so a log without a date still rotates
+  its root and Result UUIDs across days rather than freezing them.
 - **Authors without a name carry no party.** The metadata party, the origin
   actors on findings and observations, and the logged-by entry on assessment
   log entries all gate on a non-empty author name, on every conversion path.

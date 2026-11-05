@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/defenseunicorns/go-oscal/src/pkg/uuid"
 	"github.com/gemaraproj/go-gemara"
@@ -472,6 +473,8 @@ func TestEmptyVersion_DefaultsBeforeUUIDGeneration(t *testing.T) {
 	// Empty version should still produce deterministic UUIDs
 	assert.Equal(t, ar1.UUID, ar2.UUID, "empty version should produce deterministic document UUID")
 	assert.NotEmpty(t, ar1.UUID)
+	assert.Equal(t, "0.0.0", ar1.Metadata.Version,
+		"the defaulted version must also be stamped into metadata.version")
 
 	// The UUID should match what an explicit DefaultOSCALVersion would produce
 	log.Metadata.Version = "0.0.0"
@@ -878,6 +881,62 @@ func TestSameResourceAndInventory_StableAcrossDocuments(t *testing.T) {
 		(*arB.Results[0].LocalDefinitions.InventoryItems)[0].UUID,
 		"the same target id must get the same inventory-item UUID across documents",
 	)
+}
+
+func TestEmptyMetadataId_ReturnsError(t *testing.T) {
+	// The metadata id keys the finding, observation, and log-entry UUID
+	// sources; a log without one would share those UUIDs with every other
+	// unidentified log evaluating the same control.
+	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Metadata.Id = ""
+	log.Metadata.Version = "1.0.0"
+	log.Target = gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software}
+
+	_, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "metadata id", "error should name the missing field")
+}
+
+func TestEmptyTargetId_ReturnsError(t *testing.T) {
+	// The target id keys the inventory-item UUID source; a log without one
+	// would share that UUID with every other unidentified target.
+	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Metadata.Id = "eval-no-target"
+	log.Metadata.Version = "1.0.0"
+	log.Target = gemara.Resource{Name: "System", Type: gemara.Software}
+
+	_, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "target id", "error should name the missing field")
+}
+
+func TestEmptyDate_FallsBackToConversionDate(t *testing.T) {
+	// The root and Result UUIDs are per-run: a log without a date must not
+	// freeze them onto a shared empty-string date segment, but fall back to
+	// the conversion date.
+	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Metadata.Id = "eval-empty-date"
+	log.Metadata.Version = "1.0.0"
+	log.Target = gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software}
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	explicit := log
+	explicit.Metadata.Date = gemara.Datetime(time.Now().UTC().Format("2006-01-02"))
+	arExplicit, err := EvaluationLogToOSCALAssessmentResults(explicit, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	assert.Equal(t, arExplicit.UUID, ar.UUID,
+		"an empty date should fall back to the conversion date for the root UUID")
+	assert.Equal(t, arExplicit.Results[0].UUID, ar.Results[0].UUID,
+		"an empty date should fall back to the conversion date for the Result UUID")
 }
 
 func TestFindingsObservationsLogEntries_DistinctAcrossDocuments(t *testing.T) {

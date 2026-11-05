@@ -371,7 +371,9 @@ func makeEvaluationLog(author gemara.Actor, logs []*gemara.AssessmentLog) gemara
 				AssessmentLogs: logs,
 			},
 		},
-		Metadata: gemara.Metadata{Author: author},
+		// The metadata id keys identity-bearing assembly UUIDs and the
+		// conversion rejects an empty one, so every fixture gets a default.
+		Metadata: gemara.Metadata{Id: "eval-log", Author: author},
 		Target:   gemara.Resource{Id: "example-target", Name: "Example Target", Type: gemara.Software},
 	}
 }

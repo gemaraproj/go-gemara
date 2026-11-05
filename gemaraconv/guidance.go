@@ -15,6 +15,9 @@ import (
 // GuidanceToOSCAL converts a Gemara GuidanceCatalog to both an OSCAL Catalog and Profile.
 // The catalog includes only the locally defined guidelines (categories), not imported ones.
 // The profile includes imports for both external guidelines and the local catalog.
+//
+// Returns an error when guidanceDocHref is empty, when the catalog defines no
+// families, or when mapping references conflict on title or URL for the same ID.
 func GuidanceToOSCAL(g gemara.GuidanceCatalog, guidanceDocHref string, opts ...GenerateOption) (oscal.Catalog, oscal.Profile, error) {
 	// The guidanceDocHref parameter specifies the location where the OSCAL Catalog
 	// will be saved, used to create the import reference in the Profile. This must
