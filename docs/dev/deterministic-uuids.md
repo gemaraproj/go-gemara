@@ -112,7 +112,7 @@ the same (control, requirement) key, counted in input order. A requirement can
 be evaluated in more than one way, and OSCAL requires UUIDs to be unique within
 a document, so the counter keeps the observation and log-entry UUIDs distinct
 while staying reproducible. It can be swapped for plan and method ids if
-gemaraproj/gemara#506 lands.
+gemaraproj/gemara#506 lands (tracked in #158).
 
 Two sources deliberately omit the document id: Resource keys on the mapping
 reference ID and InventoryItem on the target resource ID. Both identify the
