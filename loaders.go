@@ -95,6 +95,8 @@ func Load[T any](ctx context.Context, f Fetcher, source string) (*T, error) {
 }
 
 // LoadFiles loads and merges data from multiple sources into the GuidanceCatalog.
+// The first source supplies metadata, title, type and front matter; groups,
+// extends, imports, guidelines and exemptions are appended from every source.
 func (g *GuidanceCatalog) LoadFiles(ctx context.Context, f Fetcher, sources []string) error {
 	for _, source := range sources {
 		doc, err := Load[GuidanceCatalog](ctx, f, source)
@@ -103,14 +105,22 @@ func (g *GuidanceCatalog) LoadFiles(ctx context.Context, f Fetcher, sources []st
 		}
 		if g.Metadata.Id == "" {
 			g.Metadata = doc.Metadata
+			g.Title = doc.Title
+			g.GuidanceType = doc.GuidanceType
+			g.FrontMatter = doc.FrontMatter
 		}
 		g.Groups = append(g.Groups, doc.Groups...)
+		g.Extends = append(g.Extends, doc.Extends...)
+		g.Imports = append(g.Imports, doc.Imports...)
 		g.Guidelines = append(g.Guidelines, doc.Guidelines...)
+		g.Exemptions = append(g.Exemptions, doc.Exemptions...)
 	}
 	return nil
 }
 
 // LoadFiles loads and merges data from multiple sources into the ControlCatalog.
+// The first source supplies metadata and title; groups, extends, controls and
+// imports are appended from every source.
 func (c *ControlCatalog) LoadFiles(ctx context.Context, f Fetcher, sources []string) error {
 	for _, source := range sources {
 		catalog, err := Load[ControlCatalog](ctx, f, source)
@@ -119,8 +129,10 @@ func (c *ControlCatalog) LoadFiles(ctx context.Context, f Fetcher, sources []str
 		}
 		if c.Metadata.Id == "" {
 			c.Metadata = catalog.Metadata
+			c.Title = catalog.Title
 		}
 		c.Groups = append(c.Groups, catalog.Groups...)
+		c.Extends = append(c.Extends, catalog.Extends...)
 		c.Controls = append(c.Controls, catalog.Controls...)
 		if catalog.Imports != nil {
 			if c.Imports == nil {

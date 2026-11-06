@@ -1,0 +1,38 @@
+title: Extending Guidance Catalog
+metadata:
+  id: EXAMPLE-GUIDE
+  type: GuidanceCatalog
+  gemara-version: "1.6.0"
+  version: 1.0.0
+  description: A guidance catalog that extends and imports from another guidance catalog.
+  author:
+    id: example
+    name: Example
+    type: Human
+  mapping-references:
+    - id: FINOS-AIR
+      title: AI Governance Framework
+      version: 0.1.0
+      description: Catalog this one builds upon.
+type: Framework
+front-matter: Example front matter.
+extends:
+  - reference-id: FINOS-AIR
+    remarks: Builds on the AI Governance Framework.
+imports:
+  - reference-id: FINOS-AIR
+    entries:
+      - reference-id: AIR-DET-011
+        remarks: Human Feedback Loop for AI Systems
+groups:
+  - id: example-group
+    title: Example Group
+    description: Guidelines defined by this catalog.
+guidelines:
+  - id: EXAMPLE-GUIDE-01
+    group: example-group
+    title: Example guideline
+    objective: Demonstrates a guideline alongside extends and imports.
+exemptions:
+  - description: Systems with no external inputs.
+    reason: The guideline addresses externally supplied content.
