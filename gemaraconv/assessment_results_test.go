@@ -64,6 +64,7 @@ func TestEvaluationLogToOSCALAssessmentResults_ZeroEvaluations(t *testing.T) {
 	}{
 		{name: "nil", evaluations: nil},
 		{name: "explicitly empty", evaluations: []*gemara.ControlEvaluation{}},
+		{name: "nil entry", evaluations: []*gemara.ControlEvaluation{nil}},
 	}
 
 	for _, tt := range tests {
@@ -75,6 +76,8 @@ func TestEvaluationLogToOSCALAssessmentResults_ZeroEvaluations(t *testing.T) {
 				Type:    gemara.Software,
 			}, nil)
 			log.Metadata.Id = "eval-zero"
+			// makeEvaluationLog seeds one CTRL-1 evaluation; the cases under test
+			// replace it entirely, so its logs argument is never read.
 			log.Evaluations = tt.evaluations
 
 			ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref(testImportApHref))

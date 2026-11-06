@@ -23,6 +23,7 @@ None. There are no existing OpenSpec capability specs in this repository.
 ## Impact
 
 - Affects `gemaraconv/assessment_results.go` and `gemaraconv/assessment_results_test.go`.
+- Adds the `openspec/changes/fix-zero-evaluation-oscal/` change directory and the repo-level `openspec/config.yaml` spec-driven workflow config.
 - Keeps the public converter signatures and OSCAL version unchanged.
 - Uses the existing OSCAL types and schema-validation utilities; no new dependencies are needed.
 - Downstream consumers such as complyctl can export zero-evaluation logs without receiving schema-invalid output.
