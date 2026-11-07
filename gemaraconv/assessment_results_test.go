@@ -57,6 +57,69 @@ func TestEvaluationLogToOSCALAssessmentResults(t *testing.T) {
 	assertValidOSCAL(t, ar)
 }
 
+func TestEvaluationLogToOSCALAssessmentResults_ZeroEvaluations(t *testing.T) {
+	tests := []struct {
+		name        string
+		evaluations []*gemara.ControlEvaluation
+	}{
+		{name: "nil", evaluations: nil},
+		{name: "explicitly empty", evaluations: []*gemara.ControlEvaluation{}},
+		{name: "nil entry", evaluations: []*gemara.ControlEvaluation{nil}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			log := makeEvaluationLog(gemara.Actor{
+				Name:    "test-tool",
+				Uri:     "https://github.com/test/tool",
+				Version: "1.0.0",
+				Type:    gemara.Software,
+			}, nil)
+			log.Metadata.Id = "eval-zero"
+			// makeEvaluationLog seeds one CTRL-1 evaluation; the cases under test
+			// replace it entirely, so its logs argument is never read.
+			log.Evaluations = tt.evaluations
+
+			ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref(testImportApHref))
+			require.NoError(t, err)
+			assert.Contains(t, ar.Metadata.Title, log.Metadata.Id)
+			require.Len(t, ar.Results, 1)
+
+			result := ar.Results[0]
+			assert.Contains(t, result.Title, log.Metadata.Id)
+			assert.Nil(t, result.Findings)
+			require.NotNil(t, result.LocalDefinitions)
+			require.NotNil(t, result.LocalDefinitions.InventoryItems)
+			require.Len(t, *result.LocalDefinitions.InventoryItems, 1)
+			item := (*result.LocalDefinitions.InventoryItems)[0]
+			assert.Equal(t, log.Target.Name, item.Description)
+			assert.Equal(t, log.Target.Id, propertyValue(t, item.Props, "gemara-resource-id"))
+			assert.Equal(t, log.Target.Name, propertyValue(t, item.Props, "name"))
+			require.Len(t, result.ReviewedControls.ControlSelections, 1)
+			assert.Nil(t, result.ReviewedControls.ControlSelections[0].IncludeControls)
+
+			data, err := json.Marshal(oscal.OscalModels{AssessmentResults: &ar})
+			require.NoError(t, err)
+			var document struct {
+				AssessmentResults struct {
+					Results []struct {
+						ReviewedControls struct {
+							ControlSelections []map[string]json.RawMessage `json:"control-selections"`
+						} `json:"reviewed-controls"`
+					} `json:"results"`
+				} `json:"assessment-results"`
+			}
+			require.NoError(t, json.Unmarshal(data, &document))
+			require.Len(t, document.AssessmentResults.Results, 1)
+			selections := document.AssessmentResults.Results[0].ReviewedControls.ControlSelections
+			require.Len(t, selections, 1)
+			assert.NotContains(t, selections[0], "include-controls")
+			assert.NotContains(t, selections[0], "include-all")
+			assertValidOSCAL(t, ar)
+		})
+	}
+}
+
 func TestEvaluationLogToOSCALAssessmentResults_WithCatalogEnrichment(t *testing.T) {
 	catalog := makeCatalog("CTRL-1", "Access Control", "Enforce access controls", "REQ-1", "Verify access is restricted", "Use RBAC")
 
@@ -449,7 +512,7 @@ func assertValidOSCAL(t *testing.T, ar oscal.AssessmentResults) {
 	require.NoError(t, json.Unmarshal(data, &roundtrip))
 	require.NotNil(t, roundtrip.AssessmentResults)
 
-	require.NoError(t, oscalUtils.Validate(model))
+	require.NoError(t, oscalUtils.Validate(roundtrip))
 }
 
 func propertyValue(t *testing.T, props *[]oscal.Property, name string) string {

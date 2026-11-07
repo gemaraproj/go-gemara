@@ -167,7 +167,7 @@ func buildReviewedControls(controlIds []string) oscal.ReviewedControls {
 	}
 	return oscal.ReviewedControls{
 		ControlSelections: []oscal.AssessedControls{
-			{IncludeControls: &selectors},
+			{IncludeControls: oscalUtils.NilIfEmpty(selectors)},
 		},
 	}
 }
