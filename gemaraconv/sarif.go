@@ -3,7 +3,6 @@ package gemaraconv
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"slices"
 	"strings"
 
@@ -151,7 +150,7 @@ func ToSARIF(evaluationLog gemara.EvaluationLog, opts ...EvalOption) ([]byte, er
 
 			var locations []Location
 			if len(log.Evidence) > 0 {
-				locations = buildLocationsFromEvidence(log.Evidence, refMap, logicalLocationName, &artifacts, artifactIndexMap)
+				locations = buildLocationsFromEvidence(log.Evidence, refMap, logicalLocationName, &artifacts, artifactIndexMap, defaultArtifactURI)
 			}
 			if len(locations) == 0 {
 				locations = []Location{
@@ -313,23 +312,44 @@ func buildLocationsFromEvidence(
 	stepLocationName string,
 	artifacts *[]Artifact,
 	artifactIndexMap map[string]int,
+	defaultArtifactURI string,
 ) []Location {
 	var locations []Location
-	seenURIs := make(map[string]bool)
+	seenEvidenceIDs := make(map[string]bool)
+	seenAnon := make(map[string]bool)
 
 	for _, item := range evidence {
-		uri := resolveArtifactURI(refMap, item.Source)
-		if uri == "" {
+		if isEmptySource(item.Source) {
 			continue
 		}
 
-		if seenURIs[uri] {
-			continue
+		if item.Id != "" {
+			if seenEvidenceIDs[item.Id] {
+				continue
+			}
+			seenEvidenceIDs[item.Id] = true
+		} else {
+			anonKey := fmt.Sprintf("%s|%s|%s|%s|%s",
+				item.Source.ReferenceId,
+				item.Source.Coordinate,
+				item.Source.EntryId,
+				item.Source.Digest,
+				item.Description,
+			)
+			if seenAnon[anonKey] {
+				continue
+			}
+			seenAnon[anonKey] = true
 		}
-		seenURIs[uri] = true
+
+		uri := resolveArtifactURI(refMap, item.Source)
+		locURI := uri
+		if locURI == "" {
+			locURI = defaultArtifactURI
+		}
 
 		artLoc := ArtifactLocation{
-			URI: uri,
+			URI: locURI,
 		}
 
 		desc := item.Description
@@ -368,36 +388,32 @@ func buildLocationsFromEvidence(
 		}
 		artLoc.Properties = props
 
-		idx, found := artifactIndexMap[uri]
-		if !found {
-			var hashes map[string]string
-			if item.Source.Digest != "" {
-				algo, hash, ok := strings.Cut(item.Source.Digest, ":")
-				if ok && algo != "" && hash != "" {
-					algo = normalizeHashAlgorithm(algo)
-					hashes = map[string]string{algo: hash}
+		if uri != "" {
+			artifactKey := uri + "@" + item.Source.Digest
+			idx, found := artifactIndexMap[artifactKey]
+			if !found {
+				var hashes map[string]string
+				if item.Source.Digest != "" {
+					algo, hash, ok := strings.Cut(item.Source.Digest, ":")
+					if ok && algo != "" && hash != "" {
+						algo = normalizeHashAlgorithm(algo)
+						hashes = map[string]string{algo: hash}
+					}
 				}
+				art := Artifact{
+					Location: &ArtifactLocation{URI: uri},
+					Hashes:   hashes,
+				}
+				if desc != "" {
+					art.Description = &Message{Text: desc}
+				}
+				idx = len(*artifacts)
+				*artifacts = append(*artifacts, art)
+				artifactIndexMap[artifactKey] = idx
 			}
-			art := Artifact{
-				Location: &ArtifactLocation{URI: uri},
-				Hashes:   hashes,
-			}
-			if desc != "" {
-				art.Description = &Message{Text: desc}
-			}
-			idx = len(*artifacts)
-			*artifacts = append(*artifacts, art)
-			artifactIndexMap[uri] = idx
-		} else if item.Source.Digest != "" && (*artifacts)[idx].Hashes == nil {
-			algo, hash, ok := strings.Cut(item.Source.Digest, ":")
-			if ok && algo != "" && hash != "" {
-				algo = normalizeHashAlgorithm(algo)
-				(*artifacts)[idx].Hashes = map[string]string{algo: hash}
-			}
+			idxCopy := idx
+			artLoc.Index = &idxCopy
 		}
-
-		idxCopy := idx
-		artLoc.Index = &idxCopy
 
 		locations = append(locations, Location{
 			PhysicalLocation: &PhysicalLocation{
@@ -413,54 +429,18 @@ func buildLocationsFromEvidence(
 }
 
 // resolveArtifactURI resolves an artifact URI from an EvidenceMapping and the document's MappingReferences.
+// Returns the reference URL if found and non-empty. Coordinate is kept in properties.
 func resolveArtifactURI(refMap map[string]gemara.MappingReference, source gemara.EvidenceMapping) string {
-	refURL := ""
 	if source.ReferenceId != "" {
 		if ref, found := refMap[source.ReferenceId]; found {
-			refURL = ref.Url
+			return ref.Url
 		}
 	}
-
-	coord := source.Coordinate
-
-	// If coordinate is already an absolute URI
-	if strings.Contains(coord, "://") {
-		return coord
-	}
-
-	if refURL != "" {
-		if coord != "" {
-			baseURL, err := url.Parse(refURL)
-			if err == nil {
-				if strings.HasPrefix(coord, "/") {
-					coordURL, err := url.Parse(coord)
-					if err == nil {
-						return baseURL.ResolveReference(coordURL).String()
-					}
-				} else {
-					if !strings.HasSuffix(baseURL.Path, "/") && baseURL.Path != "" {
-						baseURL.Path += "/"
-					}
-					coordURL, err := url.Parse(coord)
-					if err == nil {
-						return baseURL.ResolveReference(coordURL).String()
-					}
-				}
-			}
-			return strings.TrimRight(refURL, "/") + "/" + strings.TrimLeft(coord, "/")
-		}
-		return refURL
-	}
-
-	if coord != "" {
-		return coord
-	}
-
-	if source.ReferenceId != "" {
-		return source.ReferenceId
-	}
-
 	return ""
+}
+
+func isEmptySource(s gemara.EvidenceMapping) bool {
+	return s.ReferenceId == "" && s.Coordinate == "" && s.EntryId == "" && s.Digest == "" && s.Remarks == ""
 }
 
 func normalizeHashAlgorithm(algo string) string {

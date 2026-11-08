@@ -477,8 +477,9 @@ func TestToSARIF_EvidenceRealArtifactURIs(t *testing.T) {
 					Type:        "file",
 					Description: "Security Insights file",
 					Source: gemara.EvidenceMapping{
-						Coordinate: "SECURITY-INSIGHTS.yml",
-						Digest:     "sha-512:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+						ReferenceId: "repo",
+						Coordinate:  "SECURITY-INSIGHTS.yml",
+						Digest:      "sha-512:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
 					},
 				},
 			},
@@ -495,6 +496,11 @@ func TestToSARIF_EvidenceRealArtifactURIs(t *testing.T) {
 			Title: "OpenSSF Baseline",
 			Url:   "https://baseline.openssf.org",
 		},
+		{
+			Id:    "repo",
+			Title: "Repository",
+			Url:   "https://github.com/org/repo",
+		},
 	}
 
 	data, err := ToSARIF(evalLog)
@@ -506,14 +512,14 @@ func TestToSARIF_EvidenceRealArtifactURIs(t *testing.T) {
 
 	// Verify run.artifacts
 	require.Len(t, run.Artifacts, 3)
-	assert.Equal(t, "https://api.github.com/repos/org/repo/branches/main/protection", run.Artifacts[0].Location.URI)
+	assert.Equal(t, "https://api.github.com", run.Artifacts[0].Location.URI)
 	assert.Equal(t, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", run.Artifacts[0].Hashes["sha-256"])
 	assert.Equal(t, "Branch protection configuration", run.Artifacts[0].Description.Text)
 
 	assert.Equal(t, "https://baseline.openssf.org", run.Artifacts[1].Location.URI)
 	assert.Equal(t, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", run.Artifacts[1].Hashes["sha-256"])
 
-	assert.Equal(t, "SECURITY-INSIGHTS.yml", run.Artifacts[2].Location.URI)
+	assert.Equal(t, "https://github.com/org/repo", run.Artifacts[2].Location.URI)
 	assert.Equal(t, "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", run.Artifacts[2].Hashes["sha-512"])
 
 	// Verify Results
@@ -525,7 +531,7 @@ func TestToSARIF_EvidenceRealArtifactURIs(t *testing.T) {
 	require.Len(t, res1.Locations, 2)
 
 	loc1_0 := res1.Locations[0]
-	assert.Equal(t, "https://api.github.com/repos/org/repo/branches/main/protection", loc1_0.PhysicalLocation.ArtifactLocation.URI)
+	assert.Equal(t, "https://api.github.com", loc1_0.PhysicalLocation.ArtifactLocation.URI)
 	require.NotNil(t, loc1_0.PhysicalLocation.ArtifactLocation.Index)
 	assert.Equal(t, 0, *loc1_0.PhysicalLocation.ArtifactLocation.Index)
 	assert.Equal(t, "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", loc1_0.PhysicalLocation.ArtifactLocation.Properties["gemara/digest"])
@@ -545,10 +551,12 @@ func TestToSARIF_EvidenceRealArtifactURIs(t *testing.T) {
 	assert.Equal(t, "REQ-2", res2.RuleID)
 	require.Len(t, res2.Locations, 1)
 	loc2_0 := res2.Locations[0]
-	assert.Equal(t, "SECURITY-INSIGHTS.yml", loc2_0.PhysicalLocation.ArtifactLocation.URI)
+	assert.Equal(t, "https://github.com/org/repo", loc2_0.PhysicalLocation.ArtifactLocation.URI)
 	require.NotNil(t, loc2_0.PhysicalLocation.ArtifactLocation.Index)
 	assert.Equal(t, 2, *loc2_0.PhysicalLocation.ArtifactLocation.Index)
 	assert.Equal(t, "sha-512:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", loc2_0.PhysicalLocation.ArtifactLocation.Properties["gemara/digest"])
+	assert.Equal(t, "repo", loc2_0.PhysicalLocation.ArtifactLocation.Properties["gemara/source-reference-id"])
+	assert.Equal(t, "SECURITY-INSIGHTS.yml", loc2_0.PhysicalLocation.ArtifactLocation.Properties["gemara/source-coordinate"])
 }
 
 func TestToSARIF_EvidenceFallbackWhenAbsent(t *testing.T) {
@@ -621,20 +629,26 @@ func TestToSARIF_EvidencePreservesDigestAndAlgorithm(t *testing.T) {
 			StepsExecuted: 1,
 			Evidence: []gemara.Evidence{
 				{
+					Id: "ev-1",
 					Source: gemara.EvidenceMapping{
-						Coordinate: "file1",
-						Digest:     "sha3-512:arbitrary-encoding==",
+						ReferenceId: "ref1",
+						Digest:      "sha3-512:arbitrary-encoding==",
 					},
 				},
 				{
+					Id: "ev-2",
 					Source: gemara.EvidenceMapping{
-						Coordinate: "file2",
-						Digest:     "not-a-digest",
+						ReferenceId: "ref2",
+						Digest:      "not-a-digest",
 					},
 				},
 			},
 		},
 	})
+	evalLog.Metadata.MappingReferences = []gemara.MappingReference{
+		{Id: "ref1", Url: "https://example.com/file1"},
+		{Id: "ref2", Url: "https://example.com/file2"},
+	}
 
 	data, err := ToSARIF(evalLog)
 	require.NoError(t, err)
@@ -646,14 +660,14 @@ func TestToSARIF_EvidencePreservesDigestAndAlgorithm(t *testing.T) {
 
 	// file1 has valid algorithm:hash
 	loc1 := run.Results[0].Locations[0].PhysicalLocation.ArtifactLocation
-	assert.Equal(t, "file1", loc1.URI)
+	assert.Equal(t, "https://example.com/file1", loc1.URI)
 	assert.Equal(t, "sha3-512:arbitrary-encoding==", loc1.Properties["gemara/digest"])
 	require.NotNil(t, loc1.Index)
 	assert.Equal(t, "arbitrary-encoding==", run.Artifacts[*loc1.Index].Hashes["sha3-512"])
 
 	// file2 has unvalidated digest - preserved in properties, no crash in hashes
 	loc2 := run.Results[0].Locations[1].PhysicalLocation.ArtifactLocation
-	assert.Equal(t, "file2", loc2.URI)
+	assert.Equal(t, "https://example.com/file2", loc2.URI)
 	assert.Equal(t, "not-a-digest", loc2.Properties["gemara/digest"])
 	require.NotNil(t, loc2.Index)
 	assert.Nil(t, run.Artifacts[*loc2.Index].Hashes)
@@ -684,7 +698,8 @@ func TestToSARIF_GoodEvaluationLogFixture(t *testing.T) {
 	assert.Equal(t, "OSPS-AC-01.01", res1.RuleID)
 	assert.Equal(t, "pass", res1.Kind)
 	require.Len(t, res1.Locations, 2)
-	assert.Equal(t, "https://api.github.com/repos/revanite-io/pvtr-github-repo/branches/main/protection", res1.Locations[0].PhysicalLocation.ArtifactLocation.URI)
+	assert.Equal(t, "https://api.github.com", res1.Locations[0].PhysicalLocation.ArtifactLocation.URI)
+	assert.Equal(t, "/repos/revanite-io/pvtr-github-repo/branches/main/protection", res1.Locations[0].PhysicalLocation.ArtifactLocation.Properties["gemara/source-coordinate"])
 	assert.Equal(t, "https://baseline.openssf.org", res1.Locations[1].PhysicalLocation.ArtifactLocation.URI)
 
 	// Check REQ 2: OSPS-DO-01.01 has no evidence, falls back to placeholder
@@ -697,7 +712,7 @@ func TestToSARIF_GoodEvaluationLogFixture(t *testing.T) {
 
 	// Verify run.artifacts collected the 2 URIs from evidence
 	require.Len(t, run.Artifacts, 2)
-	assert.Equal(t, "https://api.github.com/repos/revanite-io/pvtr-github-repo/branches/main/protection", run.Artifacts[0].Location.URI)
+	assert.Equal(t, "https://api.github.com", run.Artifacts[0].Location.URI)
 	assert.Equal(t, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", run.Artifacts[0].Hashes["sha-256"])
 	assert.Equal(t, "https://baseline.openssf.org", run.Artifacts[1].Location.URI)
 	assert.Equal(t, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", run.Artifacts[1].Hashes["sha-256"])
@@ -740,28 +755,20 @@ func TestResolveArtifactURI_EdgeCases(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "coordinate is already absolute URL",
-			source: gemara.EvidenceMapping{
-				ReferenceId: "base-no-slash",
-				Coordinate:  "https://other.com/file.txt",
-			},
-			expected: "https://other.com/file.txt",
-		},
-		{
-			name: "relative coordinate to base with slash",
+			name: "coordinate is not appended to base with slash",
 			source: gemara.EvidenceMapping{
 				ReferenceId: "base-with-slash",
 				Coordinate:  "dir/file.txt",
 			},
-			expected: "https://example.com/base/dir/file.txt",
+			expected: "https://example.com/base/",
 		},
 		{
-			name: "relative coordinate to base without slash",
+			name: "coordinate is not appended to base without slash",
 			source: gemara.EvidenceMapping{
 				ReferenceId: "base-no-slash",
 				Coordinate:  "dir/file.txt",
 			},
-			expected: "https://example.com/base/dir/file.txt",
+			expected: "https://example.com/base",
 		},
 		{
 			name: "reference has no url but has coordinate",
@@ -769,14 +776,14 @@ func TestResolveArtifactURI_EdgeCases(t *testing.T) {
 				ReferenceId: "no-url",
 				Coordinate:  "local/path.go",
 			},
-			expected: "local/path.go",
+			expected: "",
 		},
 		{
 			name: "reference has no url and no coordinate",
 			source: gemara.EvidenceMapping{
 				ReferenceId: "no-url",
 			},
-			expected: "no-url",
+			expected: "",
 		},
 		{
 			name: "reference not in map, has coordinate",
@@ -784,14 +791,14 @@ func TestResolveArtifactURI_EdgeCases(t *testing.T) {
 				ReferenceId: "unknown-ref",
 				Coordinate:  "custom/coord",
 			},
-			expected: "custom/coord",
+			expected: "",
 		},
 		{
 			name: "reference not in map, no coordinate",
 			source: gemara.EvidenceMapping{
 				ReferenceId: "unknown-ref",
 			},
-			expected: "unknown-ref",
+			expected: "",
 		},
 		{
 			name:     "empty source",
@@ -799,12 +806,12 @@ func TestResolveArtifactURI_EdgeCases(t *testing.T) {
 			expected: "",
 		},
 		{
-			name: "fallback join on invalid url",
+			name: "reference with url returns ref url directly",
 			source: gemara.EvidenceMapping{
 				ReferenceId: "invalid-url",
 				Coordinate:  "path",
 			},
-			expected: "http://[::1]:namedport/path",
+			expected: "http://[::1]:namedport",
 		},
 	}
 
@@ -824,14 +831,27 @@ func TestToSARIF_EvidenceDuplicateAndSharedArtifacts(t *testing.T) {
 			StepsExecuted: 1,
 			Evidence: []gemara.Evidence{
 				{
+					Id: "ev-1",
 					Source: gemara.EvidenceMapping{
-						Coordinate: "shared/file.go",
+						ReferenceId: "shared-ref",
+						EntryId:     "entry-1",
+						Digest:      "sha256:1111111111111111111111111111111111111111111111111111111111111111",
 					},
 				},
 				{
-					// Duplicate URI on same result - should be skipped
+					Id: "ev-1",
 					Source: gemara.EvidenceMapping{
-						Coordinate: "shared/file.go",
+						ReferenceId: "shared-ref",
+						EntryId:     "entry-1",
+						Digest:      "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+					},
+				},
+				{
+					Id: "ev-2",
+					Source: gemara.EvidenceMapping{
+						ReferenceId: "shared-ref",
+						EntryId:     "entry-2",
+						Digest:      "sha256:1111111111111111111111111111111111111111111111111111111111111111",
 					},
 				},
 			},
@@ -842,15 +862,37 @@ func TestToSARIF_EvidenceDuplicateAndSharedArtifacts(t *testing.T) {
 			StepsExecuted: 1,
 			Evidence: []gemara.Evidence{
 				{
-					// Reuses same URI, provides digest to populate hashes
+					Id: "ev-3",
 					Source: gemara.EvidenceMapping{
-						Coordinate: "shared/file.go",
-						Digest:     "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+						ReferenceId: "shared-ref",
+						Digest:      "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+					},
+				},
+			},
+		},
+		{
+			Requirement:   gemara.EntryMapping{EntryId: "REQ-NO-URL"},
+			Result:        gemara.Failed,
+			StepsExecuted: 1,
+			Evidence: []gemara.Evidence{
+				{
+					Id: "ev-nourl",
+					Source: gemara.EvidenceMapping{
+						ReferenceId: "nourl-ref",
 					},
 				},
 			},
 		},
 	})
+	evalLog.Metadata.MappingReferences = []gemara.MappingReference{
+		{
+			Id:  "shared-ref",
+			Url: "https://example.com/shared.json",
+		},
+		{
+			Id: "nourl-ref",
+		},
+	}
 
 	data, err := ToSARIF(evalLog)
 	require.NoError(t, err)
@@ -858,19 +900,32 @@ func TestToSARIF_EvidenceDuplicateAndSharedArtifacts(t *testing.T) {
 	sarif := toSARIFReport(t, data)
 	run := sarif.Runs[0]
 
-	// Only 1 unique artifact in run.artifacts
-	require.Len(t, run.Artifacts, 1)
-	assert.Equal(t, "shared/file.go", run.Artifacts[0].Location.URI)
+	require.Len(t, run.Artifacts, 2)
+	assert.Equal(t, "https://example.com/shared.json", run.Artifacts[0].Location.URI)
 	assert.Equal(t, "1111111111111111111111111111111111111111111111111111111111111111", run.Artifacts[0].Hashes["sha-256"])
 
-	// REQ-DUP has only 1 location due to deduplication
-	require.Len(t, run.Results[0].Locations, 1)
-	assert.Equal(t, "shared/file.go", run.Results[0].Locations[0].PhysicalLocation.ArtifactLocation.URI)
+	assert.Equal(t, "https://example.com/shared.json", run.Artifacts[1].Location.URI)
+	assert.Equal(t, "2222222222222222222222222222222222222222222222222222222222222222", run.Artifacts[1].Hashes["sha-256"])
 
-	// REQ-SECOND also points to index 0
+	require.Len(t, run.Results[0].Locations, 2)
+	assert.Equal(t, "https://example.com/shared.json", run.Results[0].Locations[0].PhysicalLocation.ArtifactLocation.URI)
+	require.NotNil(t, run.Results[0].Locations[0].PhysicalLocation.ArtifactLocation.Index)
+	assert.Equal(t, 0, *run.Results[0].Locations[0].PhysicalLocation.ArtifactLocation.Index)
+	assert.Equal(t, "entry-1", run.Results[0].Locations[0].PhysicalLocation.ArtifactLocation.Properties["gemara/source-entry-id"])
+
+	assert.Equal(t, "https://example.com/shared.json", run.Results[0].Locations[1].PhysicalLocation.ArtifactLocation.URI)
+	require.NotNil(t, run.Results[0].Locations[1].PhysicalLocation.ArtifactLocation.Index)
+	assert.Equal(t, 0, *run.Results[0].Locations[1].PhysicalLocation.ArtifactLocation.Index)
+	assert.Equal(t, "entry-2", run.Results[0].Locations[1].PhysicalLocation.ArtifactLocation.Properties["gemara/source-entry-id"])
+
 	require.Len(t, run.Results[1].Locations, 1)
 	require.NotNil(t, run.Results[1].Locations[0].PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, 0, *run.Results[1].Locations[0].PhysicalLocation.ArtifactLocation.Index)
+	assert.Equal(t, 1, *run.Results[1].Locations[0].PhysicalLocation.ArtifactLocation.Index)
+
+	require.Len(t, run.Results[2].Locations, 1)
+	assert.Equal(t, emptyArtifactURIMessage, run.Results[2].Locations[0].PhysicalLocation.ArtifactLocation.URI)
+	assert.Nil(t, run.Results[2].Locations[0].PhysicalLocation.ArtifactLocation.Index)
+	assert.Equal(t, "nourl-ref", run.Results[2].Locations[0].PhysicalLocation.ArtifactLocation.Properties["gemara/source-reference-id"])
 }
 
 func TestNormalizeHashAlgorithm(t *testing.T) {
