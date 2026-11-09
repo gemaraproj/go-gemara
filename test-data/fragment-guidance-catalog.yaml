@@ -1,0 +1,9 @@
+groups:
+  - id: fragment-group
+    title: Fragment Group
+    description: Guidelines loaded from a file that carries no catalog identity.
+guidelines:
+  - id: EXAMPLE-GUIDE-02
+    group: fragment-group
+    title: Fragment guideline
+    objective: Demonstrates a guideline loaded from an id-less fragment.

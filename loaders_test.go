@@ -165,10 +165,59 @@ func TestGuidanceCatalog_LoadFiles_AppendsData(t *testing.T) {
 
 	assert.Equal(t, singleDoc.Metadata, multiDoc.Metadata,
 		"first document's metadata should be preserved")
+	assert.Equal(t, singleDoc.Title, multiDoc.Title,
+		"first document's title should be preserved")
+	assert.Equal(t, singleDoc.GuidanceType, multiDoc.GuidanceType,
+		"first document's type should be preserved")
+	assert.Equal(t, singleDoc.FrontMatter, multiDoc.FrontMatter,
+		"first document's front matter should be preserved")
 	assert.Equal(t, len(singleDoc.Groups)*2, len(multiDoc.Groups),
 		"families should be appended across multiple files")
 	assert.Equal(t, len(singleDoc.Guidelines)*2, len(multiDoc.Guidelines),
 		"guidelines should be appended across multiple files")
+}
+
+func TestGuidanceCatalog_LoadFiles_TopLevelFields(t *testing.T) {
+	g := &GuidanceCatalog{}
+	err := g.LoadFiles(context.Background(), fileFetcher, []string{
+		"test-data/good-guidance-catalog-extends-imports.yaml",
+		"test-data/fragment-guidance-catalog.yaml",
+		"test-data/good-guidance-catalog-extends-imports.yaml",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Extending Guidance Catalog", g.Title,
+		"first file's title should be preserved")
+	assert.Equal(t, "Example front matter.", g.FrontMatter,
+		"first file's front matter should be preserved")
+	require.Len(t, g.Extends, 2, "extends should be appended across files")
+	assert.Equal(t, "FINOS-AIR", g.Extends[0].ReferenceId)
+	require.Len(t, g.Imports, 2, "imports should be appended across files")
+	assert.Equal(t, "AIR-DET-011", g.Imports[0].Entries[0].ReferenceId)
+	assert.Len(t, g.Exemptions, 2, "exemptions should be appended across files")
+	assert.Len(t, g.Guidelines, 3, "guidelines should be appended from every source")
+}
+
+func TestGuidanceCatalog_LoadFiles_SeededReceiver(t *testing.T) {
+	g := &GuidanceCatalog{Title: "Seeded Guidance", Metadata: Metadata{Id: "EXAMPLE-GUIDE"}}
+	err := g.LoadFiles(context.Background(), fileFetcher, []string{
+		"test-data/fragment-guidance-catalog.yaml",
+		"test-data/good-guidance-catalog-extends-imports.yaml",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Seeded Guidance", g.Title, "the receiver's identity should be kept")
+	assert.Empty(t, g.FrontMatter, "a source with the same id should not overwrite the receiver")
+	assert.Len(t, g.Guidelines, 2, "guidelines should be appended from every source")
+}
+
+func TestGuidanceCatalog_LoadFiles_DifferentIdentity(t *testing.T) {
+	g := &GuidanceCatalog{}
+	err := g.LoadFiles(context.Background(), fileFetcher, []string{
+		"test-data/good-guidance-catalog-extends-imports.yaml",
+		"test-data/good-aigf.yaml",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `metadata.id "FINOS-AIR"`)
+	assert.Contains(t, err.Error(), `"EXAMPLE-GUIDE"`)
 }
 
 func TestLoad_GuidanceCatalog_HTTP(t *testing.T) {
@@ -240,11 +289,66 @@ func TestControlCatalog_LoadFiles_NilImports(t *testing.T) {
 	c := &ControlCatalog{}
 	err := c.LoadFiles(context.Background(), fileFetcher, []string{
 		"test-data/good-ccc.yaml",
-		"test-data/good-osps.yml",
+		"test-data/fragment-control-catalog.yaml",
 	})
 	require.NoError(t, err)
 	assert.Nil(t, c.Imports, "imports should remain nil when no source files contain imports")
 	assert.NotEmpty(t, c.Controls, "controls should be appended from both files")
+}
+
+func TestControlCatalog_LoadFiles_TopLevelFields(t *testing.T) {
+	c := &ControlCatalog{}
+	err := c.LoadFiles(context.Background(), fileFetcher, []string{
+		"test-data/good-control-catalog-extends-imports.yaml",
+		"test-data/fragment-control-catalog.yaml",
+		"test-data/good-control-catalog-extends-imports.yaml",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Extending Control Catalog", c.Title,
+		"first file's title should be preserved")
+	assert.Equal(t, "EXAMPLE-EXT", c.Metadata.Id,
+		"first file's metadata should be preserved")
+	require.Len(t, c.Extends, 2, "extends should be appended across files")
+	assert.Equal(t, "FINOS-CCC", c.Extends[0].ReferenceId)
+	require.Len(t, c.Imports, 2, "imports should be appended across files")
+	assert.Equal(t, "CCC.Core.CTL42", c.Imports[0].Entries[0].ReferenceId)
+	assert.Len(t, c.Controls, 3, "controls should be appended from every source")
+}
+
+func TestControlCatalog_LoadFiles_SeededReceiver(t *testing.T) {
+	c := &ControlCatalog{Title: "Seeded Catalog", Metadata: Metadata{Id: "EXAMPLE-EXT"}}
+	err := c.LoadFiles(context.Background(), fileFetcher, []string{
+		"test-data/fragment-control-catalog.yaml",
+		"test-data/good-control-catalog-extends-imports.yaml",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Seeded Catalog", c.Title, "the receiver's identity should be kept")
+	assert.Empty(t, c.Metadata.Description, "a source with the same id should not overwrite the receiver")
+	assert.Len(t, c.Controls, 2, "controls should be appended from every source")
+}
+
+func TestControlCatalog_LoadFiles_DifferentIdentity(t *testing.T) {
+	tests := []struct {
+		name    string
+		sources []string
+	}{
+		{
+			name:    "later source has another id",
+			sources: []string{"test-data/good-control-catalog-extends-imports.yaml", "test-data/good-ccc.yaml"},
+		},
+		{
+			name:    "first source has no id",
+			sources: []string{"test-data/fragment-control-catalog.yaml", "test-data/good-ccc.yaml"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &ControlCatalog{}
+			err := c.LoadFiles(context.Background(), fileFetcher, tt.sources)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), `metadata.id "FINOS-CCC"`)
+		})
+	}
 }
 
 func TestControlCatalog_LoadFiles(t *testing.T) {
