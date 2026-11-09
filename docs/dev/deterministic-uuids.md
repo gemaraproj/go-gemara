@@ -97,9 +97,9 @@ with `version = "B/C"` which produces `gemara:A/B%2FC/catalog`.
 | Party | `per-subject` | `gemara:{actor-id}/party` (name + type when the id is empty) | Actor ID, or author name + type when absent |
 | Resource | `per-subject` | `gemara:{ref.Id}/resource` | Mapping reference ID |
 | Result | per-run | `gemara:{log.Metadata.Id}/{date}/result` | Log ID + date |
-| Finding | `per-subject` | `gemara:{logId}/{controlId}/finding` | Log ID + control entry ID |
-| Observation | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/{occurrence}/observation` | Log ID + control + requirement + occurrence |
-| LogEntry | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/{occurrence}/log-entry` | Log ID + control + requirement + occurrence |
+| Finding | `per-subject` | `gemara:{logId}/{controlId}/finding` | Log ID + control mapping (reference id when set, then entry id) |
+| Observation | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/{plan}/{occurrence}/observation` | Log ID + control mapping + requirement + plan (when recorded) + occurrence |
+| LogEntry | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/{plan}/{occurrence}/log-entry` | Log ID + control mapping + requirement + plan (when recorded) + occurrence |
 | InventoryItem | `per-subject` | `gemara:{target.Id}/inventory-item` | Target resource ID |
 
 All `{field}` placeholders denote `url.PathEscape(field)` values. Catalog and
@@ -107,12 +107,22 @@ Profile roots use `options.version` (`WithVersion`, else `metadata.Version`,
 else `"0.0.0"`). The AssessmentResults root has no version option; it uses
 `log.Metadata.Version` with the same `"0.0.0"` fallback.
 
-The `{occurrence}` field is a 1-based counter over assessment logs that share
-the same (control, requirement) key, counted in input order. A requirement can
-be evaluated in more than one way, and OSCAL requires UUIDs to be unique within
-a document, so the counter keeps the observation and log-entry UUIDs distinct
-while staying reproducible. It can be swapped for plan and method ids if
-gemaraproj/gemara#506 lands (tracked in #158).
+The `{controlId}` segments above are the control mapping's identity: the
+mapping reference id when one is set, then the entry id. The schema defines a
+control evaluation by both fields together, so the same entry id mapped
+through two references is two controls, both in the duplicate check and in
+the UUID sources.
+
+The `{plan}` segment appears only when the assessment log records a plan
+mapping. The `{occurrence}` field is a 1-based counter over assessment logs
+that share the same control, requirement, and plan, counted in input order.
+A requirement can be evaluated in more than one way, and OSCAL requires UUIDs
+to be unique within a document, so the counter keeps the observation and
+log-entry UUIDs distinct while staying reproducible. Because the counter
+follows input order, reordering logs that share all three key fields swaps
+their observation and log-entry UUIDs between runs; logs that differ in plan
+are already distinct. The full fix, keying on plan and method ids from
+gemaraproj/gemara#506, is tracked in gemaraproj/go-gemara#158.
 
 Two sources deliberately omit the document id: Resource keys on the mapping
 reference ID and InventoryItem on the target resource ID. Both identify the
@@ -130,8 +140,8 @@ subject, not its identity:
 - `alog.Result`, `alog.Description`, `alog.Recommendation`, `alog.Evidence`
 - `ref.Title`, `ref.Url`, `ref.Version`, `ref.Description`
 - `target.Name`, `target.Description`
-- `confidence-level` (in the Breaking Changes milestone, gemara#497)
-- `executor` (attribution, not identity, per gemara PR #506)
+- `confidence-level` (in the Breaking Changes milestone, gemaraproj/gemara#497)
+- `executor` (attribution, not identity, per gemaraproj/gemara#506)
 
 ## Stability Across Runs
 
@@ -166,8 +176,11 @@ diffs readable: only the root, the Result, and any changed content move.
 - **No collision within a document.** Assessment logs that evaluate the same
   requirement under the same control get distinct observation and log-entry
   UUIDs via the occurrence counter.
-- **Duplicate control IDs are rejected.** `EvaluationLogToOSCALAssessmentResults`
-  returns an error when two control evaluations share a control ID. The Privateer
+- **Duplicate control evaluations are rejected.**
+  `EvaluationLogToOSCALAssessmentResults` returns an error when two control
+  evaluations share a mapping reference id and entry id, the same identity
+  the schema's duplicate rule uses; the same entry id under different
+  references is two controls, not a duplicate. The Privateer
   SDK emits one evaluation per catalog control, so a duplicate is a catalog
   authoring error, and duplicate findings would corrupt result rollups.
 - **Conflicting mapping references are rejected.** A repeated mapping reference ID
@@ -181,6 +194,14 @@ diffs readable: only the root, the Result, and any changed content move.
   inventory items on the target id), so a log that omits them would silently
   share those UUIDs with every other unidentified log or target evaluating
   the same subjects.
+- **Catalog and guidance roots tolerate an empty metadata id.** The CUE
+  schema requires `metadata.id` but permits an empty value, and go-gemara
+  keeps conversion lenient — strict schema validation belongs to `cue vet`
+  pipeline gates, not to the converters. An id-less catalog or guidance
+  document still converts; its root UUID derives from the empty id, so two
+  id-less documents at the same version share a root UUID. The collision is
+  an authoring-mistake signal, not a conversion failure, mirroring the
+  `Actor.Id` tolerance in `partyUUIDSource`.
 - **An empty assessment date falls back to the conversion date.** The
   AssessmentResults root and Result sources use `metadata.date` when set and
   the conversion date (UTC) otherwise, so a log without a date still rotates

@@ -423,6 +423,5 @@ func toSARIFReport(t *testing.T, data []byte) *SarifReport {
 	var sarif SarifReport
 	err := json.Unmarshal(data, &sarif)
 	require.NoError(t, err)
-	require.NotNil(t, &sarif)
 	return &sarif
 }

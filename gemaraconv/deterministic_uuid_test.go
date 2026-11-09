@@ -634,6 +634,109 @@ func TestDuplicateControlIds_ReturnError(t *testing.T) {
 	assert.Contains(t, err.Error(), "AC-1", "error should name the duplicated control ID")
 }
 
+func TestSameEntryId_DifferentReferences_NotDuplicates(t *testing.T) {
+	// The schema defines a control evaluation's identity as its mapping's
+	// reference id plus entry id: two catalogs can map the same entry id.
+	// The duplicate check and the finding UUID sources must key on both, so
+	// the same entry id from two references is two controls, not a duplicate.
+	log := gemara.EvaluationLog{
+		Metadata: gemara.Metadata{
+			Id:      "eval-two-references",
+			Version: "1.0.0",
+			Author:  gemara.Actor{Name: "tool", Type: gemara.Software},
+		},
+		Evaluations: []*gemara.ControlEvaluation{
+			{
+				Name:    "OSPS access control",
+				Control: gemara.EntryMapping{ReferenceId: "osps", EntryId: "OSPS-AC-01"},
+				Result:  gemara.Passed,
+				AssessmentLogs: []*gemara.AssessmentLog{
+					makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+				},
+			},
+			{
+				Name:    "NIST access control",
+				Control: gemara.EntryMapping{ReferenceId: "nist", EntryId: "OSPS-AC-01"},
+				Result:  gemara.Failed,
+				AssessmentLogs: []*gemara.AssessmentLog{
+					makeAssessmentLog("REQ-1", "check differently", gemara.Failed, "", nil),
+				},
+			},
+		},
+		Target: gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software},
+	}
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err,
+		"the same entry id mapped through two references is two controls, not a duplicate")
+
+	require.NotNil(t, ar.Results[0].Findings)
+	findings := *ar.Results[0].Findings
+	require.Len(t, findings, 2)
+	assert.NotEqual(t, findings[0].UUID, findings[1].UUID,
+		"findings for the same entry id under different references must not share a UUID")
+}
+
+func TestDuplicateControlEvaluations_SameReference_StillRejected(t *testing.T) {
+	// Keying on reference id plus entry id must not relax the rejection of
+	// true duplicates: the same mapping evaluated twice still errors.
+	log := gemara.EvaluationLog{
+		Metadata: gemara.Metadata{
+			Id:      "eval-duplicate-with-reference",
+			Version: "1.0.0",
+			Author:  gemara.Actor{Name: "tool", Type: gemara.Software},
+		},
+		Evaluations: []*gemara.ControlEvaluation{
+			{
+				Name:    "First",
+				Control: gemara.EntryMapping{ReferenceId: "osps", EntryId: "AC-1"},
+				Result:  gemara.Passed,
+			},
+			{
+				Name:    "Second",
+				Control: gemara.EntryMapping{ReferenceId: "osps", EntryId: "AC-1"},
+				Result:  gemara.Failed,
+			},
+		},
+		Target: gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software},
+	}
+
+	_, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "osps/AC-1",
+		"error should name the duplicated control by reference and entry id")
+}
+
+func TestPlan_DistinguishesSameRequirementLogs(t *testing.T) {
+	// A recorded plan is part of the assessment log's identity: two logs
+	// for the same control and requirement under different plans get
+	// distinct observation and log-entry UUIDs without spending occurrence
+	// counter values on them.
+	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+		makeAssessmentLog("REQ-1", "check differently", gemara.Failed, "", nil),
+	})
+	log.Metadata.Id = "eval-two-plans"
+	log.Metadata.Version = "1.0.0"
+	log.Evaluations[0].AssessmentLogs[0].Plan = &gemara.EntryMapping{ReferenceId: "plans", EntryId: "plan-a"}
+	log.Evaluations[0].AssessmentLogs[1].Plan = &gemara.EntryMapping{ReferenceId: "plans", EntryId: "plan-b"}
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	require.NotNil(t, ar.Results[0].Observations)
+	observations := *ar.Results[0].Observations
+	require.Len(t, observations, 2)
+	assert.NotEqual(t, observations[0].UUID, observations[1].UUID,
+		"logs for the same requirement under different plans must not share an observation UUID")
+
+	require.NotNil(t, ar.Results[0].AssessmentLog)
+	entries := ar.Results[0].AssessmentLog.Entries
+	require.Len(t, entries, 2)
+	assert.NotEqual(t, entries[0].UUID, entries[1].UUID,
+		"logs for the same requirement under different plans must not share a log-entry UUID")
+}
+
 func TestConflictingMappingReferences_ReturnError(t *testing.T) {
 	log := makeEvaluationLog(gemara.Actor{
 		Name: "test-tool",

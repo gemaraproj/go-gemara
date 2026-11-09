@@ -17,12 +17,14 @@
 // Catalog and Profile roots use options.version (defaulting to
 // metadata.Version, then "0.0.0"); the AssessmentResults root uses
 // metadata.Version with the same fallback, and it and its Result also include
-// metadata.Date so each run produces fresh values.
+// metadata.Date so their UUIDs rotate with the date rather than per run.
+// Party UUIDs key on Actor.Id, falling back to the author's name and entity
+// type when the id is absent.
 // Assessment assembly UUIDs split by scope: finding, observation, and
 // log-entry UUIDs include the log ID for per-document uniqueness, while
 // resource and inventory-item UUIDs intentionally omit it so they match
 // across documents that reference the same subject. Assessment logs sharing
-// a requirement are distinguished by an occurrence
+// a control, requirement, and plan are distinguished by an occurrence
 // counter. See docs/dev/deterministic-uuids.md for the
 // full mapping.
 //

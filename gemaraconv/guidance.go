@@ -44,19 +44,9 @@ func GuidanceToOSCAL(g gemara.GuidanceCatalog, guidanceDocHref string, opts ...G
 	}
 
 	// Create a resource map for control linking
-	resourcesMap := make(map[string]string)
-	backmatter, err := mappingToBackMatter(g.Metadata.MappingReferences)
+	backmatter, resourcesMap, err := mappingToBackMatterWithUUIDs(g.Metadata.MappingReferences)
 	if err != nil {
-		return oscal.Catalog{}, oscal.Profile{}, err
-	}
-	if backmatter != nil && backmatter.Resources != nil {
-		for _, resource := range *backmatter.Resources {
-			if resource.Props != nil && len(*resource.Props) > 0 {
-				props := *resource.Props
-				id := props[0].Value
-				resourcesMap[id] = resource.UUID
-			}
-		}
+		return oscal.Catalog{}, oscal.Profile{}, fmt.Errorf("guidance document %s: %w", g.Metadata.Id, err)
 	}
 
 	// Group guidelines by family
@@ -498,11 +488,6 @@ func mappingToLinks(mappings []gemara.MultiEntryMapping, resourcesMap map[string
 		links = append(links, externalLink)
 	}
 	return links
-}
-
-func mappingToBackMatter(resourceRefs []gemara.MappingReference) (*oscal.BackMatter, error) {
-	backMatter, _, err := mappingToBackMatterWithUUIDs(resourceRefs)
-	return backMatter, err
 }
 
 func mappingToBackMatterWithUUIDs(resourceRefs []gemara.MappingReference) (*oscal.BackMatter, map[string]string, error) {
