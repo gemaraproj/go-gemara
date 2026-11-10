@@ -508,6 +508,7 @@ func TestEmptyVersion_DefaultsBeforeUUIDGeneration(t *testing.T) {
 }
 
 func TestVersionBump_ChangesDocumentUUID_KeepsAssemblyUUIDs(t *testing.T) {
+	pinConversionClock(t, time.Date(2025, 8, 22, 12, 0, 0, 0, time.UTC))
 	log := makeEvaluationLog(gemara.Actor{
 		Name: "test-tool",
 		Type: gemara.Software,

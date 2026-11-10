@@ -4,6 +4,20 @@ This document lists every breaking or behavioral change in v1.5.0 that
 affects downstream consumers of this library, with the replacement for each
 removed or changed API.
 
+## gemaraconv: OSCAL UUIDs are now deterministic
+
+Every OSCAL UUID emitted by the converters switches from random v4
+(`uuid.NewUUID()`) to deterministic v5 (`uuid.NewUUIDWithSource()`), derived
+from each assembly's identity fields. On upgrade, every UUID value in every
+converted document changes: there is zero overlap between old and new
+output for consumers that persist or correlate findings, observations,
+parties, or resources by UUID. Key on stable document identity
+(`metadata.id`) instead of the emitted UUIDs for cross-version handles. The
+`AssessmentResults` root and `Result` UUIDs also rotate with the assessment
+date (`metadata.Date`, or the conversion date when empty) rather than being
+arbitrary per run. The full source-string mapping is documented in
+[docs/dev/deterministic-uuids.md](deterministic-uuids.md).
+
 ## bundle: single-source assembly
 
 `bundle.Bundle.Files` (a `[]File` of primary artifacts) is replaced by

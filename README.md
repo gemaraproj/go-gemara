@@ -2,7 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/gemaraproj/go-gemara.svg)](https://pkg.go.dev/github.com/gemaraproj/go-gemara)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/go%20version-1.23+-00ADD8.svg)](https://go.dev/)
+[![Go Version](https://img.shields.io/badge/go%20version-1.26+-00ADD8.svg)](https://go.dev/)
 [![CI](https://github.com/gemaraproj/go-gemara/actions/workflows/ci.yml/badge.svg)](https://github.com/gemaraproj/go-gemara/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gemaraproj/go-gemara)](https://goreportcard.com/report/github.com/gemaraproj/go-gemara)
 
@@ -49,27 +49,32 @@ This builds binaries to `./bin/` directory.
 
 ### Library Usage
 
+Upgrading from an earlier version? See [docs/dev/migration-v1.5.0.md](docs/dev/migration-v1.5.0.md) for every breaking and behavioral change in v1.5.0.
+
 #### Loading Gemara Documents
 
 ```go
 package main
 
 import (
+    "context"
+
     "github.com/gemaraproj/go-gemara"
     "github.com/gemaraproj/go-gemara/fetcher"
 )
 
 func main() {
+    ctx := context.Background()
     f := &fetcher.File{}
 
     // Load a Guidance Catalog
-    guidance, err := gemara.Load[gemara.GuidanceCatalog](f, "path/to/guidance.yaml")
+    guidance, err := gemara.Load[gemara.GuidanceCatalog](ctx, f, "path/to/guidance.yaml")
     if err != nil {
         panic(err)
     }
 
     // Load a Control Catalog
-    catalog, err := gemara.Load[gemara.ControlCatalog](f, "path/to/catalog.yaml")
+    catalog, err := gemara.Load[gemara.ControlCatalog](ctx, f, "path/to/catalog.yaml")
     if err != nil {
         panic(err)
     }
@@ -85,16 +90,19 @@ func main() {
 package main
 
 import (
+    "context"
+
     "github.com/gemaraproj/go-gemara"
     "github.com/gemaraproj/go-gemara/fetcher"
     "github.com/gemaraproj/go-gemara/gemaraconv"
 )
 
 func main() {
+    ctx := context.Background()
     f := &fetcher.File{}
 
     // Convert Control Catalog to OSCAL
-    catalog, err := gemara.Load[gemara.ControlCatalog](f, "path/to/catalog.yaml")
+    catalog, err := gemara.Load[gemara.ControlCatalog](ctx, f, "path/to/catalog.yaml")
     if err != nil {
         panic(err)
     }
@@ -105,7 +113,7 @@ func main() {
     }
 
     // Convert Guidance Catalog to OSCAL
-    guidance, err := gemara.Load[gemara.GuidanceCatalog](f, "path/to/guidance.yaml")
+    guidance, err := gemara.Load[gemara.GuidanceCatalog](ctx, f, "path/to/guidance.yaml")
     if err != nil {
         panic(err)
     }
@@ -215,16 +223,19 @@ func main() {
 package main
 
 import (
+    "context"
+
     "github.com/gemaraproj/go-gemara"
     "github.com/gemaraproj/go-gemara/fetcher"
     "github.com/gemaraproj/go-gemara/gemaraconv"
 )
 
 func main() {
+    ctx := context.Background()
     f := &fetcher.File{}
 
     // Load Control Catalog (required for SARIF conversion)
-    catalog, err := gemara.Load[gemara.ControlCatalog](f, "path/to/catalog.yaml")
+    catalog, err := gemara.Load[gemara.ControlCatalog](ctx, f, "path/to/catalog.yaml")
     if err != nil {
         panic(err)
     }
