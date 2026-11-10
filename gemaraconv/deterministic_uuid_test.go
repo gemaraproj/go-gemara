@@ -12,6 +12,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// pinConversionClock fixes nowFunc for the duration of the test so
+// conversions that must agree on the date-segment fallback cannot straddle
+// UTC midnight, and restores the real clock afterwards.
+func pinConversionClock(t *testing.T, fixed time.Time) {
+	t.Helper()
+	orig := nowFunc
+	nowFunc = func() time.Time { return fixed }
+	t.Cleanup(func() { nowFunc = orig })
+}
+
 func TestCatalogToOSCAL_DeterministicUUIDs(t *testing.T) {
 	catalog := gemara.ControlCatalog{
 		Metadata: gemara.Metadata{
@@ -84,6 +94,11 @@ func TestGuidanceToOSCAL_DeterministicUUIDs(t *testing.T) {
 }
 
 func TestAssessmentResults_DeterministicUUIDs(t *testing.T) {
+	// Pin the conversion clock: the document and Result UUIDs key on the
+	// date-segment fallback, and two conversions straddling UTC midnight
+	// would otherwise legitimately differ.
+	pinConversionClock(t, time.Date(2025, 8, 22, 12, 0, 0, 0, time.UTC))
+
 	log := makeEvaluationLog(gemara.Actor{
 		Name: "test-tool",
 		Type: gemara.Software,
@@ -396,6 +411,10 @@ func TestEmptyAuthorName_PartyNotCreated(t *testing.T) {
 }
 
 func TestContentChange_DoesNotAffectUUIDs(t *testing.T) {
+	// Pin the conversion clock so all three conversions share the date
+	// segment; only the content under test may vary.
+	pinConversionClock(t, time.Date(2025, 8, 22, 12, 0, 0, 0, time.UTC))
+
 	makeLog := func(message string, result gemara.Result) gemara.EvaluationLog {
 		return gemara.EvaluationLog{
 			Metadata: gemara.Metadata{
@@ -454,6 +473,10 @@ func TestContentChange_DoesNotAffectUUIDs(t *testing.T) {
 }
 
 func TestEmptyVersion_DefaultsBeforeUUIDGeneration(t *testing.T) {
+	// Pin the conversion clock: the date-segment fallback must not vary
+	// between the conversions compared here.
+	pinConversionClock(t, time.Date(2025, 8, 22, 12, 0, 0, 0, time.UTC))
+
 	log := makeEvaluationLog(gemara.Actor{
 		Name: "test-tool",
 		Type: gemara.Software,
@@ -1020,7 +1043,11 @@ func TestEmptyTargetId_ReturnsError(t *testing.T) {
 func TestEmptyDate_FallsBackToConversionDate(t *testing.T) {
 	// The root and Result UUIDs are per-run: a log without a date must not
 	// freeze them onto a shared empty-string date segment, but fall back to
-	// the conversion date.
+	// the conversion date. The clock is pinned so the explicit date below
+	// and the fallback inside the conversion cannot disagree.
+	fixed := time.Date(2025, 8, 22, 12, 0, 0, 0, time.UTC)
+	pinConversionClock(t, fixed)
+
 	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
 		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
 	})
@@ -1032,7 +1059,7 @@ func TestEmptyDate_FallsBackToConversionDate(t *testing.T) {
 	require.NoError(t, err)
 
 	explicit := log
-	explicit.Metadata.Date = gemara.Datetime(time.Now().UTC().Format("2006-01-02"))
+	explicit.Metadata.Date = gemara.Datetime(fixed.UTC().Format("2006-01-02"))
 	arExplicit, err := EvaluationLogToOSCALAssessmentResults(explicit, WithImportApHref("#"))
 	require.NoError(t, err)
 

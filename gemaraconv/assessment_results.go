@@ -73,8 +73,10 @@ func EvaluationLogToOSCALAssessmentResults(log gemara.EvaluationLog, opts ...Eva
 	version := defaultVersion(log.Metadata.Version)
 	// A single now feeds the date segment, the Result start, and
 	// last-modified, so a conversion that straddles UTC midnight cannot
-	// emit a document whose UUIDs and timestamps disagree.
-	now := time.Now()
+	// emit a document whose UUIDs and timestamps disagree. nowFunc (not
+	// time.Now directly) lets tests pin the clock: determinism tests
+	// convert the same log twice and must agree on the date segment.
+	now := nowFunc()
 	metadata := createAssessmentResultsMetadata(log, authorPartyUUID, version, now)
 
 	backMatter, mappingResourceUUIDs, err := mappingToBackMatterWithUUIDs(log.Metadata.MappingReferences)
@@ -100,6 +102,12 @@ type controlIdentity struct {
 	referenceId string
 	entryId     string
 }
+
+// nowFunc is the conversion clock, kept as a variable so tests can pin it
+// without changing the exported API: determinism tests convert the same log
+// twice and must see the same date segment even if the run straddles UTC
+// midnight.
+var nowFunc = time.Now
 
 // controlSourceKey renders a control mapping's identity for a UUID source
 // string. The mapping reference is included when set, so the same entry id

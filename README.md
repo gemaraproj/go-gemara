@@ -120,6 +120,51 @@ func main() {
 }
 ```
 
+#### Converting to Markdown
+
+Both catalog types render to Markdown, with an optional table of contents and
+lexicon term autolinking.
+
+```go
+package main
+
+import (
+    "context"
+
+    "github.com/gemaraproj/go-gemara"
+    "github.com/gemaraproj/go-gemara/fetcher"
+    "github.com/gemaraproj/go-gemara/gemaraconv"
+)
+
+func main() {
+    ctx := context.Background()
+    f := &fetcher.File{}
+
+    catalog, err := gemara.Load[gemara.ControlCatalog](ctx, f, "path/to/catalog.yaml")
+    if err != nil {
+        panic(err)
+    }
+
+    md, err := gemaraconv.CatalogToMarkdown(ctx, catalog, gemaraconv.WithTOC(true), gemaraconv.WithLexiconAutolink(&fetcher.URI{}))
+    if err != nil {
+        panic(err)
+    }
+
+    // Guidance catalogs work the same way
+    guidance, err := gemara.Load[gemara.GuidanceCatalog](ctx, f, "path/to/guidance.yaml")
+    if err != nil {
+        panic(err)
+    }
+
+    md, err = gemaraconv.GuidanceToMarkdown(ctx, guidance)
+    if err != nil {
+        panic(err)
+    }
+
+    _ = md
+}
+```
+
 #### Bundling and Distributing Artifacts via OCI
 
 ```go
@@ -205,6 +250,13 @@ including private network addresses. Applications that process untrusted
 URLs should supply an `http.Client` with a safe dialer — see
 [`ExampleURI_ssrfSafe`](fetcher/example_test.go) for a complete example
 that blocks private, loopback, and link-local addresses at connect time.
+
+When resolving relative file paths from a bundle or another artifact,
+`fetcher.URI` can anchor them to the source artifact's directory with
+`BasePath` (see [`ExampleURI_basePath`](fetcher/example_test.go)). BasePath
+is a convenience anchor, not a security boundary: relative paths containing
+`..` and absolute paths both resolve outside it, so references from
+untrusted artifacts must be validated before fetching.
 
 ## Development
 

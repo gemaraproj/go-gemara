@@ -5,8 +5,11 @@ package fetcher_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gemaraproj/go-gemara/fetcher"
@@ -49,4 +52,62 @@ func ExampleURI_ssrfSafe() {
 	fmt.Println(err)
 	// Output:
 	// failed to fetch URL: Get "http://127.0.0.1/internal.yaml": request to private address blocked: 127.0.0.1
+}
+
+// This example shows how [fetcher.URI.BasePath] anchors relative file paths
+// to a chosen directory instead of the process working directory, which is
+// useful when resolving references from an artifact loaded elsewhere on
+// disk. BasePath is a convenience anchor, not a security boundary: relative
+// paths containing ".." and absolute paths both resolve outside it, so
+// applications resolving references from untrusted artifacts must validate
+// paths before fetching.
+func ExampleURI_basePath() {
+	base, err := os.MkdirTemp("", "gemara-basepath")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(base)
+
+	inner := filepath.Join(base, "inner")
+	if err := os.MkdirAll(inner, 0o755); err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(filepath.Join(inner, "notes.txt"), []byte("inside BasePath"), 0o600); err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(filepath.Join(base, "artifact.yaml"), []byte("outside BasePath"), 0o600); err != nil {
+		panic(err)
+	}
+
+	f := &fetcher.URI{BasePath: inner}
+
+	rc, err := f.Fetch(context.Background(), "notes.txt")
+	if err != nil {
+		panic(err)
+	}
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		panic(err)
+	}
+	if err := rc.Close(); err != nil {
+		panic(err)
+	}
+	fmt.Println(string(data))
+
+	// ".." is not blocked by BasePath: this path escapes the anchor.
+	rc, err = f.Fetch(context.Background(), "../artifact.yaml")
+	if err != nil {
+		panic(err)
+	}
+	data, err = io.ReadAll(rc)
+	if err != nil {
+		panic(err)
+	}
+	if err := rc.Close(); err != nil {
+		panic(err)
+	}
+	fmt.Println(string(data))
+	// Output:
+	// inside BasePath
+	// outside BasePath
 }

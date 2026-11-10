@@ -104,3 +104,51 @@ func TestGuidanceToMarkdown_options(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, out, viaConverter)
 }
+
+// TestGuidanceToMarkdown_guidelineMappingFields covers the guideline detail
+// branches the test-data fixtures do not exercise: ReplacedBy (with remarks),
+// Extends, Applicability, Vectors, and an exemption Redirect.
+func TestGuidanceToMarkdown_guidelineMappingFields(t *testing.T) {
+	guidance := gemara.GuidanceCatalog{
+		Title:        "G",
+		Metadata:     gemara.Metadata{Version: "1"},
+		GuidanceType: gemara.GuidanceStandard,
+		Guidelines: []gemara.Guideline{
+			{
+				Id:            "G-1",
+				Title:         "First",
+				Objective:     "o",
+				ReplacedBy:    &gemara.EntryMapping{EntryId: "G-2", Remarks: "superseded"},
+				Extends:       &gemara.EntryMapping{EntryId: "BASE-1", ReferenceId: "base", Remarks: "builds on base"},
+				Applicability: []string{"self-managed", "saas"},
+				Vectors: []gemara.MultiEntryMapping{
+					{ReferenceId: "VEC", Remarks: "supply chain", Entries: []gemara.ArtifactMapping{{ReferenceId: "v1", Remarks: "first vector"}}},
+				},
+			},
+		},
+		Exemptions: []gemara.Exemption{
+			{
+				Description: "Labs",
+				Reason:      "No prod data",
+				Redirect: &gemara.MultiEntryMapping{
+					ReferenceId: "alt-guide",
+					Entries:     []gemara.ArtifactMapping{{ReferenceId: "ALT-1"}},
+					Remarks:     "when possible",
+				},
+			},
+		},
+	}
+
+	out, err := GuidanceToMarkdown(context.Background(), guidance)
+	require.NoError(t, err)
+	s := string(out)
+
+	assert.Contains(t, s, "### G-1: First")
+	assert.Contains(t, s, "**Replaced by:** `G-2` (superseded)")
+	assert.Contains(t, s, "**Extends:** `BASE-1` in base — builds on base")
+	assert.Contains(t, s, "**Applicability:** self-managed, saas")
+	assert.Contains(t, s, "#### Vectors")
+	assert.Contains(t, s, "This guideline addresses the following vectors:")
+	assert.Contains(t, s, "| **VEC** — supply chain | v1 — first vector |")
+	assert.Contains(t, s, "- **Labs** — No prod data See instead: alt-guide (ALT-1) — when possible.")
+}

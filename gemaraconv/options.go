@@ -143,7 +143,7 @@ func WithApplicabilityMatrix(enabled bool) MarkdownOption {
 // (via mapping-references or remarks URL), term autolinking in prose, and a
 // trailing glossary. The provided [gemara.Fetcher] is used to load the lexicon
 // document. When enabled and metadata.lexicon is set, this takes precedence
-// over [WithInlineLexicon].
+// over [WithInlineLexicon]. It panics if f is nil.
 //
 // See [fetcher.ExampleURI_ssrfSafe] for an example that blocks requests to
 // private network addresses.
