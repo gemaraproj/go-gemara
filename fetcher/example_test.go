@@ -66,7 +66,7 @@ func ExampleURI_basePath() {
 	if err != nil {
 		panic(err)
 	}
-	defer os.RemoveAll(base)
+	defer func() { _ = os.RemoveAll(base) }()
 
 	inner := filepath.Join(base, "inner")
 	if err := os.MkdirAll(inner, 0o755); err != nil {
