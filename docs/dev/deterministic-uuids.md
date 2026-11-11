@@ -97,9 +97,9 @@ with `version = "B/C"` which produces `gemara:A/B%2FC/catalog`.
 | Party | `per-subject` | `gemara:{actor-id}/party` (name + type when the id is empty) | Actor ID, or author name + type when absent |
 | Resource | `per-subject` | `gemara:{ref.Id}/resource` | Mapping reference ID |
 | Result | per-run | `gemara:{log.Metadata.Id}/{date}/result` | Log ID + date |
-| Finding | `per-subject` | `gemara:{logId}/{controlId}/finding` | Log ID + control mapping (reference id when set, then entry id) |
-| Observation | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/{plan}/{occurrence}/observation` | Log ID + control mapping + requirement + plan (when recorded) + occurrence |
-| LogEntry | `per-subject` | `gemara:{logId}/{controlId}/{requirementId}/{plan}/{occurrence}/log-entry` | Log ID + control mapping + requirement + plan (when recorded) + occurrence |
+| Finding | `per-subject` | `gemara:{logId}/ref={referenceId}/entry={entryId}/finding` | Log ID + control mapping |
+| Observation | `per-subject` | `gemara:{logId}/ref={referenceId}/entry={entryId}/req={requirementId}/plan={plan}/{occurrence}/observation` | Log ID + control mapping + requirement + plan (empty when unrecorded) + occurrence |
+| LogEntry | `per-subject` | `gemara:{logId}/ref={referenceId}/entry={entryId}/req={requirementId}/plan={plan}/{occurrence}/log-entry` | Log ID + control mapping + requirement + plan (empty when unrecorded) + occurrence |
 | InventoryItem | `per-subject` | `gemara:{target.Id}/inventory-item` | Target resource ID |
 
 All `{field}` placeholders denote `url.PathEscape(field)` values. Catalog and
@@ -107,22 +107,30 @@ Profile roots use `options.version` (`WithVersion`, else `metadata.Version`,
 else `"0.0.0"`). The AssessmentResults root has no version option; it uses
 `log.Metadata.Version` with the same `"0.0.0"` fallback.
 
-The `{controlId}` segments above are the control mapping's identity: the
-mapping reference id when one is set, then the entry id. The schema defines a
-control evaluation by both fields together, so the same entry id mapped
-through two references is two controls, both in the duplicate check and in
-the UUID sources.
+The `{controlId}` segments above are the control mapping's identity, and the
+Finding, Observation, and LogEntry sources render it with a fixed marker per
+field: `ref={referenceId}/entry={entryId}`, both slots always emitted and
+empty when unset. The schema defines a control evaluation by both fields
+together, so the same entry id mapped through two references is two controls,
+both in the duplicate check and in the UUID sources. The markers exist
+because the reference and the plan are optional: without them, a control with
+no reference and a control whose reference holds what the first one's entry
+holds would build the same source string (and so the same UUID), and an
+unrecorded plan would let the requirement slide into the plan slot. With
+markers, segment boundaries cannot shift no matter which fields are empty,
+and escaping still keeps a `/` inside a single id from being read as a
+separator.
 
-The `{plan}` segment appears only when the assessment log records a plan
-mapping. The `{occurrence}` field is a 1-based counter over assessment logs
-that share the same control, requirement, and plan, counted in input order.
-A requirement can be evaluated in more than one way, and OSCAL requires UUIDs
-to be unique within a document, so the counter keeps the observation and
-log-entry UUIDs distinct while staying reproducible. Because the counter
-follows input order, reordering logs that share all three key fields swaps
-their observation and log-entry UUIDs between runs; logs that differ in plan
-are already distinct. The full fix, keying on plan and method ids from
-gemaraproj/gemara#506, is tracked in gemaraproj/go-gemara#158.
+The `plan=` slot is always emitted, empty when the assessment log records no
+plan mapping. The `{occurrence}` field is a 1-based counter over assessment
+logs that share the same control, requirement, and plan, counted in input
+order. A requirement can be evaluated in more than one way, and OSCAL
+requires UUIDs to be unique within a document, so the counter keeps the
+observation and log-entry UUIDs distinct while staying reproducible. Because
+the counter follows input order, reordering logs that share all three key
+fields swaps their observation and log-entry UUIDs between runs; logs that
+differ in plan are already distinct. The full fix, keying on plan and method
+ids from gemaraproj/gemara#506, is tracked in gemaraproj/go-gemara#158.
 
 Two sources deliberately omit the document id: Resource keys on the mapping
 reference ID and InventoryItem on the target resource ID. Both identify the

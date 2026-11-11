@@ -761,6 +761,85 @@ func TestPlan_DistinguishesSameRequirementLogs(t *testing.T) {
 		"logs for the same requirement under different plans must not share a log-entry UUID")
 }
 
+func TestOptionalSegments_CannotShiftBoundaries(t *testing.T) {
+	// The reference and plan fields are optional, so their slots carry fixed
+	// markers and are always emitted. Without the markers, the first two
+	// controls below built the identical observation and log-entry source
+	// string (gemara:L/r/e/q/1): the missing reference let the entry slide
+	// into the reference slot, and the recorded plan let the requirement
+	// slide forward. The last two controls built the identical finding
+	// source string (gemara:L/x/finding): the entry id absorbed the suffix.
+	log := gemara.EvaluationLog{
+		Metadata: gemara.Metadata{
+			Id:      "eval-optional-segments",
+			Version: "1.0.0",
+			Author:  gemara.Actor{Name: "tool", Type: gemara.Software},
+		},
+		Evaluations: []*gemara.ControlEvaluation{
+			{
+				Name:    "no reference, plan recorded",
+				Control: gemara.EntryMapping{EntryId: "r"},
+				Result:  gemara.Passed,
+				AssessmentLogs: []*gemara.AssessmentLog{
+					{
+						Requirement: gemara.EntryMapping{EntryId: "e"},
+						Description: "check",
+						Result:      gemara.Passed,
+						Steps:       []gemara.AssessmentStep{func(interface{}) (gemara.Result, string, gemara.ConfidenceLevel) { return gemara.Passed, "", gemara.Medium }},
+						Plan:        &gemara.EntryMapping{EntryId: "q"},
+					},
+				},
+			},
+			{
+				Name:    "reference set, no plan",
+				Control: gemara.EntryMapping{ReferenceId: "r", EntryId: "e"},
+				Result:  gemara.Failed,
+				AssessmentLogs: []*gemara.AssessmentLog{
+					makeAssessmentLog("q", "check differently", gemara.Failed, "", nil),
+				},
+			},
+			{
+				Name:    "entry id one",
+				Control: gemara.EntryMapping{EntryId: "x"},
+				Result:  gemara.Passed,
+				AssessmentLogs: []*gemara.AssessmentLog{
+					makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+				},
+			},
+			{
+				Name:    "reference holding the other's entry, entry holding the suffix",
+				Control: gemara.EntryMapping{ReferenceId: "x", EntryId: "finding"},
+				Result:  gemara.Failed,
+				AssessmentLogs: []*gemara.AssessmentLog{
+					makeAssessmentLog("REQ-2", "check differently", gemara.Failed, "", nil),
+				},
+			},
+		},
+		Target: gemara.Resource{Id: "sys-1", Name: "System", Type: gemara.Software},
+	}
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log, WithImportApHref("#"))
+	require.NoError(t, err)
+
+	require.NotNil(t, ar.Results[0].Observations)
+	observations := *ar.Results[0].Observations
+	require.Len(t, observations, 4)
+	assert.NotEqual(t, observations[0].UUID, observations[1].UUID,
+		"a missing reference must not let the entry slide into the reference slot")
+
+	require.NotNil(t, ar.Results[0].AssessmentLog)
+	entries := ar.Results[0].AssessmentLog.Entries
+	require.Len(t, entries, 4)
+	assert.NotEqual(t, entries[0].UUID, entries[1].UUID,
+		"a missing reference must not let the entry slide into the reference slot")
+
+	require.NotNil(t, ar.Results[0].Findings)
+	findings := *ar.Results[0].Findings
+	require.Len(t, findings, 4)
+	assert.NotEqual(t, findings[2].UUID, findings[3].UUID,
+		"an entry id must not be able to absorb the finding suffix")
+}
+
 func TestConflictingMappingReferences_ReturnError(t *testing.T) {
 	log := makeEvaluationLog(gemara.Actor{
 		Name: "test-tool",

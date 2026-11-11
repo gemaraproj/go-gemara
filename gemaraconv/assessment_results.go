@@ -109,27 +109,26 @@ type controlIdentity struct {
 // midnight.
 var nowFunc = time.Now
 
-// controlSourceKey renders a control mapping's identity for a UUID source
-// string. The mapping reference is included when set, so the same entry id
-// mapped through different references gets distinct UUIDs; a mapping with no
-// reference keeps the bare entry id.
-func controlSourceKey(c gemara.EntryMapping) string {
-	if c.ReferenceId == "" {
-		return url.PathEscape(c.EntryId)
-	}
-	return url.PathEscape(c.ReferenceId) + "/" + url.PathEscape(c.EntryId)
+// mappingSource renders a mapping's identity with a fixed marker per field.
+// The ref= and entry= markers are always emitted, empty when unset, so an
+// optional field can never shift the segment boundaries of a UUID source
+// string: a control with no reference and a control whose reference holds
+// what the first one's entry holds cannot render alike. Values are escaped,
+// so a "/" inside an id cannot be read as a separator either.
+func mappingSource(c gemara.EntryMapping) string {
+	return "ref=" + url.PathEscape(c.ReferenceId) + "/entry=" + url.PathEscape(c.EntryId)
 }
 
-// planSourceKey renders an assessment log's plan mapping for its UUID source
+// planSource renders an assessment log's plan mapping for its UUID source
 // segment and occurrence key: empty when no plan is recorded, the mapping's
-// identity otherwise. A recorded plan distinguishes logs that evaluate the
-// same requirement under different plans, leaving the occurrence counter to
-// break only the remaining ties.
-func planSourceKey(p *gemara.EntryMapping) string {
+// marked identity otherwise. A recorded plan distinguishes logs that
+// evaluate the same requirement under different plans, leaving the
+// occurrence counter to break only the remaining ties.
+func planSource(p *gemara.EntryMapping) string {
 	if p == nil {
 		return ""
 	}
-	return controlSourceKey(*p)
+	return mappingSource(*p)
 }
 
 // assessmentKey identifies what an assessment log evaluates: the control
@@ -184,7 +183,7 @@ func evaluationLogToResult(log gemara.EvaluationLog, catalog *gemara.ControlCata
 				continue
 			}
 
-			key := assessmentKey{controlId: controlSourceKey(eval.Control), requirementId: alog.Requirement.EntryId, plan: planSourceKey(alog.Plan)}
+			key := assessmentKey{controlId: mappingSource(eval.Control), requirementId: alog.Requirement.EntryId, plan: planSource(alog.Plan)}
 			occurrences[key]++
 
 			obs := buildObservation(alog, eval, origins, start, mappingResourceUUIDs, logId, occurrences[key])
@@ -319,7 +318,7 @@ func buildFinding(eval *gemara.ControlEvaluation, catalog *gemara.ControlCatalog
 	title = sanitizeTitle(title)
 
 	return oscal.Finding{
-		UUID:        uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/finding", url.PathEscape(logId), controlSourceKey(eval.Control))),
+		UUID:        uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/%s/finding", url.PathEscape(logId), mappingSource(eval.Control))),
 		Title:       title,
 		Description: description,
 		Origins:     origins,
@@ -425,18 +424,18 @@ func buildRelevantEvidence(evidence []gemara.Evidence, mappingResourceUUIDs map[
 }
 
 // assessmentSource builds the shared identity segment of the observation and
-// log-entry UUID sources: log id, control mapping (reference id when set,
-// then entry id), requirement, and occurrence counter. A recorded plan
-// mapping sits between the requirement and the counter, so logs that
-// evaluate the same requirement under different plans are distinct without
-// spending counter values on them; the counter breaks only ties among logs
-// sharing the same control, requirement, and plan.
+// log-entry UUID sources: log id, control mapping, requirement, recorded
+// plan, and occurrence counter. Every field carries a fixed marker (see
+// mappingSource) and the plan= slot is always emitted, so segment boundaries
+// cannot shift when a field is empty: a control with no reference cannot
+// render like a control whose reference holds what the first one's entry
+// holds. A recorded plan distinguishes logs that evaluate the same
+// requirement under different plans without spending counter values on them;
+// the counter breaks only ties among logs sharing the same control,
+// requirement, and plan.
 func assessmentSource(logId string, eval *gemara.ControlEvaluation, alog *gemara.AssessmentLog, occurrence int) string {
-	source := fmt.Sprintf("gemara:%s/%s/%s", url.PathEscape(logId), controlSourceKey(eval.Control), url.PathEscape(alog.Requirement.EntryId))
-	if plan := planSourceKey(alog.Plan); plan != "" {
-		source += "/" + plan
-	}
-	return fmt.Sprintf("%s/%d", source, occurrence)
+	return fmt.Sprintf("gemara:%s/%s/req=%s/plan=%s/%d",
+		url.PathEscape(logId), mappingSource(eval.Control), url.PathEscape(alog.Requirement.EntryId), planSource(alog.Plan), occurrence)
 }
 
 func buildLogEntry(alog *gemara.AssessmentLog, eval *gemara.ControlEvaluation, partyUUID string, fallback time.Time, logId string, occurrence int) oscal.AssessmentLogEntry {
