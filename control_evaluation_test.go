@@ -148,7 +148,10 @@ var controlEvaluationTestData = []struct {
 func TestEvaluate(t *testing.T) {
 	for _, test := range controlEvaluationTestData {
 		t.Run(test.testName, func(t *testing.T) {
-			c := test.control // copy the control to avoid duplication in the next test
+			// c aliases the shared controlEvaluationTestData entry; Evaluate
+			// resets its own aggregate state on entry, so this is safe to run
+			// against the table.
+			c := test.control
 			c.Evaluate(nil, testingApplicability)
 
 			if c.Result != test.expectedResult {
@@ -250,18 +253,108 @@ func TestEvaluate_RetainsFirstMessageForTiedAggregateResult(t *testing.T) {
 	}
 }
 
+// TestAddAssesment constructs its own ControlEvaluation rather than touching
+// controlEvaluationTestData: the table entries are shared pointers, and
+// mutating them here would make TestEvaluate's outcome depend on test order.
 func TestAddAssesment(t *testing.T) {
-
-	controlEvaluationTestData[0].control.AddAssessment("test", "test", []string{}, []AssessmentStep{})
-
-	if controlEvaluationTestData[0].control.Result != Failed {
-		t.Errorf("Expected Result to be Failed, but it was %v", controlEvaluationTestData[0].control.Result)
+	c := &ControlEvaluation{
+		AssessmentLogs: []*AssessmentLog{},
 	}
 
-	if controlEvaluationTestData[0].control.Message != "expected all AssessmentLog fields to have a value, but got: requirementId=len(4), description=len=(4), applicability=len(0), steps=len(0)" {
-		t.Errorf("Expected error message to be 'expected all AssessmentLog fields to have a value, but got: requirementId=len(4), description=len=(4), applicability=len(0), steps=len(0)', but instead it was '%v'", controlEvaluationTestData[0].control.Message)
+	c.AddAssessment("test", "test", []string{}, []AssessmentStep{})
+
+	if c.Result != Failed {
+		t.Errorf("Expected Result to be Failed, but it was %v", c.Result)
 	}
 
+	if c.Message != "expected all AssessmentLog fields to have a value, but got: requirementId=len(4), description=len=(4), applicability=len(0), steps=len(0)" {
+		t.Errorf("Expected error message to be 'expected all AssessmentLog fields to have a value, but got: requirementId=len(4), description=len=(4), applicability=len(0), steps=len(0)', but instead it was '%v'", c.Message)
+	}
+
+}
+
+// resultStep returns a single assessment step that reports the given result
+// and message, for re-evaluation tests that need distinct messages per run.
+func resultStep(result Result, message string) AssessmentStep {
+	return func(interface{}) (Result, string, ConfidenceLevel) {
+		return result, message, High
+	}
+}
+
+// assessmentForResult returns an assessment with a single resultStep,
+// applicable to testingApplicability.
+func assessmentForResult(requirementId string, result Result, message string) *AssessmentLog {
+	return &AssessmentLog{
+		Requirement:   EntryMapping{EntryId: requirementId},
+		Description:   "re-evaluation assessment",
+		Applicability: testingApplicability,
+		Steps:         []AssessmentStep{resultStep(result, message)},
+	}
+}
+
+// TestEvaluate_SecondRunIsNotCompounded is a regression test for a second
+// Evaluate call compounding its results with the first: Failed is sticky in
+// UpdateAggregateResult, and the first run's message persisted. Evaluate now
+// resets the control's aggregate state on entry, so a control that evaluated
+// Failed can recover on re-evaluation and the message reflects the latest run.
+func TestEvaluate_SecondRunIsNotCompounded(t *testing.T) {
+	tests := []struct {
+		name                string
+		firstLogs           []*AssessmentLog
+		secondLogs          []*AssessmentLog
+		secondApplicability []string
+		wantFirst           Result
+		wantSecond          Result
+		wantSecondMessage   string
+	}{
+		{
+			name:                "failed control recovers when the failing assessment is replaced",
+			firstLogs:           []*AssessmentLog{assessmentForResult("sub-1", Failed, "first run failure")},
+			secondLogs:          []*AssessmentLog{assessmentForResult("sub-1", Passed, "second run pass")},
+			secondApplicability: testingApplicability,
+			wantFirst:           Failed,
+			wantSecond:          Passed,
+			wantSecondMessage:   "second run pass",
+		},
+		{
+			name:                "failed control becomes not applicable when re-evaluated out of scope",
+			firstLogs:           []*AssessmentLog{assessmentForResult("sub-1", Failed, "first run failure")},
+			secondLogs:          []*AssessmentLog{assessmentForResult("sub-1", Failed, "first run failure")},
+			secondApplicability: []string{"maturity-2"},
+			wantFirst:           Failed,
+			wantSecond:          NotApplicable,
+			wantSecondMessage:   "Not applicable: requirement applies to [test-applicability], evaluation requested [maturity-2]",
+		},
+		{
+			name:                "message reflects the latest run",
+			firstLogs:           []*AssessmentLog{assessmentForResult("sub-1", NeedsReview, "first run review")},
+			secondLogs:          []*AssessmentLog{assessmentForResult("sub-1", NeedsReview, "second run review")},
+			secondApplicability: testingApplicability,
+			wantFirst:           NeedsReview,
+			wantSecond:          NeedsReview,
+			wantSecondMessage:   "second run review",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			c := &ControlEvaluation{AssessmentLogs: test.firstLogs}
+
+			c.Evaluate(nil, testingApplicability)
+			if c.Result != test.wantFirst {
+				t.Errorf("first Evaluate: Result: got = %v, want = %v", c.Result, test.wantFirst)
+			}
+
+			c.AssessmentLogs = test.secondLogs
+			c.Evaluate(nil, test.secondApplicability)
+			if c.Result != test.wantSecond {
+				t.Errorf("second Evaluate: Result: got = %v, want = %v (compounded with the first run)", c.Result, test.wantSecond)
+			}
+			if c.Message != test.wantSecondMessage {
+				t.Errorf("second Evaluate: Message: got = %q, want = %q", c.Message, test.wantSecondMessage)
+			}
+		})
+	}
 }
 
 // outOfScopeAssessmentPtr returns an assessment tagged for an applicability that

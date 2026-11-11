@@ -58,6 +58,11 @@ type Fetcher interface {
 
 // Load fetches and decodes a single artifact from the given source.
 // Format (YAML or JSON) is detected from the file extension.
+//
+// Unknown fields are ignored, letting artifacts written against a newer
+// Gemara schema decode into the types this version supports; the unknown
+// keys are dropped rather than preserved, so re-serializing writes only
+// the schema version this library is at.
 func Load[T any](ctx context.Context, f Fetcher, source string) (*T, error) {
 	u, err := url.Parse(source)
 	if err != nil {

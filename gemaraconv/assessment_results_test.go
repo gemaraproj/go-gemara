@@ -3,11 +3,14 @@
 package gemaraconv
 
 import (
+	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	oscal "github.com/defenseunicorns/go-oscal/src/types/oscal-1-1-3"
 	"github.com/gemaraproj/go-gemara"
+	"github.com/gemaraproj/go-gemara/fetcher"
 	oscalUtils "github.com/gemaraproj/go-gemara/internal/oscal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -477,4 +480,74 @@ func propertyValue(t *testing.T, props *[]oscal.Property, name string) string {
 	}
 	t.Fatalf("property %q not found", name)
 	return ""
+}
+
+// TestEvaluationLogToOSCALAssessmentResults_FixtureEvidence is an end-to-end
+// pass over the enriched fixture: load test-data/good-evaluation-log.yaml
+// through the public loader and verify the evidence blocks (sources, digests,
+// coordinates) survive conversion as RelevantEvidence with links back into
+// the back-matter resources for their mapping references.
+func TestEvaluationLogToOSCALAssessmentResults_FixtureEvidence(t *testing.T) {
+	log, err := gemara.Load[gemara.EvaluationLog](context.Background(), &fetcher.File{}, "../test-data/good-evaluation-log.yaml")
+	require.NoError(t, err)
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(*log)
+	require.NoError(t, err)
+
+	require.Len(t, ar.Results, 1)
+	require.NotNil(t, ar.Results[0].Observations)
+	observations := *ar.Results[0].Observations
+	require.Len(t, observations, 2)
+
+	// The first assessment (OSPS-AC-01.01) carries the fixture's three
+	// evidence blocks; the second (OSPS-DO-01.01) has none.
+	require.NotNil(t, observations[0].RelevantEvidence)
+	relevant := *observations[0].RelevantEvidence
+	require.Len(t, relevant, 3)
+	assert.Nil(t, observations[1].RelevantEvidence)
+
+	branchProtection := relevant[0]
+	assert.Equal(t, "branch-protection", propertyValue(t, branchProtection.Props, "id"))
+	assert.Equal(t, "configuration", propertyValue(t, branchProtection.Props, "type"))
+	assert.Equal(t, "api", propertyValue(t, branchProtection.Props, "source-reference-id"))
+	assert.Equal(t, "/repos/revanite-io/pvtr-github-repo/branches/main/protection", propertyValue(t, branchProtection.Props, "source-coordinate"))
+	assert.Equal(t, "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", propertyValue(t, branchProtection.Props, "source-digest"))
+	assert.Equal(t, "Retrieved through the GitHub REST API", branchProtection.Remarks)
+	require.NotNil(t, branchProtection.Links)
+	require.Len(t, *branchProtection.Links, 1)
+	assertResourceLink(t, ar, (*branchProtection.Links)[0].Href, "https://api.github.com")
+
+	mfaRequirement := relevant[1]
+	assert.Equal(t, "mfa-requirement", propertyValue(t, mfaRequirement.Props, "id"))
+	assert.Equal(t, "osps", propertyValue(t, mfaRequirement.Props, "source-reference-id"))
+	assert.Equal(t, "OSPS-AC-01.01", propertyValue(t, mfaRequirement.Props, "source-entry-id"))
+	assert.Equal(t, "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", propertyValue(t, mfaRequirement.Props, "source-digest"))
+	require.NotNil(t, mfaRequirement.Links)
+	require.Len(t, *mfaRequirement.Links, 1)
+	assertResourceLink(t, ar, (*mfaRequirement.Links)[0].Href, "https://baseline.openssf.org")
+
+	scanSummary := relevant[2]
+	assert.Equal(t, "scan-summary", propertyValue(t, scanSummary.Props, "id"))
+	assert.Nil(t, scanSummary.Links, "scan-summary has no source reference, so no resource link")
+
+	assertValidOSCAL(t, ar)
+}
+
+// assertResourceLink verifies that an evidence link's "#<uuid>" href resolves
+// to a back-matter resource whose rlink points at wantURL.
+func assertResourceLink(t *testing.T, ar oscal.AssessmentResults, href, wantURL string) {
+	t.Helper()
+	require.True(t, strings.HasPrefix(href, "#"), "evidence link must point inside the document: %s", href)
+	resourceUUID := strings.TrimPrefix(href, "#")
+	require.NotNil(t, ar.BackMatter)
+	require.NotNil(t, ar.BackMatter.Resources)
+	for _, r := range *ar.BackMatter.Resources {
+		if r.UUID == resourceUUID {
+			require.NotNil(t, r.Rlinks)
+			require.Len(t, *r.Rlinks, 1)
+			assert.Equal(t, wantURL, (*r.Rlinks)[0].Href)
+			return
+		}
+	}
+	t.Errorf("no back-matter resource with uuid %s", resourceUUID)
 }

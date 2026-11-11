@@ -2,6 +2,9 @@ package markdown
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/gemaraproj/go-gemara"
@@ -84,12 +87,33 @@ func gemaraMetadataWithLexicon(refID, lexURL string) gemara.Metadata {
 	}
 }
 
+// TestLexiconGistIntegration fetches a live gist, so it only runs when the
+// caller explicitly opts in via GEMARA_NETWORK_TESTS=1. The default test run
+// (local and CI) must never touch the network; the HTTP fetch path itself is
+// covered offline by TestLoadLexiconFromURI_http below.
 func TestLexiconGistIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("network")
+	if os.Getenv("GEMARA_NETWORK_TESTS") != "1" {
+		t.Skip("network test: set GEMARA_NETWORK_TESTS=1 to run")
 	}
 	const gist = "https://gist.githubusercontent.com/eddie-knight/3ffa5e1a5d562ba0f3b0cd3f5b563679/raw/1b39cb516f23430288b7893004eb0b91f14a7487/lexicon.yaml"
 	entries, err := loadLexiconFromURI(context.Background(), &fetcher.URI{}, gist)
 	require.NoError(t, err)
 	require.NotEmpty(t, entries)
+}
+
+// TestLoadLexiconFromURI_http exercises the http(s) fetch path against a local
+// httptest.Server, keeping that branch covered without external dependence.
+func TestLoadLexiconFromURI_http(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := w.Write(readLexiconTestdata(t, "lexicon_good.yaml"))
+		require.NoError(t, err)
+	}))
+	t.Cleanup(srv.Close)
+
+	// gemara.Load detects the format from the extension, so the URL needs a
+	// .yaml path; the server serves the same document for every path.
+	entries, err := loadLexiconFromURI(context.Background(), &fetcher.URI{}, srv.URL+"/lexicon.yaml")
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+	require.Equal(t, "Example Term", entries[0].Canonical)
 }
