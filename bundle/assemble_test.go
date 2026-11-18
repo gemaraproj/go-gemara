@@ -248,6 +248,32 @@ func TestAssembler_Assemble(t *testing.T) {
 			},
 			wantErr: "fetching dependency",
 		},
+		{
+			name:    "source that is not parseable Gemara YAML returns parse error",
+			fetcher: mapFetcher{},
+			source: File{
+				Name: "bad.yaml",
+				Data: []byte("a: [unclosed"),
+			},
+			wantErr: "parsing bad.yaml",
+		},
+		{
+			name: "fetched dependency with invalid YAML returns transitive parse error",
+			fetcher: mapFetcher{
+				"https://example.com/guidance.yaml": []byte("a: [unclosed"),
+			},
+			source: File{
+				Name: "controls.yaml",
+				Data: mustMarshal(t, testControlCatalog("test-cat",
+					[]gemara.MappingReference{{Id: "EXT-GUIDE", Title: "External Guidance", Version: "1.0", Url: "https://example.com/guidance.yaml"}},
+					nil,
+					[]gemara.MultiEntryMapping{
+						{ReferenceId: "EXT-GUIDE", Entries: []gemara.ArtifactMapping{{ReferenceId: "G1"}}},
+					},
+				)),
+			},
+			wantErr: "parsing transitive refs from guidance.yaml",
+		},
 	}
 
 	for _, tt := range tests {
@@ -258,6 +284,7 @@ func TestAssembler_Assemble(t *testing.T) {
 			b, err := asm.Assemble(context.Background(), m, tt.source, WithContinueOnError())
 			if tt.wantErr != "" {
 				assert.ErrorContains(t, err, tt.wantErr)
+				assert.Nil(t, b)
 				return
 			}
 			require.NoError(t, err)

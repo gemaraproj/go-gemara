@@ -21,6 +21,7 @@ func TestGuidanceToOSCAL(t *testing.T) {
 		guidance    gemara.GuidanceCatalog
 		catalogHref string
 		wantErr     bool
+		wantErrMsg  string
 	}{
 		{
 			name:        "valid guidance document",
@@ -34,6 +35,13 @@ func TestGuidanceToOSCAL(t *testing.T) {
 			catalogHref: "",
 			wantErr:     true,
 		},
+		{
+			name:        "error when guidance defines no families",
+			guidance:    gemara.GuidanceCatalog{Metadata: gemara.Metadata{Id: "no-families"}},
+			catalogHref: "test-catalog.json",
+			wantErr:     true,
+			wantErrMsg:  "document no-families does not have defined families",
+		},
 	}
 
 	for _, tt := range tests {
@@ -41,6 +49,9 @@ func TestGuidanceToOSCAL(t *testing.T) {
 			catalog, profile, err := GuidanceToOSCAL(tt.guidance, tt.catalogHref)
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantErrMsg != "" {
+					assert.ErrorContains(t, err, tt.wantErrMsg)
+				}
 				return
 			}
 			require.NoError(t, err)
