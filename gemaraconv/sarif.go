@@ -3,6 +3,7 @@ package gemaraconv
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -404,8 +405,14 @@ func buildLocationsFromEvidence(
 					Location: &ArtifactLocation{URI: uri},
 					Hashes:   hashes,
 				}
-				if desc != "" {
-					art.Description = &Message{Text: desc}
+				artDesc := ""
+				if ref, ok := refMap[item.Source.ReferenceId]; ok && ref.Title != "" {
+					artDesc = ref.Title
+				} else if desc != "" {
+					artDesc = desc
+				}
+				if artDesc != "" {
+					art.Description = &Message{Text: artDesc}
 				}
 				idx = len(*artifacts)
 				*artifacts = append(*artifacts, art)
@@ -429,11 +436,16 @@ func buildLocationsFromEvidence(
 }
 
 // resolveArtifactURI resolves an artifact URI from an EvidenceMapping and the document's MappingReferences.
-// Returns the reference URL if found and non-empty. Coordinate is kept in properties.
+// Returns the reference URL if found, non-empty, and valid as a URI reference. Coordinate is kept in properties.
 func resolveArtifactURI(refMap map[string]gemara.MappingReference, source gemara.EvidenceMapping) string {
 	if source.ReferenceId != "" {
-		if ref, found := refMap[source.ReferenceId]; found {
-			return ref.Url
+		if ref, found := refMap[source.ReferenceId]; found && ref.Url != "" {
+			if strings.Contains(ref.Url, "\\") {
+				return ""
+			}
+			if u, err := url.Parse(ref.Url); err == nil && u.String() != "" {
+				return ref.Url
+			}
 		}
 	}
 	return ""

@@ -514,13 +514,15 @@ func TestToSARIF_EvidenceRealArtifactURIs(t *testing.T) {
 	require.Len(t, run.Artifacts, 3)
 	assert.Equal(t, "https://api.github.com", run.Artifacts[0].Location.URI)
 	assert.Equal(t, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", run.Artifacts[0].Hashes["sha-256"])
-	assert.Equal(t, "Branch protection configuration", run.Artifacts[0].Description.Text)
+	assert.Equal(t, "GitHub API", run.Artifacts[0].Description.Text)
 
 	assert.Equal(t, "https://baseline.openssf.org", run.Artifacts[1].Location.URI)
 	assert.Equal(t, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", run.Artifacts[1].Hashes["sha-256"])
+	assert.Equal(t, "OpenSSF Baseline", run.Artifacts[1].Description.Text)
 
 	assert.Equal(t, "https://github.com/org/repo", run.Artifacts[2].Location.URI)
 	assert.Equal(t, "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", run.Artifacts[2].Hashes["sha-512"])
+	assert.Equal(t, "Repository", run.Artifacts[2].Description.Text)
 
 	// Verify Results
 	require.Len(t, run.Results, 2)
@@ -532,6 +534,7 @@ func TestToSARIF_EvidenceRealArtifactURIs(t *testing.T) {
 
 	loc1_0 := res1.Locations[0]
 	assert.Equal(t, "https://api.github.com", loc1_0.PhysicalLocation.ArtifactLocation.URI)
+	assert.Equal(t, "Branch protection configuration", loc1_0.PhysicalLocation.ArtifactLocation.Description.Text)
 	require.NotNil(t, loc1_0.PhysicalLocation.ArtifactLocation.Index)
 	assert.Equal(t, 0, *loc1_0.PhysicalLocation.ArtifactLocation.Index)
 	assert.Equal(t, "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", loc1_0.PhysicalLocation.ArtifactLocation.Properties["gemara/digest"])
@@ -747,6 +750,10 @@ func TestResolveArtifactURI_EdgeCases(t *testing.T) {
 			Id:  "invalid-url",
 			Url: "http://[::1]:namedport",
 		},
+		"windows-path": {
+			Id:  "windows-path",
+			Url: `C:\reports\scan.json`,
+		},
 	}
 
 	tests := []struct {
@@ -806,12 +813,19 @@ func TestResolveArtifactURI_EdgeCases(t *testing.T) {
 			expected: "",
 		},
 		{
-			name: "reference with url returns ref url directly",
+			name: "invalid url returns empty",
 			source: gemara.EvidenceMapping{
 				ReferenceId: "invalid-url",
 				Coordinate:  "path",
 			},
-			expected: "http://[::1]:namedport",
+			expected: "",
+		},
+		{
+			name: "windows path returns empty",
+			source: gemara.EvidenceMapping{
+				ReferenceId: "windows-path",
+			},
+			expected: "",
 		},
 	}
 
