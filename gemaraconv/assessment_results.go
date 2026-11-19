@@ -472,21 +472,19 @@ func buildTargetInventoryItem(target gemara.Resource) oscal.InventoryItem {
 		description = target.Name
 	}
 
+	// OSCAL rejects empty property values, so only emit the ones that are set.
+	var props []oscal.Property
+	if target.Id != "" {
+		props = append(props, oscal.Property{Name: "gemara-resource-id", Value: target.Id, Ns: oscalUtils.GemaraNamespace})
+	}
+	if target.Name != "" {
+		props = append(props, oscal.Property{Name: "name", Value: target.Name, Ns: oscalUtils.GemaraNamespace})
+	}
+
 	return oscal.InventoryItem{
 		UUID:        uuid.NewUUIDWithSource(fmt.Sprintf("gemara:%s/inventory-item", url.PathEscape(target.Id))),
 		Description: description,
-		Props: &[]oscal.Property{
-			{
-				Name:  "gemara-resource-id",
-				Value: target.Id,
-				Ns:    oscalUtils.GemaraNamespace,
-			},
-			{
-				Name:  "name",
-				Value: target.Name,
-				Ns:    oscalUtils.GemaraNamespace,
-			},
-		},
+		Props:       oscalUtils.NilIfEmpty(props),
 	}
 }
 
