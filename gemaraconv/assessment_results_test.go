@@ -234,7 +234,26 @@ func TestEvaluationLogToOSCALAssessmentResults_TargetInventoryItem(t *testing.T)
 	assert.Equal(t, "Production System", props[1].Value)
 }
 
-func TestEvaluationLogToOSCALAssessmentResults_TargetInventoryItemOmitsEmptyProps(t *testing.T) {
+func TestEvaluationLogToOSCALAssessmentResults_TargetInventoryItemOmitsEmptyName(t *testing.T) {
+	log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
+		makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
+	})
+	log.Target = gemara.Resource{Id: "my-sys"}
+
+	ar, err := EvaluationLogToOSCALAssessmentResults(log)
+	require.NoError(t, err)
+
+	item := (*ar.Results[0].LocalDefinitions.InventoryItems)[0]
+	require.NotNil(t, item.Props)
+	require.Len(t, *item.Props, 1)
+	assert.Equal(t, "my-sys", propertyValue(t, item.Props, "gemara-resource-id"))
+
+	assertValidOSCAL(t, ar)
+}
+
+// The conversion rejects a log with no target id before it builds the
+// inventory item, so targets without an id only reach the helper directly.
+func TestBuildTargetInventoryItem_OmitsEmptyProps(t *testing.T) {
 	tests := []struct {
 		name      string
 		target    gemara.Resource
@@ -249,24 +268,11 @@ func TestEvaluationLogToOSCALAssessmentResults_TargetInventoryItemOmitsEmptyProp
 			target:    gemara.Resource{Name: "Production System"},
 			wantProps: map[string]string{"name": "Production System"},
 		},
-		{
-			name:      "id only",
-			target:    gemara.Resource{Id: "my-sys"},
-			wantProps: map[string]string{"gemara-resource-id": "my-sys"},
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			log := makeEvaluationLog(gemara.Actor{Name: "tool", Type: gemara.Software}, []*gemara.AssessmentLog{
-				makeAssessmentLog("REQ-1", "check", gemara.Passed, "", nil),
-			})
-			log.Target = tt.target
-
-			ar, err := EvaluationLogToOSCALAssessmentResults(log)
-			require.NoError(t, err)
-
-			item := (*ar.Results[0].LocalDefinitions.InventoryItems)[0]
+			item := buildTargetInventoryItem(tt.target)
 			if tt.wantProps == nil {
 				assert.Nil(t, item.Props)
 			} else {
@@ -276,8 +282,6 @@ func TestEvaluationLogToOSCALAssessmentResults_TargetInventoryItemOmitsEmptyProp
 					assert.Equal(t, value, propertyValue(t, item.Props, name))
 				}
 			}
-
-			assertValidOSCAL(t, ar)
 		})
 	}
 }
