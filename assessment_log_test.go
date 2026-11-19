@@ -141,7 +141,7 @@ func TestRunStep(t *testing.T) {
 	}
 }
 
-// TestRun ensures that Run executes all steps, halting if any step does not return Passed
+// TestRun ensures that Run executes all steps, halting on the first step that returns Failed or NotApplicable.
 func TestRun(t *testing.T) {
 	for _, data := range getAssessmentsTestData() {
 		t.Run(data.testName, func(t *testing.T) {
@@ -790,6 +790,42 @@ func TestEvaluationLogFixtureRoundTrip(t *testing.T) {
 	steps := log.Evaluations[1].AssessmentLogs[0].Steps
 	require.Len(t, steps, 3)
 	assert.Equal(t, "github.com/revanite-io/pvtr-github-repo/evaluation_plans/osps/docs.hasUserGuides", steps[2].String())
+
+	// Mapping references the fixture's evidence sources point back at.
+	require.Len(t, log.Metadata.MappingReferences, 2)
+	assert.Equal(t, MappingReference{Id: "osps", Title: "OpenSSF Open Source Project Security Baseline", Version: "2025.1", Url: "https://baseline.openssf.org"}, log.Metadata.MappingReferences[0])
+	assert.Equal(t, MappingReference{Id: "api", Title: "GitHub API", Url: "https://api.github.com"}, log.Metadata.MappingReferences[1])
+
+	// The first evaluation's assessment carries the fixture's evidence blocks
+	// with sources, digests, and coordinates.
+	evidence := log.Evaluations[0].AssessmentLogs[0].Evidence
+	require.Len(t, evidence, 3)
+
+	assert.Equal(t, "branch-protection", evidence[0].Id)
+	assert.Equal(t, EvidenceType("configuration"), evidence[0].Type)
+	assert.Equal(t, Datetime("2025-08-22T16:02:00Z"), evidence[0].CollectedAt)
+	assert.Equal(t, map[string]any{"required-status-checks": true}, evidence[0].Payload)
+	assert.Equal(t, EvidenceMapping{
+		ReferenceId: "api",
+		Coordinate:  "/repos/revanite-io/pvtr-github-repo/branches/main/protection",
+		Digest:      "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Remarks:     "Retrieved through the GitHub REST API",
+	}, evidence[0].Source)
+	assert.Equal(t, "Branch protection requires status checks before merging.", evidence[0].Description)
+
+	assert.Equal(t, "mfa-requirement", evidence[1].Id)
+	assert.Equal(t, EvidenceType("command-output"), evidence[1].Type)
+	assert.Equal(t, EvidenceMapping{
+		ReferenceId: "osps",
+		EntryId:     "OSPS-AC-01.01",
+		Digest:      "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	}, evidence[1].Source)
+	assert.Equal(t, "The MFA requirement was evaluated against the OSPS control.", evidence[1].Description)
+
+	assert.Equal(t, "scan-summary", evidence[2].Id)
+	assert.Equal(t, EvidenceType("command-output"), evidence[2].Type)
+	assert.Equal(t, map[string]any{"passed": true}, evidence[2].Payload)
+	assert.Empty(t, evidence[2].Source.ReferenceId, "scan-summary has no source in the fixture")
 
 	first, err := codec.MarshalYAML(log)
 	require.NoError(t, err)

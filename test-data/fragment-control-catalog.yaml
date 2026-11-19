@@ -1,0 +1,14 @@
+groups:
+  - id: fragment-group
+    title: Fragment Group
+    description: Controls loaded from a file that carries no catalog identity.
+controls:
+  - id: EXAMPLE-EXT.CTL02
+    title: Fragment control
+    objective: Demonstrates a control loaded from an id-less fragment.
+    group: fragment-group
+    assessment-requirements:
+      - id: EXAMPLE-EXT.CTL02.AR01
+        text: The fragment control MUST be followed.
+        applicability:
+          - production

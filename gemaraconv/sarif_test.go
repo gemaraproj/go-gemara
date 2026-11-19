@@ -214,6 +214,49 @@ func TestFromEvaluationLog(t *testing.T) {
 				require.Equal(t, "This is the catalog recommendation", rule.Help.Text, "should use catalog recommendation when assessment log has none")
 			},
 		},
+		{
+			name: "nil last step falls back to requirement id for logical location",
+			opts: nil,
+			evaluationLog: makeEvaluationLog(gemara.Actor{
+				Name:    "gemara",
+				Uri:     "https://github.com/gemaraproj/go-gemara",
+				Version: "1.0.0",
+			}, []*gemara.AssessmentLog{
+				{
+					Requirement: gemara.EntryMapping{EntryId: "REQ-1"},
+					Description: "decoded log whose last step is null",
+					Result:      gemara.Failed,
+					Message:     "thing was not done",
+					// A null step in a decoded log stays nil; the logical
+					// location must fall back to the requirement id instead
+					// of panicking on the nil step's String().
+					Steps: []gemara.AssessmentStep{
+						func(interface{}) (gemara.Result, string, gemara.ConfidenceLevel) {
+							return gemara.Failed, "", gemara.Low
+						},
+						nil,
+					},
+					StepsExecuted: 2,
+				},
+			}),
+			wantRules:   1,
+			wantResults: 1,
+			wantLevels: map[string]string{
+				"REQ-1": "error",
+			},
+			wantKinds: map[string]string{
+				"REQ-1": "fail",
+			},
+			wantToolName: "gemara",
+			wantToolURI:  "https://github.com/gemaraproj/go-gemara",
+			wantToolVer:  "1.0.0",
+			checkLocation: func(t *testing.T, loc *Location) {
+				require.NotNil(t, loc.PhysicalLocation)
+				require.Equal(t, emptyArtifactURIMessage, loc.PhysicalLocation.ArtifactLocation.URI)
+				require.NotEmpty(t, loc.LogicalLocations)
+				require.Equal(t, "REQ-1", loc.LogicalLocations[0].FullyQualifiedName)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -371,7 +414,9 @@ func makeEvaluationLog(author gemara.Actor, logs []*gemara.AssessmentLog) gemara
 				AssessmentLogs: logs,
 			},
 		},
-		Metadata: gemara.Metadata{Author: author},
+		// The metadata id keys identity-bearing assembly UUIDs and the
+		// conversion rejects an empty one, so every fixture gets a default.
+		Metadata: gemara.Metadata{Id: "eval-log", Author: author},
 		Target:   gemara.Resource{Id: "example-target", Name: "Example Target", Type: gemara.Software},
 	}
 }
@@ -421,6 +466,5 @@ func toSARIFReport(t *testing.T, data []byte) *SarifReport {
 	var sarif SarifReport
 	err := json.Unmarshal(data, &sarif)
 	require.NoError(t, err)
-	require.NotNil(t, &sarif)
 	return &sarif
 }

@@ -48,7 +48,11 @@ jobs:
             echo "#$1 ($2): $4: $3"
             rows+="| [#$1](https://github.com/$GH_REPO/issues/$1) | $2 | ${3//|/\\|} | $4 |"$'\n'
           }
-          items() { echo "${1:-[]}" | jq -r '.[] | [(if .pull_request then "PR" else "Issue" end), .number, .title] | @tsv'; }
+          # Titles are untrusted input flowing into the step-summary markdown
+          # table: pipe characters are escaped for table integrity in add_row,
+          # and this pipeline HTML-escapes <, >, backtick, and [ so tags,
+          # code spans, and markdown links in a title cannot inject markup.
+          items() { echo "${1:-[]}" | jq -r '.[] | [(if .pull_request then "PR" else "Issue" end), (.number | tostring), (.title | gsub("<"; "&lt;") | gsub(">"; "&gt;") | gsub("`"; "&#96;") | gsub("\\["; "&#91;"))] | @tsv'; }
 
           while IFS=$'\t' read -r type number title; do
             add_row "$number" "$type" "$title" "Marked stale"

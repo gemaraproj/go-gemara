@@ -1,0 +1,42 @@
+title: Extending Control Catalog
+metadata:
+  id: EXAMPLE-EXT
+  type: ControlCatalog
+  gemara-version: "1.6.0"
+  version: 1.0.0
+  description: A control catalog that extends and imports from the FINOS CCC catalog.
+  author:
+    id: example
+    name: Example
+    type: Human
+  mapping-references:
+    - id: FINOS-CCC
+      title: FINOS Cloud Control Catalog
+      version: 1.0.0
+      description: Catalog this one builds upon.
+  applicability-groups:
+    - id: production
+      title: Production
+      description: Applies to production deployments.
+extends:
+  - reference-id: FINOS-CCC
+    remarks: Builds on the CCC core controls.
+imports:
+  - reference-id: FINOS-CCC
+    entries:
+      - reference-id: CCC.Core.CTL42
+        remarks: Image signing and verification
+groups:
+  - id: example-group
+    title: Example Group
+    description: Controls defined by this catalog.
+controls:
+  - id: EXAMPLE-EXT.CTL01
+    title: Example control
+    objective: Demonstrates a control alongside extends and imports.
+    group: example-group
+    assessment-requirements:
+      - id: EXAMPLE-EXT.CTL01.AR01
+        text: The example MUST be followed.
+        applicability:
+          - production
