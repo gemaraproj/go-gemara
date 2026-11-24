@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/url"
 	"path"
+	"strings"
 
 	"github.com/gemaraproj/go-gemara"
 	"github.com/gemaraproj/go-gemara/internal/codec"
@@ -89,6 +90,7 @@ func (a *Assembler) Assemble(ctx context.Context, m Manifest, source File, opts 
 
 	seen := make(map[string]bool)
 	depMap := make(map[string][]string)
+	names := make(map[string]string) // import name -> URL; import layer titles must be unique (a cycle back to the source may reuse its name, see the cycle test)
 
 	sourceParsed, err := parseFile(source)
 	if err != nil {
@@ -120,6 +122,10 @@ func (a *Assembler) Assemble(ctx context.Context, m Manifest, source File, opts 
 			Name: importFileName(item.refID, item.url),
 			Data: data,
 		}
+		if prev, dup := names[f.Name]; dup {
+			return nil, fmt.Errorf("dependency %q from %s would be named %q, which the import from %s already uses", item.refID, item.url, f.Name, prev)
+		}
+		names[f.Name] = item.url
 
 		pf, err := parseFile(f)
 		if err != nil {
@@ -262,9 +268,13 @@ func (a *Assembler) fetchAll(ctx context.Context, source string) ([]byte, error)
 }
 
 // importFileName derives a bundle-relative filename for a resolved import.
+// The URL's last segment is used only when it looks like a file name;
+// API-style URLs (e.g. .../versions/v2026.11) fall back to the reference id.
 func importFileName(refID, rawURL string) string {
 	if u, err := url.Parse(rawURL); err == nil {
-		if base := path.Base(u.Path); base != "" && base != "." && base != "/" {
+		base := path.Base(u.Path)
+		switch strings.ToLower(path.Ext(base)) {
+		case ".yaml", ".yml", ".json":
 			return base
 		}
 	}
