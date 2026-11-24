@@ -16,11 +16,12 @@ var emptyArtifactURIMessage = "no file associated with this alert"
 // Each AssessmentLog is emitted as a SARIF result. The rule id is derived from
 // the control id and requirement id.
 //
-// When an AssessmentLog carries Evidence with a source, real artifact URIs are
-// resolved from the evidence source and metadata mapping references, replacing
-// synthetic artifact URIs. The evidence digest is recorded on the artifactLocation
-// properties and mapped into run.artifacts hashes. If evidence or its source is
-// absent, PhysicalLocation falls back to WithArtifactURI (or a placeholder).
+// When an AssessmentLog carries Evidence with a source, each evidence item is
+// emitted as a SARIF attachment whose location URI is resolved from the
+// evidence source and metadata mapping references. The evidence digest is
+// recorded on the attachment properties under "gemara/digest" and
+// mapped into run.artifacts hashes. PhysicalLocation identifies the default
+// evaluation location via WithArtifactURI (or a placeholder).
 //
 // Use WithArtifactURI to set the fallback PhysicalLocation (defaults to a placeholder).
 // Use WithCatalog to enrich rules with requirement text and recommendations.
@@ -149,31 +150,31 @@ func ToSARIF(evaluationLog gemara.EvaluationLog, opts ...EvalOption) ([]byte, er
 				}
 			}
 
-			var locations []Location
-			if len(log.Evidence) > 0 {
-				locations = buildLocationsFromEvidence(log.Evidence, refMap, logicalLocationName, &artifacts, artifactIndexMap, defaultArtifactURI)
-			}
-			if len(locations) == 0 {
-				locations = []Location{
-					{
-						PhysicalLocation: &PhysicalLocation{
-							ArtifactLocation: ArtifactLocation{
-								URI: defaultArtifactURI,
-							},
-						},
-						LogicalLocations: []LogicalLocation{
-							{FullyQualifiedName: logicalLocationName},
+			locations := []Location{
+				{
+					PhysicalLocation: &PhysicalLocation{
+						ArtifactLocation: ArtifactLocation{
+							URI: defaultArtifactURI,
 						},
 					},
-				}
+					LogicalLocations: []LogicalLocation{
+						{FullyQualifiedName: logicalLocationName},
+					},
+				},
+			}
+
+			var attachments []Attachment
+			if len(log.Evidence) > 0 {
+				attachments = buildAttachmentsFromEvidence(log.Evidence, refMap, &artifacts, artifactIndexMap, defaultArtifactURI)
 			}
 
 			result := ResultEntry{
-				RuleID:    ruleID,
-				Kind:      kind,
-				Level:     level,
-				Message:   Message{Text: msg},
-				Locations: locations,
+				RuleID:      ruleID,
+				Kind:        kind,
+				Level:       level,
+				Message:     Message{Text: msg},
+				Locations:   locations,
+				Attachments: attachments,
 				PartialFingerprints: map[string]string{
 					"gemara/requirementId/v1": ruleID,
 				},
@@ -264,8 +265,15 @@ type ResultEntry struct {
 	Level               string            `json:"level,omitempty"`
 	Message             Message           `json:"message"`
 	Locations           []Location        `json:"locations,omitempty"`
+	Attachments         []Attachment      `json:"attachments,omitempty"`
 	PartialFingerprints map[string]string `json:"partialFingerprints,omitempty"`
 	Properties          map[string]any    `json:"properties,omitempty"`
+}
+
+type Attachment struct {
+	Description *Message         `json:"description,omitempty"`
+	Location    ArtifactLocation `json:"location"`
+	Properties  map[string]any   `json:"properties,omitempty"`
 }
 
 type Message struct {
@@ -285,7 +293,7 @@ type PhysicalLocation struct {
 type ArtifactLocation struct {
 	URI         string         `json:"uri"`
 	URIBaseID   string         `json:"uriBaseId,omitempty"`
-	Index       *int           `json:"index,omitempty"`
+	Index       int            `json:"index,omitempty"`
 	Description *Message       `json:"description,omitempty"`
 	Properties  map[string]any `json:"properties,omitempty"`
 }
@@ -306,16 +314,15 @@ type LogicalLocation struct {
 	FullyQualifiedName string `json:"fullyQualifiedName,omitempty"`
 }
 
-// buildLocationsFromEvidence constructs SARIF Location objects from Gemara Evidence items.
-func buildLocationsFromEvidence(
+// buildAttachmentsFromEvidence constructs SARIF Attachment objects from Gemara Evidence items.
+func buildAttachmentsFromEvidence(
 	evidence []gemara.Evidence,
 	refMap map[string]gemara.MappingReference,
-	stepLocationName string,
 	artifacts *[]Artifact,
 	artifactIndexMap map[string]int,
 	defaultArtifactURI string,
-) []Location {
-	var locations []Location
+) []Attachment {
+	var attachments []Attachment
 	seenEvidenceIDs := make(map[string]bool)
 	seenAnon := make(map[string]bool)
 
@@ -362,12 +369,29 @@ func buildLocationsFromEvidence(
 		}
 
 		var props map[string]any
+		if item.Id != "" {
+			if props == nil {
+				props = make(map[string]any)
+			}
+			props["gemara/id"] = item.Id
+		}
+		if item.Type != "" {
+			if props == nil {
+				props = make(map[string]any)
+			}
+			props["gemara/type"] = string(item.Type)
+		}
+		if item.CollectedAt != "" {
+			if props == nil {
+				props = make(map[string]any)
+			}
+			props["gemara/collected-at"] = string(item.CollectedAt)
+		}
 		if item.Source.Digest != "" {
 			if props == nil {
 				props = make(map[string]any)
 			}
 			props["gemara/digest"] = item.Source.Digest
-			props["gemara/source-digest"] = item.Source.Digest
 		}
 		if item.Source.ReferenceId != "" {
 			if props == nil {
@@ -418,21 +442,22 @@ func buildLocationsFromEvidence(
 				*artifacts = append(*artifacts, art)
 				artifactIndexMap[artifactKey] = idx
 			}
-			idxCopy := idx
-			artLoc.Index = &idxCopy
+			artLoc.Index = idx
 		}
 
-		locations = append(locations, Location{
-			PhysicalLocation: &PhysicalLocation{
-				ArtifactLocation: artLoc,
-			},
-			LogicalLocations: []LogicalLocation{
-				{FullyQualifiedName: stepLocationName},
-			},
+		var descMsg *Message
+		if desc != "" {
+			descMsg = &Message{Text: desc}
+		}
+
+		attachments = append(attachments, Attachment{
+			Description: descMsg,
+			Location:    artLoc,
+			Properties:  props,
 		})
 	}
 
-	return locations
+	return attachments
 }
 
 // resolveArtifactURI resolves an artifact URI from an EvidenceMapping and the document's MappingReferences.

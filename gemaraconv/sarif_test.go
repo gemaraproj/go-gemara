@@ -527,39 +527,46 @@ func TestToSARIF_EvidenceRealArtifactURIs(t *testing.T) {
 	// Verify Results
 	require.Len(t, run.Results, 2)
 
-	// REQ-1 has 2 evidence locations
+	// REQ-1 has 1 default location and 2 evidence attachments
 	res1 := run.Results[0]
 	assert.Equal(t, "REQ-1", res1.RuleID)
-	require.Len(t, res1.Locations, 2)
+	require.Len(t, res1.Locations, 1)
+	assert.Equal(t, emptyArtifactURIMessage, res1.Locations[0].PhysicalLocation.ArtifactLocation.URI)
+	require.Len(t, res1.Attachments, 2)
 
-	loc1_0 := res1.Locations[0]
-	assert.Equal(t, "https://api.github.com", loc1_0.PhysicalLocation.ArtifactLocation.URI)
-	assert.Equal(t, "Branch protection configuration", loc1_0.PhysicalLocation.ArtifactLocation.Description.Text)
-	require.NotNil(t, loc1_0.PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, 0, *loc1_0.PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", loc1_0.PhysicalLocation.ArtifactLocation.Properties["gemara/digest"])
-	assert.Equal(t, "github-api", loc1_0.PhysicalLocation.ArtifactLocation.Properties["gemara/source-reference-id"])
-	assert.Equal(t, "/repos/org/repo/branches/main/protection", loc1_0.PhysicalLocation.ArtifactLocation.Properties["gemara/source-coordinate"])
+	att1_0 := res1.Attachments[0]
+	assert.Equal(t, "https://api.github.com", att1_0.Location.URI)
+	assert.Equal(t, "Branch protection configuration", att1_0.Description.Text)
+	assert.Equal(t, 0, att1_0.Location.Index)
+	assert.Equal(t, "ev-api", att1_0.Properties["gemara/id"])
+	assert.Equal(t, "configuration", att1_0.Properties["gemara/type"])
+	assert.Equal(t, "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", att1_0.Properties["gemara/digest"])
+	assert.Equal(t, "github-api", att1_0.Properties["gemara/source-reference-id"])
+	assert.Equal(t, "/repos/org/repo/branches/main/protection", att1_0.Properties["gemara/source-coordinate"])
 
-	loc1_1 := res1.Locations[1]
-	assert.Equal(t, "https://baseline.openssf.org", loc1_1.PhysicalLocation.ArtifactLocation.URI)
-	require.NotNil(t, loc1_1.PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, 1, *loc1_1.PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", loc1_1.PhysicalLocation.ArtifactLocation.Properties["gemara/digest"])
-	assert.Equal(t, "osps", loc1_1.PhysicalLocation.ArtifactLocation.Properties["gemara/source-reference-id"])
-	assert.Equal(t, "OSPS-AC-01.01", loc1_1.PhysicalLocation.ArtifactLocation.Properties["gemara/source-entry-id"])
+	att1_1 := res1.Attachments[1]
+	assert.Equal(t, "https://baseline.openssf.org", att1_1.Location.URI)
+	assert.Equal(t, 1, att1_1.Location.Index)
+	assert.Equal(t, "ev-osps", att1_1.Properties["gemara/id"])
+	assert.Equal(t, "command-output", att1_1.Properties["gemara/type"])
+	assert.Equal(t, "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", att1_1.Properties["gemara/digest"])
+	assert.Equal(t, "osps", att1_1.Properties["gemara/source-reference-id"])
+	assert.Equal(t, "OSPS-AC-01.01", att1_1.Properties["gemara/source-entry-id"])
 
-	// REQ-2 has 1 evidence location
+	// REQ-2 has 1 default location and 1 evidence attachment
 	res2 := run.Results[1]
 	assert.Equal(t, "REQ-2", res2.RuleID)
 	require.Len(t, res2.Locations, 1)
-	loc2_0 := res2.Locations[0]
-	assert.Equal(t, "https://github.com/org/repo", loc2_0.PhysicalLocation.ArtifactLocation.URI)
-	require.NotNil(t, loc2_0.PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, 2, *loc2_0.PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, "sha-512:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", loc2_0.PhysicalLocation.ArtifactLocation.Properties["gemara/digest"])
-	assert.Equal(t, "repo", loc2_0.PhysicalLocation.ArtifactLocation.Properties["gemara/source-reference-id"])
-	assert.Equal(t, "SECURITY-INSIGHTS.yml", loc2_0.PhysicalLocation.ArtifactLocation.Properties["gemara/source-coordinate"])
+	assert.Equal(t, emptyArtifactURIMessage, res2.Locations[0].PhysicalLocation.ArtifactLocation.URI)
+	require.Len(t, res2.Attachments, 1)
+	att2_0 := res2.Attachments[0]
+	assert.Equal(t, "https://github.com/org/repo", att2_0.Location.URI)
+	assert.Equal(t, 2, att2_0.Location.Index)
+	assert.Equal(t, "ev-file", att2_0.Properties["gemara/id"])
+	assert.Equal(t, "file", att2_0.Properties["gemara/type"])
+	assert.Equal(t, "sha-512:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", att2_0.Properties["gemara/digest"])
+	assert.Equal(t, "repo", att2_0.Properties["gemara/source-reference-id"])
+	assert.Equal(t, "SECURITY-INSIGHTS.yml", att2_0.Properties["gemara/source-coordinate"])
 }
 
 func TestToSARIF_EvidenceFallbackWhenAbsent(t *testing.T) {
@@ -603,8 +610,7 @@ func TestToSARIF_EvidenceFallbackWhenAbsent(t *testing.T) {
 		for _, res := range run.Results {
 			require.Len(t, res.Locations, 1)
 			assert.Equal(t, emptyArtifactURIMessage, res.Locations[0].PhysicalLocation.ArtifactLocation.URI)
-			assert.Nil(t, res.Locations[0].PhysicalLocation.ArtifactLocation.Index)
-			assert.Nil(t, res.Locations[0].PhysicalLocation.ArtifactLocation.Properties)
+			assert.Empty(t, res.Attachments)
 		}
 	})
 
@@ -620,6 +626,7 @@ func TestToSARIF_EvidenceFallbackWhenAbsent(t *testing.T) {
 		for _, res := range run.Results {
 			require.Len(t, res.Locations, 1)
 			assert.Equal(t, "fallback.txt", res.Locations[0].PhysicalLocation.ArtifactLocation.URI)
+			assert.Empty(t, res.Attachments)
 		}
 	})
 }
@@ -659,21 +666,22 @@ func TestToSARIF_EvidencePreservesDigestAndAlgorithm(t *testing.T) {
 	sarif := toSARIFReport(t, data)
 	run := sarif.Runs[0]
 
-	require.Len(t, run.Results[0].Locations, 2)
+	require.Len(t, run.Results[0].Locations, 1)
+	require.Len(t, run.Results[0].Attachments, 2)
 
 	// file1 has valid algorithm:hash
-	loc1 := run.Results[0].Locations[0].PhysicalLocation.ArtifactLocation
-	assert.Equal(t, "https://example.com/file1", loc1.URI)
-	assert.Equal(t, "sha3-512:arbitrary-encoding==", loc1.Properties["gemara/digest"])
-	require.NotNil(t, loc1.Index)
-	assert.Equal(t, "arbitrary-encoding==", run.Artifacts[*loc1.Index].Hashes["sha3-512"])
+	att1 := run.Results[0].Attachments[0]
+	assert.Equal(t, "https://example.com/file1", att1.Location.URI)
+	assert.Equal(t, "sha3-512:arbitrary-encoding==", att1.Properties["gemara/digest"])
+	assert.Equal(t, 0, att1.Location.Index)
+	assert.Equal(t, "arbitrary-encoding==", run.Artifacts[att1.Location.Index].Hashes["sha3-512"])
 
 	// file2 has unvalidated digest - preserved in properties, no crash in hashes
-	loc2 := run.Results[0].Locations[1].PhysicalLocation.ArtifactLocation
-	assert.Equal(t, "https://example.com/file2", loc2.URI)
-	assert.Equal(t, "not-a-digest", loc2.Properties["gemara/digest"])
-	require.NotNil(t, loc2.Index)
-	assert.Nil(t, run.Artifacts[*loc2.Index].Hashes)
+	att2 := run.Results[0].Attachments[1]
+	assert.Equal(t, "https://example.com/file2", att2.Location.URI)
+	assert.Equal(t, "not-a-digest", att2.Properties["gemara/digest"])
+	assert.Equal(t, 1, att2.Location.Index)
+	assert.Nil(t, run.Artifacts[att2.Location.Index].Hashes)
 }
 
 func TestToSARIF_GoodEvaluationLogFixture(t *testing.T) {
@@ -696,22 +704,25 @@ func TestToSARIF_GoodEvaluationLogFixture(t *testing.T) {
 	// Documentation - User Guides (OSPS-DO-01.01) is Failed.
 	require.Len(t, run.Results, 2)
 
-	// Check REQ 1: OSPS-AC-01.01
+	// Check REQ 1: OSPS-AC-01.01 has 1 default location and 2 evidence attachments
 	res1 := run.Results[0]
 	assert.Equal(t, "OSPS-AC-01.01", res1.RuleID)
 	assert.Equal(t, "pass", res1.Kind)
-	require.Len(t, res1.Locations, 2)
-	assert.Equal(t, "https://api.github.com", res1.Locations[0].PhysicalLocation.ArtifactLocation.URI)
-	assert.Equal(t, "/repos/revanite-io/pvtr-github-repo/branches/main/protection", res1.Locations[0].PhysicalLocation.ArtifactLocation.Properties["gemara/source-coordinate"])
-	assert.Equal(t, "https://baseline.openssf.org", res1.Locations[1].PhysicalLocation.ArtifactLocation.URI)
+	require.Len(t, res1.Locations, 1)
+	assert.Equal(t, emptyArtifactURIMessage, res1.Locations[0].PhysicalLocation.ArtifactLocation.URI)
+	require.Len(t, res1.Attachments, 2)
+	assert.Equal(t, "https://api.github.com", res1.Attachments[0].Location.URI)
+	assert.Equal(t, "/repos/revanite-io/pvtr-github-repo/branches/main/protection", res1.Attachments[0].Properties["gemara/source-coordinate"])
+	assert.Equal(t, "https://baseline.openssf.org", res1.Attachments[1].Location.URI)
 
-	// Check REQ 2: OSPS-DO-01.01 has no evidence, falls back to placeholder
+	// Check REQ 2: OSPS-DO-01.01 has no evidence, falls back to placeholder and has no attachments
 	res2 := run.Results[1]
 	assert.Equal(t, "OSPS-DO-01.01", res2.RuleID)
 	assert.Equal(t, "fail", res2.Kind)
 	assert.Equal(t, "error", res2.Level)
 	require.Len(t, res2.Locations, 1)
 	assert.Equal(t, emptyArtifactURIMessage, res2.Locations[0].PhysicalLocation.ArtifactLocation.URI)
+	assert.Empty(t, res2.Attachments)
 
 	// Verify run.artifacts collected the 2 URIs from evidence
 	require.Len(t, run.Artifacts, 2)
@@ -921,25 +932,25 @@ func TestToSARIF_EvidenceDuplicateAndSharedArtifacts(t *testing.T) {
 	assert.Equal(t, "https://example.com/shared.json", run.Artifacts[1].Location.URI)
 	assert.Equal(t, "2222222222222222222222222222222222222222222222222222222222222222", run.Artifacts[1].Hashes["sha-256"])
 
-	require.Len(t, run.Results[0].Locations, 2)
-	assert.Equal(t, "https://example.com/shared.json", run.Results[0].Locations[0].PhysicalLocation.ArtifactLocation.URI)
-	require.NotNil(t, run.Results[0].Locations[0].PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, 0, *run.Results[0].Locations[0].PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, "entry-1", run.Results[0].Locations[0].PhysicalLocation.ArtifactLocation.Properties["gemara/source-entry-id"])
+	require.Len(t, run.Results[0].Locations, 1)
+	assert.Equal(t, emptyArtifactURIMessage, run.Results[0].Locations[0].PhysicalLocation.ArtifactLocation.URI)
+	require.Len(t, run.Results[0].Attachments, 2)
+	assert.Equal(t, "https://example.com/shared.json", run.Results[0].Attachments[0].Location.URI)
+	assert.Equal(t, 0, run.Results[0].Attachments[0].Location.Index)
+	assert.Equal(t, "entry-1", run.Results[0].Attachments[0].Properties["gemara/source-entry-id"])
 
-	assert.Equal(t, "https://example.com/shared.json", run.Results[0].Locations[1].PhysicalLocation.ArtifactLocation.URI)
-	require.NotNil(t, run.Results[0].Locations[1].PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, 0, *run.Results[0].Locations[1].PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, "entry-2", run.Results[0].Locations[1].PhysicalLocation.ArtifactLocation.Properties["gemara/source-entry-id"])
+	assert.Equal(t, "https://example.com/shared.json", run.Results[0].Attachments[1].Location.URI)
+	assert.Equal(t, 0, run.Results[0].Attachments[1].Location.Index)
+	assert.Equal(t, "entry-2", run.Results[0].Attachments[1].Properties["gemara/source-entry-id"])
 
 	require.Len(t, run.Results[1].Locations, 1)
-	require.NotNil(t, run.Results[1].Locations[0].PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, 1, *run.Results[1].Locations[0].PhysicalLocation.ArtifactLocation.Index)
+	require.Len(t, run.Results[1].Attachments, 1)
+	assert.Equal(t, 1, run.Results[1].Attachments[0].Location.Index)
 
 	require.Len(t, run.Results[2].Locations, 1)
-	assert.Equal(t, emptyArtifactURIMessage, run.Results[2].Locations[0].PhysicalLocation.ArtifactLocation.URI)
-	assert.Nil(t, run.Results[2].Locations[0].PhysicalLocation.ArtifactLocation.Index)
-	assert.Equal(t, "nourl-ref", run.Results[2].Locations[0].PhysicalLocation.ArtifactLocation.Properties["gemara/source-reference-id"])
+	require.Len(t, run.Results[2].Attachments, 1)
+	assert.Equal(t, emptyArtifactURIMessage, run.Results[2].Attachments[0].Location.URI)
+	assert.Equal(t, "nourl-ref", run.Results[2].Attachments[0].Properties["gemara/source-reference-id"])
 }
 
 func TestNormalizeHashAlgorithm(t *testing.T) {
