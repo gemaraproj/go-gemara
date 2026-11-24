@@ -419,6 +419,9 @@ func TestImportFileName(t *testing.T) {
 		{"EXT", "https://example.com/", "EXT.yaml"},
 		{"EXT", "not a url ://", "EXT.yaml"},
 		{"MY-REF", "file:///tmp/data.yaml", "data.yaml"},
+		{"EXT", "https://example.com/data.JSON", "data.JSON"},
+		{"CCC.Core.Threats", "https://hub.example/v1/catalogs/ccc.core.threats/versions/v2026.11", "CCC.Core.Threats.yaml"},
+		{"EXT", "https://example.com/catalog", "EXT.yaml"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.refID+"_"+tt.url, func(t *testing.T) {
@@ -682,4 +685,28 @@ func TestMappingWarning_String(t *testing.T) {
 	assert.Contains(t, w.String(), "policy.yaml")
 	assert.Contains(t, w.String(), "org-policy")
 	assert.Contains(t, w.String(), "missing-ref")
+}
+
+func TestAssembler_Assemble_DuplicateImportName(t *testing.T) {
+	leaf := mustMarshal(t, testControlCatalog("leaf", nil, nil, nil))
+	fetcher := mapFetcher{
+		"https://a.example/catalog.yaml": leaf,
+		"https://b.example/catalog.yaml": leaf,
+	}
+	source := File{
+		Name: "source.yaml",
+		Data: mustMarshal(t, testControlCatalog("src",
+			[]gemara.MappingReference{
+				{Id: "A", Title: "A", Version: "1.0", Url: "https://a.example/catalog.yaml"},
+				{Id: "B", Title: "B", Version: "1.0", Url: "https://b.example/catalog.yaml"},
+			},
+			nil,
+			[]gemara.MultiEntryMapping{
+				{ReferenceId: "A", Entries: []gemara.ArtifactMapping{{ReferenceId: "x"}}},
+				{ReferenceId: "B", Entries: []gemara.ArtifactMapping{{ReferenceId: "x"}}},
+			},
+		)),
+	}
+	_, err := NewAssembler(fetcher).Assemble(context.Background(), Manifest{}, source, WithContinueOnError())
+	require.ErrorContains(t, err, `would be named "catalog.yaml"`)
 }
